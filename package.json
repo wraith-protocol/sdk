@@ -1,0 +1,48 @@
+{
+  "name": "@wraith-protocol/sdk",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./chains/evm": {
+      "types": "./dist/chains/evm/index.d.ts",
+      "import": "./dist/chains/evm/index.js",
+      "require": "./dist/chains/evm/index.cjs"
+    },
+    "./chains/stellar": {
+      "types": "./dist/chains/stellar/index.d.ts",
+      "import": "./dist/chains/stellar/index.js",
+      "require": "./dist/chains/stellar/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.8.0",
+    "@noble/hashes": "^1.7.0",
+    "viem": "^2.23.0"
+  },
+  "peerDependencies": {
+    "@stellar/stellar-sdk": "^13.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@stellar/stellar-sdk": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@stellar/stellar-sdk": "^13.1.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.0"
+  }
+}
