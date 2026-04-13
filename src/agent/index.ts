@@ -1,5 +1,5 @@
-export { Wraith, WraithAgent } from "./client";
-export { Chain } from "./types";
+export { Wraith, WraithAgent } from './client';
+export { Chain } from './types';
 export type {
   WraithConfig,
   AgentConfig,
@@ -14,4 +14,4 @@ export type {
   PrivacyReport,
   Notification,
   Conversation,
-} from "./types";
+} from './types';

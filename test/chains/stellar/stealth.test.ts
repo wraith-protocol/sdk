@@ -1,12 +1,12 @@
-import { describe, test, expect } from "vitest";
-import { deriveStealthKeys } from "../../../src/chains/stellar/keys";
-import { generateStealthAddress } from "../../../src/chains/stellar/stealth";
+import { describe, test, expect } from 'vitest';
+import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
+import { generateStealthAddress } from '../../../src/chains/stellar/stealth';
 
 const testSig = new Uint8Array(64).fill(0xaa);
 const fixedSeed = new Uint8Array(32).fill(0xcc);
 
-describe("generateStealthAddress", () => {
-  test("generates valid stealth address", () => {
+describe('generateStealthAddress', () => {
+  test('generates valid stealth address', () => {
     const keys = deriveStealthKeys(testSig);
     const result = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedSeed);
 
@@ -17,7 +17,7 @@ describe("generateStealthAddress", () => {
     expect(result.viewTag).toBeLessThanOrEqual(255);
   });
 
-  test("deterministic with fixed ephemeral seed", () => {
+  test('deterministic with fixed ephemeral seed', () => {
     const keys = deriveStealthKeys(testSig);
     const r1 = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedSeed);
     const r2 = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedSeed);
@@ -27,7 +27,7 @@ describe("generateStealthAddress", () => {
     expect(r1.viewTag).toBe(r2.viewTag);
   });
 
-  test("different ephemeral seeds produce different addresses", () => {
+  test('different ephemeral seeds produce different addresses', () => {
     const keys = deriveStealthKeys(testSig);
     const r1 = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedSeed);
     const altSeed = new Uint8Array(32).fill(0xdd);
@@ -36,7 +36,7 @@ describe("generateStealthAddress", () => {
     expect(r1.stealthAddress).not.toBe(r2.stealthAddress);
   });
 
-  test("different recipients produce different addresses", () => {
+  test('different recipients produce different addresses', () => {
     const keys1 = deriveStealthKeys(testSig);
     const sig2 = new Uint8Array(64).fill(0xbb);
     const keys2 = deriveStealthKeys(sig2);

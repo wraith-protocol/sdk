@@ -7,10 +7,10 @@ import type {
   Payment,
   Notification,
   Conversation,
-} from "./types";
-import { Chain } from "./types";
+} from './types';
+import { Chain } from './types';
 
-const DEFAULT_BASE_URL = "https://api.wraith.dev";
+const DEFAULT_BASE_URL = 'https://api.wraith.dev';
 
 export class Wraith {
   private readonly apiKey: string;
@@ -19,7 +19,7 @@ export class Wraith {
 
   constructor(config: WraithConfig) {
     this.apiKey = config.apiKey;
-    this.baseUrl = (config.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
+    this.baseUrl = (config.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '');
     this.aiConfig = config.ai;
   }
 
@@ -27,9 +27,11 @@ export class Wraith {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${this.apiKey}`,
-        ...(this.aiConfig ? { "X-AI-Provider": this.aiConfig.provider, "X-AI-Key": this.aiConfig.apiKey } : {}),
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+        ...(this.aiConfig
+          ? { 'X-AI-Provider': this.aiConfig.provider, 'X-AI-Key': this.aiConfig.apiKey }
+          : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
     });
@@ -43,26 +45,32 @@ export class Wraith {
   }
 
   async createAgent(config: AgentConfig): Promise<WraithAgent> {
-    const info = await this.request<AgentInfo>("POST", "/agent/create", config);
+    const info = await this.request<AgentInfo>('POST', '/agent/create', config);
     return new WraithAgent(this, info);
   }
 
   agent(agentId: string): WraithAgent {
-    return new WraithAgent(this, { id: agentId, name: "", chains: [], addresses: {} as Record<Chain, string>, metaAddresses: {} as Record<Chain, string> });
+    return new WraithAgent(this, {
+      id: agentId,
+      name: '',
+      chains: [],
+      addresses: {} as Record<Chain, string>,
+      metaAddresses: {} as Record<Chain, string>,
+    });
   }
 
   async getAgentByWallet(walletAddress: string): Promise<WraithAgent> {
-    const info = await this.request<AgentInfo>("GET", `/agent/wallet/${walletAddress}`);
+    const info = await this.request<AgentInfo>('GET', `/agent/wallet/${walletAddress}`);
     return new WraithAgent(this, info);
   }
 
   async getAgentByName(name: string): Promise<WraithAgent> {
-    const info = await this.request<AgentInfo>("GET", `/agent/info/${name}`);
+    const info = await this.request<AgentInfo>('GET', `/agent/info/${name}`);
     return new WraithAgent(this, info);
   }
 
   async listAgents(): Promise<AgentInfo[]> {
-    return this.request<AgentInfo[]>("GET", "/agents");
+    return this.request<AgentInfo[]>('GET', '/agents');
   }
 
   /** @internal Exposed for WraithAgent to use. */
@@ -85,52 +93,56 @@ export class WraithAgent {
   }
 
   async chat(message: string, conversationId?: string): Promise<ChatResponse> {
-    return this.req<ChatResponse>("POST", "/chat", { message, conversationId });
+    return this.req<ChatResponse>('POST', '/chat', { message, conversationId });
   }
 
   async getStatus(): Promise<any> {
-    return this.req("GET", "/status");
+    return this.req('GET', '/status');
   }
 
   async getBalance(): Promise<Balance> {
     const status = await this.getStatus();
-    return { native: status.balance || "0", tokens: status.tokens || {} };
+    return { native: status.balance || '0', tokens: status.tokens || {} };
   }
 
   async scanPayments(): Promise<Payment[]> {
-    const res = await this.chat("Scan for incoming stealth payments");
+    const res = await this.chat('Scan for incoming stealth payments');
     return (res.toolCalls || [])
-      .filter(tc => tc.name === "scan_payments")
-      .flatMap(tc => {
-        try { return JSON.parse(tc.detail || "[]"); } catch { return []; }
+      .filter((tc) => tc.name === 'scan_payments')
+      .flatMap((tc) => {
+        try {
+          return JSON.parse(tc.detail || '[]');
+        } catch {
+          return [];
+        }
       });
   }
 
   async exportKey(signature: string, message: string): Promise<{ secret: string }> {
-    return this.req<{ secret: string }>("POST", "/export", { signature, message });
+    return this.req<{ secret: string }>('POST', '/export', { signature, message });
   }
 
   async getConversations(): Promise<Conversation[]> {
-    return this.req<Conversation[]>("GET", "/conversations");
+    return this.req<Conversation[]>('GET', '/conversations');
   }
 
   async getMessages(conversationId: string): Promise<Array<{ role: string; text: string }>> {
-    return this.req("GET", `/conversations/${conversationId}/messages`);
+    return this.req('GET', `/conversations/${conversationId}/messages`);
   }
 
   async deleteConversation(conversationId: string): Promise<void> {
-    await this.req("DELETE", `/conversations/${conversationId}`);
+    await this.req('DELETE', `/conversations/${conversationId}`);
   }
 
   async getNotifications(): Promise<{ notifications: Notification[]; unreadCount: number }> {
-    return this.req("GET", "/notifications");
+    return this.req('GET', '/notifications');
   }
 
   async markNotificationsRead(): Promise<void> {
-    await this.req("POST", "/notifications/read", {});
+    await this.req('POST', '/notifications/read', {});
   }
 
   async clearNotifications(): Promise<void> {
-    await this.req("DELETE", "/notifications");
+    await this.req('DELETE', '/notifications');
   }
 }

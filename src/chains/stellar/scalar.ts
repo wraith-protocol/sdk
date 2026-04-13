@@ -1,14 +1,14 @@
-import { ed25519 } from "@noble/curves/ed25519";
-import { sha512 } from "@noble/hashes/sha512";
-import { sha256 } from "@noble/hashes/sha256";
-import { StrKey } from "@stellar/stellar-sdk";
+import { ed25519 } from '@noble/curves/ed25519';
+import { sha512 } from '@noble/hashes/sha512';
+import { sha256 } from '@noble/hashes/sha256';
+import { StrKey } from '@stellar/stellar-sdk';
 
 /**
  * ed25519 group order (order of the base point).
  * L = 2^252 + 27742317777372353535851937790883648493
  */
 export const L = BigInt(
-  "7237005577332262213973186563042994240857116359379907606001950938285454250989"
+  '7237005577332262213973186563042994240857116359379907606001950938285454250989',
 );
 
 /**
@@ -64,10 +64,7 @@ export function scalarToBytes(scalar: bigint): Uint8Array {
  *
  * Returns the 32-byte compressed ed25519 public key.
  */
-export function deriveStealthPubKey(
-  spendingPubKey: Uint8Array,
-  hashScalar: bigint
-): Uint8Array {
+export function deriveStealthPubKey(spendingPubKey: Uint8Array, hashScalar: bigint): Uint8Array {
   const K_spend = ed25519.ExtendedPoint.fromHex(spendingPubKey);
   const hashPoint = ed25519.ExtendedPoint.BASE.multiply(hashScalar);
   const stealthPoint = K_spend.add(hashPoint);
@@ -89,7 +86,7 @@ export function pubKeyToStellarAddress(pubKeyBytes: Uint8Array): string {
  * as a little-endian integer, reduced mod L.
  */
 export function hashToScalar(sharedSecret: Uint8Array): bigint {
-  const prefix = new TextEncoder().encode("wraith:scalar:");
+  const prefix = new TextEncoder().encode('wraith:scalar:');
   const input = new Uint8Array(prefix.length + sharedSecret.length);
   input.set(prefix);
   input.set(sharedSecret, prefix.length);
@@ -115,7 +112,7 @@ export function hashToScalar(sharedSecret: Uint8Array): bigint {
 export function signWithScalar(
   message: Uint8Array,
   scalar: bigint,
-  publicKey: Uint8Array
+  publicKey: Uint8Array,
 ): Uint8Array {
   const scalarBytes = scalarToBytes(scalar);
   const prefix = sha256(scalarBytes);
@@ -129,9 +126,7 @@ export function signWithScalar(
   const R = ed25519.ExtendedPoint.BASE.multiply(r);
   const encodedR = R.toRawBytes();
 
-  const kInput = new Uint8Array(
-    encodedR.length + publicKey.length + message.length
-  );
+  const kInput = new Uint8Array(encodedR.length + publicKey.length + message.length);
   kInput.set(encodedR);
   kInput.set(publicKey, encodedR.length);
   kInput.set(message, encodedR.length + publicKey.length);

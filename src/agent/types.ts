@@ -1,18 +1,18 @@
 export enum Chain {
-  Horizen = "horizen",
-  Ethereum = "ethereum",
-  Polygon = "polygon",
-  Base = "base",
-  Stellar = "stellar",
-  Solana = "solana",
-  All = "all",
+  Horizen = 'horizen',
+  Ethereum = 'ethereum',
+  Polygon = 'polygon',
+  Base = 'base',
+  Stellar = 'stellar',
+  Solana = 'solana',
+  All = 'all',
 }
 
 export interface WraithConfig {
   apiKey: string;
   baseUrl?: string;
   ai?: {
-    provider: "gemini" | "openai" | "claude";
+    provider: 'gemini' | 'openai' | 'claude';
     apiKey: string;
   };
 }
@@ -62,7 +62,7 @@ export interface Invoice {
   amount: string;
   asset: string;
   memo: string;
-  status: "pending" | "paid";
+  status: 'pending' | 'paid';
   txHash: string | null;
   paymentLink: string;
   createdAt: string;
@@ -73,8 +73,8 @@ export interface Schedule {
   recipient: string;
   amount: string;
   asset: string;
-  interval: "daily" | "weekly" | "monthly";
-  status: "active" | "paused" | "cancelled";
+  interval: 'daily' | 'weekly' | 'monthly';
+  status: 'active' | 'paused' | 'cancelled';
   nextRun: string;
 }
 
@@ -86,7 +86,7 @@ export interface TxResult {
 export interface PrivacyReport {
   score: number;
   issues: Array<{
-    severity: "info" | "low" | "medium" | "high" | "critical";
+    severity: 'info' | 'low' | 'medium' | 'high' | 'critical';
     issue: string;
     recommendation: string;
   }>;

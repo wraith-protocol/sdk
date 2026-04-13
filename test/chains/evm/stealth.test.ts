@@ -1,14 +1,14 @@
-import { describe, test, expect } from "vitest";
-import { deriveStealthKeys } from "../../../src/chains/evm/keys";
-import { generateStealthAddress } from "../../../src/chains/evm/stealth";
-import { getAddress } from "viem";
-import type { HexString } from "../../../src/chains/evm/types";
+import { describe, test, expect } from 'vitest';
+import { deriveStealthKeys } from '../../../src/chains/evm/keys';
+import { generateStealthAddress } from '../../../src/chains/evm/stealth';
+import { getAddress } from 'viem';
+import type { HexString } from '../../../src/chains/evm/types';
 
-const testSig = ("0x" + "aa".repeat(32) + "bb".repeat(32) + "1b") as HexString;
-const fixedEphKey = ("0x" + "cc".repeat(32)) as HexString;
+const testSig = ('0x' + 'aa'.repeat(32) + 'bb'.repeat(32) + '1b') as HexString;
+const fixedEphKey = ('0x' + 'cc'.repeat(32)) as HexString;
 
-describe("generateStealthAddress", () => {
-  test("generates valid stealth address", () => {
+describe('generateStealthAddress', () => {
+  test('generates valid stealth address', () => {
     const keys = deriveStealthKeys(testSig);
     const result = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedEphKey);
 
@@ -18,7 +18,7 @@ describe("generateStealthAddress", () => {
     expect(result.viewTag).toBeLessThanOrEqual(255);
   });
 
-  test("deterministic with fixed ephemeral key", () => {
+  test('deterministic with fixed ephemeral key', () => {
     const keys = deriveStealthKeys(testSig);
     const r1 = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedEphKey);
     const r2 = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedEphKey);
@@ -28,18 +28,18 @@ describe("generateStealthAddress", () => {
     expect(r1.viewTag).toBe(r2.viewTag);
   });
 
-  test("different ephemeral keys produce different addresses", () => {
+  test('different ephemeral keys produce different addresses', () => {
     const keys = deriveStealthKeys(testSig);
     const r1 = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedEphKey);
-    const altEph = ("0x" + "dd".repeat(32)) as HexString;
+    const altEph = ('0x' + 'dd'.repeat(32)) as HexString;
     const r2 = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, altEph);
 
     expect(r1.stealthAddress).not.toBe(r2.stealthAddress);
   });
 
-  test("different recipients produce different addresses", () => {
+  test('different recipients produce different addresses', () => {
     const keys1 = deriveStealthKeys(testSig);
-    const sig2 = ("0x" + "11".repeat(32) + "22".repeat(32) + "1c") as HexString;
+    const sig2 = ('0x' + '11'.repeat(32) + '22'.repeat(32) + '1c') as HexString;
     const keys2 = deriveStealthKeys(sig2);
 
     const r1 = generateStealthAddress(keys1.spendingPubKey, keys1.viewingPubKey, fixedEphKey);
@@ -48,7 +48,7 @@ describe("generateStealthAddress", () => {
     expect(r1.stealthAddress).not.toBe(r2.stealthAddress);
   });
 
-  test("address is valid EVM address", () => {
+  test('address is valid EVM address', () => {
     const keys = deriveStealthKeys(testSig);
     const result = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedEphKey);
 

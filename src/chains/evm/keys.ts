@@ -1,6 +1,6 @@
-import { secp256k1 } from "@noble/curves/secp256k1";
-import { keccak256, toHex, toBytes } from "viem";
-import type { HexString, StealthKeys } from "./types";
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { keccak256, toHex, toBytes } from 'viem';
+import type { HexString, StealthKeys } from './types';
 
 /**
  * Derives stealth spending and viewing keys from a wallet signature.
@@ -15,9 +15,7 @@ export function deriveStealthKeys(signature: HexString): StealthKeys {
   const sigBytes = toBytes(signature);
 
   if (sigBytes.length !== 65) {
-    throw new Error(
-      `Expected 65-byte signature, got ${sigBytes.length} bytes`
-    );
+    throw new Error(`Expected 65-byte signature, got ${sigBytes.length} bytes`);
   }
 
   const r = sigBytes.slice(0, 32);
@@ -31,18 +29,14 @@ export function deriveStealthKeys(signature: HexString): StealthKeys {
   const n = secp256k1.CURVE.n;
 
   if (spendingScalar === 0n || spendingScalar >= n) {
-    throw new Error("Derived spending key is not a valid secp256k1 scalar");
+    throw new Error('Derived spending key is not a valid secp256k1 scalar');
   }
   if (viewingScalar === 0n || viewingScalar >= n) {
-    throw new Error("Derived viewing key is not a valid secp256k1 scalar");
+    throw new Error('Derived viewing key is not a valid secp256k1 scalar');
   }
 
-  const spendingPubKey = toHex(
-    secp256k1.getPublicKey(toBytes(spendingKey), true)
-  ) as HexString;
-  const viewingPubKey = toHex(
-    secp256k1.getPublicKey(toBytes(viewingKey), true)
-  ) as HexString;
+  const spendingPubKey = toHex(secp256k1.getPublicKey(toBytes(spendingKey), true)) as HexString;
+  const viewingPubKey = toHex(secp256k1.getPublicKey(toBytes(viewingKey), true)) as HexString;
 
   return { spendingKey, viewingKey, spendingPubKey, viewingPubKey };
 }

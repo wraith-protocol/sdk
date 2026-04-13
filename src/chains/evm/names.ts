@@ -1,6 +1,6 @@
-import { secp256k1 } from "@noble/curves/secp256k1";
-import { keccak256, toHex, toBytes, encodePacked } from "viem";
-import type { HexString } from "./types";
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { keccak256, toHex, toBytes, encodePacked } from 'viem';
+import type { HexString } from './types';
 
 /**
  * Signs a name registration message with the spending private key.
@@ -15,11 +15,9 @@ import type { HexString } from "./types";
 export function signNameRegistration(
   name: string,
   metaAddressBytes: HexString,
-  spendingKey: HexString
+  spendingKey: HexString,
 ): HexString {
-  const digest = keccak256(
-    encodePacked(["string", "bytes"], [name, metaAddressBytes])
-  );
+  const digest = keccak256(encodePacked(['string', 'bytes'], [name, metaAddressBytes]));
   return signWithEthPrefix(digest, spendingKey);
 }
 
@@ -37,13 +35,10 @@ export function signNameRegistrationOnBehalf(
   name: string,
   metaAddressBytes: HexString,
   spendingKey: HexString,
-  nonce: bigint
+  nonce: bigint,
 ): HexString {
   const digest = keccak256(
-    encodePacked(
-      ["string", "bytes", "uint256"],
-      [name, metaAddressBytes, nonce]
-    )
+    encodePacked(['string', 'bytes', 'uint256'], [name, metaAddressBytes, nonce]),
   );
   return signWithEthPrefix(digest, spendingKey);
 }
@@ -60,11 +55,9 @@ export function signNameRegistrationOnBehalf(
 export function signNameUpdate(
   name: string,
   newMetaAddressBytes: HexString,
-  spendingKey: HexString
+  spendingKey: HexString,
 ): HexString {
-  const digest = keccak256(
-    encodePacked(["string", "bytes"], [name, newMetaAddressBytes])
-  );
+  const digest = keccak256(encodePacked(['string', 'bytes'], [name, newMetaAddressBytes]));
   return signWithEthPrefix(digest, spendingKey);
 }
 
@@ -75,11 +68,8 @@ export function signNameUpdate(
  * @param spendingKey The owner's spending private key.
  * @returns The 65-byte signature as a hex string.
  */
-export function signNameRelease(
-  name: string,
-  spendingKey: HexString
-): HexString {
-  const digest = keccak256(encodePacked(["string"], [name]));
+export function signNameRelease(name: string, spendingKey: HexString): HexString {
+  const digest = keccak256(encodePacked(['string'], [name]));
   return signWithEthPrefix(digest, spendingKey);
 }
 
@@ -88,10 +78,10 @@ export function signNameRelease(
  * Returns the 0x-prefixed 66-byte hex.
  */
 export function metaAddressToBytes(metaAddress: string): HexString {
-  if (!metaAddress.startsWith("st:eth:0x")) {
-    throw new Error("Invalid meta-address format");
+  if (!metaAddress.startsWith('st:eth:0x')) {
+    throw new Error('Invalid meta-address format');
   }
-  return `0x${metaAddress.slice("st:eth:0x".length)}` as HexString;
+  return `0x${metaAddress.slice('st:eth:0x'.length)}` as HexString;
 }
 
 /**
@@ -100,15 +90,12 @@ export function metaAddressToBytes(metaAddress: string): HexString {
  */
 function signWithEthPrefix(digest: HexString, privateKey: HexString): HexString {
   const prefixed = keccak256(
-    encodePacked(
-      ["string", "bytes32"],
-      ["\x19Ethereum Signed Message:\n32", digest]
-    )
+    encodePacked(['string', 'bytes32'], ['\x19Ethereum Signed Message:\n32', digest]),
   );
 
   const sig = secp256k1.sign(toBytes(prefixed), toBytes(privateKey).slice(0, 32));
-  const r = sig.r.toString(16).padStart(64, "0");
-  const s = sig.s.toString(16).padStart(64, "0");
-  const v = sig.recovery === 0 ? "1b" : "1c";
+  const r = sig.r.toString(16).padStart(64, '0');
+  const s = sig.s.toString(16).padStart(64, '0');
+  const v = sig.recovery === 0 ? '1b' : '1c';
   return `0x${r}${s}${v}` as HexString;
 }

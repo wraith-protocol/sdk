@@ -1,6 +1,6 @@
-import { secp256k1 } from "@noble/curves/secp256k1";
-import { keccak256, toHex, toBytes, getAddress } from "viem";
-import type { HexString, GeneratedStealthAddress } from "./types";
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { keccak256, toHex, toBytes, getAddress } from 'viem';
+import type { HexString, GeneratedStealthAddress } from './types';
 
 /**
  * Generates a one-time stealth address for a recipient.
@@ -18,18 +18,14 @@ import type { HexString, GeneratedStealthAddress } from "./types";
 export function generateStealthAddress(
   spendingPubKey: HexString,
   viewingPubKey: HexString,
-  ephemeralPrivateKey?: HexString
+  ephemeralPrivateKey?: HexString,
 ): GeneratedStealthAddress {
   const ephPrivKey = ephemeralPrivateKey
     ? toBytes(ephemeralPrivateKey)
     : secp256k1.utils.randomPrivateKey();
   const ephPubKey = secp256k1.getPublicKey(ephPrivKey, true);
 
-  const sharedSecret = secp256k1.getSharedSecret(
-    ephPrivKey,
-    toBytes(viewingPubKey),
-    true
-  );
+  const sharedSecret = secp256k1.getSharedSecret(ephPrivKey, toBytes(viewingPubKey), true);
 
   const hashedSecret = keccak256(toHex(sharedSecret));
   const hashedSecretBytes = toBytes(hashedSecret);
@@ -39,7 +35,7 @@ export function generateStealthAddress(
   const n = secp256k1.CURVE.n;
   let secretScalar = BigInt(hashedSecret) % n;
   if (secretScalar === 0n) {
-    throw new Error("Hashed secret reduced to zero mod n");
+    throw new Error('Hashed secret reduced to zero mod n');
   }
 
   const K_spend = secp256k1.ProjectivePoint.fromHex(toBytes(spendingPubKey));
@@ -49,9 +45,7 @@ export function generateStealthAddress(
   const uncompressed = stealthPubKey.toRawBytes(false);
   const pubKeyNoPrefix = uncompressed.slice(1);
   const addressHash = keccak256(toHex(pubKeyNoPrefix));
-  const stealthAddress = getAddress(
-    `0x${addressHash.slice(-40)}`
-  ) as HexString;
+  const stealthAddress = getAddress(`0x${addressHash.slice(-40)}`) as HexString;
 
   return {
     stealthAddress,

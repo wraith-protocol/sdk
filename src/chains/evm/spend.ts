@@ -1,6 +1,6 @@
-import { secp256k1 } from "@noble/curves/secp256k1";
-import { keccak256, toHex, toBytes } from "viem";
-import type { HexString } from "./types";
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { keccak256, toHex, toBytes } from 'viem';
+import type { HexString } from './types';
 
 /**
  * Derives the private key that controls a stealth address.
@@ -16,12 +16,12 @@ import type { HexString } from "./types";
 export function deriveStealthPrivateKey(
   spendingKey: HexString,
   ephemeralPubKey: HexString,
-  viewingKey: HexString
+  viewingKey: HexString,
 ): HexString {
   const sharedSecret = secp256k1.getSharedSecret(
     toBytes(viewingKey),
     toBytes(ephemeralPubKey),
-    true
+    true,
   );
 
   const hashedSecret = keccak256(toHex(sharedSecret));
@@ -31,6 +31,6 @@ export function deriveStealthPrivateKey(
   const s_h = BigInt(hashedSecret) % n;
   const stealthPrivKey = (m + s_h) % n;
 
-  const hex = stealthPrivKey.toString(16).padStart(64, "0");
+  const hex = stealthPrivKey.toString(16).padStart(64, '0');
   return `0x${hex}` as HexString;
 }

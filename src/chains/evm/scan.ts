@@ -1,12 +1,8 @@
-import { secp256k1 } from "@noble/curves/secp256k1";
-import { keccak256, toHex, toBytes, getAddress } from "viem";
-import { deriveStealthPrivateKey } from "./spend";
-import { SCHEME_ID } from "./constants";
-import type {
-  HexString,
-  Announcement,
-  MatchedAnnouncement,
-} from "./types";
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { keccak256, toHex, toBytes, getAddress } from 'viem';
+import { deriveStealthPrivateKey } from './spend';
+import { SCHEME_ID } from './constants';
+import type { HexString, Announcement, MatchedAnnouncement } from './types';
 
 /**
  * Checks whether a single announcement belongs to the recipient.
@@ -21,12 +17,12 @@ export function checkStealthAddress(
   ephemeralPubKey: HexString,
   viewingKey: HexString,
   spendingPubKey: HexString,
-  viewTag: number
+  viewTag: number,
 ): { isMatch: boolean; stealthAddress: HexString | null } {
   const sharedSecret = secp256k1.getSharedSecret(
     toBytes(viewingKey),
     toBytes(ephemeralPubKey),
-    true
+    true,
   );
 
   const hashedSecret = keccak256(toHex(sharedSecret));
@@ -46,9 +42,7 @@ export function checkStealthAddress(
   const uncompressed = stealthPubKey.toRawBytes(false);
   const pubKeyNoPrefix = uncompressed.slice(1);
   const addressHash = keccak256(toHex(pubKeyNoPrefix));
-  const stealthAddress = getAddress(
-    `0x${addressHash.slice(-40)}`
-  ) as HexString;
+  const stealthAddress = getAddress(`0x${addressHash.slice(-40)}`) as HexString;
 
   return { isMatch: true, stealthAddress };
 }
@@ -67,7 +61,7 @@ export function scanAnnouncements(
   announcements: Announcement[],
   viewingKey: HexString,
   spendingPubKey: HexString,
-  spendingKey: HexString
+  spendingKey: HexString,
 ): MatchedAnnouncement[] {
   const matched: MatchedAnnouncement[] = [];
 
@@ -78,22 +72,16 @@ export function scanAnnouncements(
     if (metadataBytes.length === 0) continue;
     const viewTag = metadataBytes[0];
 
-    const result = checkStealthAddress(
-      ann.ephemeralPubKey,
-      viewingKey,
-      spendingPubKey,
-      viewTag
-    );
+    const result = checkStealthAddress(ann.ephemeralPubKey, viewingKey, spendingPubKey, viewTag);
 
     if (
       result.isMatch &&
-      result.stealthAddress?.toLowerCase() ===
-        ann.stealthAddress.toLowerCase()
+      result.stealthAddress?.toLowerCase() === ann.stealthAddress.toLowerCase()
     ) {
       const stealthPrivateKey = deriveStealthPrivateKey(
         spendingKey,
         ann.ephemeralPubKey,
-        viewingKey
+        viewingKey,
       );
 
       matched.push({ ...ann, stealthPrivateKey });

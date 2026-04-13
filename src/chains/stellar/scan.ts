@@ -1,16 +1,8 @@
-import {
-  computeSharedSecret,
-  computeViewTag,
-} from "./stealth";
-import {
-  hashToScalar,
-  deriveStealthPubKey,
-  pubKeyToStellarAddress,
-  L,
-} from "./scalar";
-import { SCHEME_ID } from "./constants";
-import type { Announcement, MatchedAnnouncement } from "./types";
-import { hexToBytes } from "./utils";
+import { computeSharedSecret, computeViewTag } from './stealth';
+import { hashToScalar, deriveStealthPubKey, pubKeyToStellarAddress, L } from './scalar';
+import { SCHEME_ID } from './constants';
+import type { Announcement, MatchedAnnouncement } from './types';
+import { hexToBytes } from './utils';
 
 /**
  * Checks whether a single announcement belongs to the recipient.
@@ -28,7 +20,7 @@ export function checkStealthAddress(
   ephemeralPubKey: Uint8Array,
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
-  viewTag: number
+  viewTag: number,
 ): {
   isMatch: boolean;
   stealthAddress: string | null;
@@ -65,7 +57,7 @@ export function scanAnnouncements(
   announcements: Announcement[],
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
-  spendingScalar: bigint
+  spendingScalar: bigint,
 ): MatchedAnnouncement[] {
   const matched: MatchedAnnouncement[] = [];
 
@@ -79,12 +71,7 @@ export function scanAnnouncements(
     const ephPubKey = hexToBytes(ann.ephemeralPubKey);
     if (ephPubKey.length !== 32) continue;
 
-    const result = checkStealthAddress(
-      ephPubKey,
-      viewingKey,
-      spendingPubKey,
-      viewTag
-    );
+    const result = checkStealthAddress(ephPubKey, viewingKey, spendingPubKey, viewTag);
 
     if (
       result.isMatch &&
@@ -92,8 +79,7 @@ export function scanAnnouncements(
       result.hashScalar !== null &&
       result.stealthPubKeyBytes !== null
     ) {
-      const stealthPrivateScalar =
-        (spendingScalar + result.hashScalar) % L;
+      const stealthPrivateScalar = (spendingScalar + result.hashScalar) % L;
 
       matched.push({
         ...ann,

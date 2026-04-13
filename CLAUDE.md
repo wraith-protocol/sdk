@@ -21,6 +21,7 @@ Three entry points, one `npm install`:
 Read these BEFORE writing code. Do not copy files wholesale — understand the logic, then build into the new structure.
 
 Key reference docs:
+
 - `reference/docs/01-sdk-structure.md` — Package layout, exports, tsup config
 - `reference/docs/02-evm-chain-crypto.md` — All EVM algorithms with exact math
 - `reference/docs/03-stellar-chain-crypto.md` — All Stellar algorithms with exact math
@@ -51,19 +52,20 @@ Verify: `pnpm install && pnpm build` produces `dist/` with all three entry point
 
 Port from `reference/horizen/packages/sdk/src/` into `src/chains/evm/`:
 
-| File | Purpose |
-|---|---|
-| `constants.ts` | `STEALTH_SIGNING_MESSAGE`, `SCHEME_ID = 1n`, `META_ADDRESS_PREFIX = "st:eth:0x"` |
-| `types.ts` | `HexString`, `StealthKeys`, `GeneratedStealthAddress`, `Announcement`, `MatchedAnnouncement` |
-| `keys.ts` | `deriveStealthKeys(signature)` — split r/s, keccak256 each, validate scalars |
-| `stealth.ts` | `generateStealthAddress(spendPub, viewPub)` — ECDH, point addition, keccak256 address |
-| `scan.ts` | `checkStealthAddress()`, `scanAnnouncements()` — view tag filter, address matching |
-| `spend.ts` | `deriveStealthPrivateKey(spendKey, ephPub, viewKey)` — `(m + s_h) mod n` |
-| `meta-address.ts` | `encodeStealthMetaAddress()`, `decodeStealthMetaAddress()` — `st:eth:0x` format |
-| `names.ts` | `signNameRegistration()`, `signNameUpdate()`, `signNameRelease()`, `metaAddressToBytes()` |
-| `index.ts` | Re-exports everything |
+| File              | Purpose                                                                                      |
+| ----------------- | -------------------------------------------------------------------------------------------- |
+| `constants.ts`    | `STEALTH_SIGNING_MESSAGE`, `SCHEME_ID = 1n`, `META_ADDRESS_PREFIX = "st:eth:0x"`             |
+| `types.ts`        | `HexString`, `StealthKeys`, `GeneratedStealthAddress`, `Announcement`, `MatchedAnnouncement` |
+| `keys.ts`         | `deriveStealthKeys(signature)` — split r/s, keccak256 each, validate scalars                 |
+| `stealth.ts`      | `generateStealthAddress(spendPub, viewPub)` — ECDH, point addition, keccak256 address        |
+| `scan.ts`         | `checkStealthAddress()`, `scanAnnouncements()` — view tag filter, address matching           |
+| `spend.ts`        | `deriveStealthPrivateKey(spendKey, ephPub, viewKey)` — `(m + s_h) mod n`                     |
+| `meta-address.ts` | `encodeStealthMetaAddress()`, `decodeStealthMetaAddress()` — `st:eth:0x` format              |
+| `names.ts`        | `signNameRegistration()`, `signNameUpdate()`, `signNameRelease()`, `metaAddressToBytes()`    |
+| `index.ts`        | Re-exports everything                                                                        |
 
 Write tests in `test/chains/evm/`:
+
 - `keys.test.ts` — valid derivation, determinism, spending != viewing, wrong length rejection
 - `stealth.test.ts` — valid generation, determinism, different recipients → different addresses
 - `scan.test.ts` — matches own, rejects wrong view tag, rejects wrong key, skips wrong scheme
@@ -80,18 +82,18 @@ Verify: `pnpm test` passes all EVM tests.
 
 Port from `reference/stellar/packages/sdk/src/` into `src/chains/stellar/`:
 
-| File | Purpose |
-|---|---|
-| `constants.ts` | `STEALTH_SIGNING_MESSAGE`, `SCHEME_ID = 1`, `META_ADDRESS_PREFIX = "st:xlm:"` |
-| `types.ts` | `StealthKeys` (Uint8Array + bigint scalars), `Announcement`, `MatchedAnnouncement` |
-| `keys.ts` | `deriveStealthKeys(sig64)` — domain-separated SHA-256, seedToScalar |
-| `stealth.ts` | `generateStealthAddress()`, `computeSharedSecret()` (X25519 ECDH), `computeViewTag()` |
-| `scan.ts` | `checkStealthAddress()`, `scanAnnouncements()` — view tag, point addition, scalar derivation |
-| `spend.ts` | `deriveStealthPrivateScalar()`, `signStellarTransaction()` |
-| `scalar.ts` | `seedToScalar()`, `hashToScalar()`, `deriveStealthPubKey()`, `signWithScalar()`, `L` constant |
-| `meta-address.ts` | encode/decode `st:xlm:` format (32-byte ed25519 keys) |
-| `utils.ts` | `bytesToHex()`, `hexToBytes()` |
-| `index.ts` | Re-exports everything |
+| File              | Purpose                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `constants.ts`    | `STEALTH_SIGNING_MESSAGE`, `SCHEME_ID = 1`, `META_ADDRESS_PREFIX = "st:xlm:"`                 |
+| `types.ts`        | `StealthKeys` (Uint8Array + bigint scalars), `Announcement`, `MatchedAnnouncement`            |
+| `keys.ts`         | `deriveStealthKeys(sig64)` — domain-separated SHA-256, seedToScalar                           |
+| `stealth.ts`      | `generateStealthAddress()`, `computeSharedSecret()` (X25519 ECDH), `computeViewTag()`         |
+| `scan.ts`         | `checkStealthAddress()`, `scanAnnouncements()` — view tag, point addition, scalar derivation  |
+| `spend.ts`        | `deriveStealthPrivateScalar()`, `signStellarTransaction()`                                    |
+| `scalar.ts`       | `seedToScalar()`, `hashToScalar()`, `deriveStealthPubKey()`, `signWithScalar()`, `L` constant |
+| `meta-address.ts` | encode/decode `st:xlm:` format (32-byte ed25519 keys)                                         |
+| `utils.ts`        | `bytesToHex()`, `hexToBytes()`                                                                |
+| `index.ts`        | Re-exports everything                                                                         |
 
 Write tests in `test/chains/stellar/` — same categories as EVM adapted for ed25519.
 
@@ -103,15 +105,16 @@ Verify: `pnpm test` passes all Stellar tests.
 
 Implement in `src/agent/`:
 
-| File | Purpose |
-|---|---|
-| `types.ts` | `Chain` enum (Horizen, Ethereum, Polygon, Base, Stellar, Solana, All), `WraithConfig`, `AgentConfig`, `AgentInfo`, `ChatResponse`, etc. |
-| `client.ts` | `Wraith` class (API client), `WraithAgent` class (per-agent methods) |
-| `index.ts` | Re-exports |
+| File        | Purpose                                                                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `types.ts`  | `Chain` enum (Horizen, Ethereum, Polygon, Base, Stellar, Solana, All), `WraithConfig`, `AgentConfig`, `AgentInfo`, `ChatResponse`, etc. |
+| `client.ts` | `Wraith` class (API client), `WraithAgent` class (per-agent methods)                                                                    |
+| `index.ts`  | Re-exports                                                                                                                              |
 
 Then update `src/index.ts` to export from `./agent/`.
 
 Key details:
+
 - `Chain` is an enum, not a string
 - `AgentConfig.chain` accepts `Chain | Chain[]` for single or multichain
 - `Chain.All` creates agent on every supported chain
@@ -186,13 +189,96 @@ sdk/
     docs/                         # implementation specs
 ```
 
+## Code Quality Tooling
+
+### Prettier
+
+Add `.prettierrc`:
+
+```json
+{
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "printWidth": 100,
+  "tabWidth": 2
+}
+```
+
+Add `.prettierignore`:
+
+```
+dist
+node_modules
+reference
+```
+
+Add scripts to `package.json`:
+
+```json
+{
+  "format": "prettier --write .",
+  "format:check": "prettier --check ."
+}
+```
+
+### Husky + Commitlint
+
+Set up husky with a pre-commit hook that runs `prettier --check` and a commit-msg hook that enforces conventional commits.
+
+Install: `husky`, `@commitlint/cli`, `@commitlint/config-conventional`, `prettier`
+
+Add `commitlint.config.js`:
+
+```js
+module.exports = { extends: ['@commitlint/config-conventional'] };
+```
+
+Husky hooks:
+
+- `.husky/pre-commit`: `pnpm format:check && pnpm build && pnpm test`
+- `.husky/commit-msg`: `npx --no -- commitlint --edit $1`
+
+Commit messages must follow conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`
+
+### CI
+
+Add `.github/workflows/ci.yml`:
+
+```yaml
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run format:check
+      - run: pnpm build
+      - run: pnpm test
+```
+
 ## Rules
 
 - NEVER add Co-Authored-By lines to commits
 - NEVER commit, modify, or delete anything in the reference/ folder — it is gitignored and read-only
 - NEVER add numbered step comments in code
 - NEVER strip existing NatSpec/docs from reference code when porting
+- All commit messages MUST follow conventional commits format (feat:, fix:, chore:, docs:, test:, refactor:)
 - Commit after each completed step
+- Push to origin after each completed step
 - Write tests alongside implementation, not after
 - Steps 2 and 3 can be done in parallel (separate agents)
 - Use Vitest for all tests

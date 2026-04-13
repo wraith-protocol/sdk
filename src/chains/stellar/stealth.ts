@@ -1,16 +1,9 @@
-import { ed25519 } from "@noble/curves/ed25519";
-import { x25519 } from "@noble/curves/ed25519";
-import { sha256 } from "@noble/hashes/sha256";
-import {
-  edwardsToMontgomeryPub,
-  edwardsToMontgomeryPriv,
-} from "@noble/curves/ed25519";
-import type { GeneratedStealthAddress } from "./types";
-import {
-  hashToScalar,
-  deriveStealthPubKey,
-  pubKeyToStellarAddress,
-} from "./scalar";
+import { ed25519 } from '@noble/curves/ed25519';
+import { x25519 } from '@noble/curves/ed25519';
+import { sha256 } from '@noble/hashes/sha256';
+import { edwardsToMontgomeryPub, edwardsToMontgomeryPriv } from '@noble/curves/ed25519';
+import type { GeneratedStealthAddress } from './types';
+import { hashToScalar, deriveStealthPubKey, pubKeyToStellarAddress } from './scalar';
 
 /**
  * Generates a one-time stealth address for a recipient on Stellar.
@@ -33,7 +26,7 @@ import {
 export function generateStealthAddress(
   spendingPubKey: Uint8Array,
   viewingPubKey: Uint8Array,
-  ephemeralSeed?: Uint8Array
+  ephemeralSeed?: Uint8Array,
 ): GeneratedStealthAddress {
   const ephSeed = ephemeralSeed ?? ed25519.utils.randomPrivateKey();
   const ephPubKey = ed25519.getPublicKey(ephSeed);
@@ -59,10 +52,7 @@ export function generateStealthAddress(
  * Computes the X25519 shared secret between a private key and a public key.
  * Converts ed25519 keys to X25519 (Montgomery form) first.
  */
-export function computeSharedSecret(
-  privateKey: Uint8Array,
-  publicKey: Uint8Array
-): Uint8Array {
+export function computeSharedSecret(privateKey: Uint8Array, publicKey: Uint8Array): Uint8Array {
   const privX = edwardsToMontgomeryPriv(privateKey);
   const pubX = edwardsToMontgomeryPub(publicKey);
   return x25519.getSharedSecret(privX, pubX);
@@ -73,7 +63,7 @@ export function computeSharedSecret(
  * view_tag = SHA-256("wraith:tag:" || shared_secret)[0]
  */
 export function computeViewTag(sharedSecret: Uint8Array): number {
-  const prefix = new TextEncoder().encode("wraith:tag:");
+  const prefix = new TextEncoder().encode('wraith:tag:');
   const input = new Uint8Array(prefix.length + sharedSecret.length);
   input.set(prefix);
   input.set(sharedSecret, prefix.length);

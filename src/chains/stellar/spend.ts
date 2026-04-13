@@ -1,9 +1,5 @@
-import { computeSharedSecret } from "./stealth";
-import {
-  hashToScalar,
-  signWithScalar,
-  L,
-} from "./scalar";
+import { computeSharedSecret } from './stealth';
+import { hashToScalar, signWithScalar, L } from './scalar';
 
 /**
  * Derives the stealth private scalar that controls a stealth address.
@@ -24,7 +20,7 @@ import {
 export function deriveStealthPrivateScalar(
   spendingScalar: bigint,
   viewingKey: Uint8Array,
-  ephemeralPubKey: Uint8Array
+  ephemeralPubKey: Uint8Array,
 ): bigint {
   const sharedSecret = computeSharedSecret(viewingKey, ephemeralPubKey);
   const hScalar = hashToScalar(sharedSecret);
@@ -46,7 +42,7 @@ export function deriveStealthPrivateScalar(
 export function signStellarTransaction(
   transactionHash: Uint8Array,
   stealthScalar: bigint,
-  stealthPubKey: Uint8Array
+  stealthPubKey: Uint8Array,
 ): Uint8Array {
   return signWithScalar(transactionHash, stealthScalar, stealthPubKey);
 }
