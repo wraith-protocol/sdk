@@ -189,6 +189,10 @@ sdk/
     docs/                         # implementation specs
 ```
 
+## README
+
+Create a README.md covering: what @wraith-protocol/sdk is, installation, the three entry points (root agent client, chains/evm, chains/stellar), quick code examples for each entry point, the Chain enum with All option, available types, and links to wraith-protocol/docs. Keep it concise and technical.
+
 ## Code Quality Tooling
 
 ### Prettier
