@@ -11,6 +11,9 @@ export {
   signNameRelease,
   metaAddressToBytes,
 } from './names';
+export { fetchAnnouncements } from './announcements';
+export { DEPLOYMENTS, getDeployment } from './deployments';
+export type { EVMChainDeployment } from './deployments';
 export type {
   HexString,
   StealthKeys,

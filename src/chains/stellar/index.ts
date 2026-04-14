@@ -13,6 +13,9 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
+export { fetchAnnouncements } from './announcements';
+export { DEPLOYMENTS, getDeployment } from './deployments';
+export type { StellarChainDeployment } from './deployments';
 export type {
   HexString,
   StealthKeys,
