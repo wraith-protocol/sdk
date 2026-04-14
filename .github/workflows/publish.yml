@@ -1,20 +1,16 @@
 name: Publish to npm
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    paths:
+      - 'package.json'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to publish (e.g. 1.0.1, 1.1.0). Leave empty to use package.json version.'
-        required: false
-        type: string
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -30,21 +26,29 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run format:check
       - run: pnpm build
       - run: pnpm test
 
-      - name: Bump version (manual dispatch only)
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.version != ''
+      - name: Check if version is already published
+        id: check
         run: |
-          npm version ${{ github.event.inputs.version }} --no-git-tag-version
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json
-          git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
-          git push
+          PACKAGE_NAME=$(node -e "console.log(require('./package.json').name)")
+          PACKAGE_VERSION=$(node -e "console.log(require('./package.json').version)")
+          echo "name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Version $PACKAGE_VERSION already published, skipping."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Version $PACKAGE_VERSION not published yet, will publish."
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm
+        if: steps.check.outputs.exists == 'false'
         run: pnpm publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
