@@ -23,7 +23,7 @@ export {
   buildAnnounce,
   buildResolveName,
 } from './builders';
-export { SENDER_ABI, NAMES_ABI, REGISTRY_ABI, ANNOUNCER_ABI } from './abis';
+export { SENDER_ABI, NAMES_ABI, REGISTRY_ABI, ANNOUNCER_ABI, WITHDRAWER_ABI } from './abis';
 export type { TransactionData, BuildSendStealthResult } from './builders';
 export type { EVMChainDeployment } from './deployments';
 export type {
