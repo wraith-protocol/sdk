@@ -5,6 +5,7 @@ export default defineConfig({
     index: 'src/index.ts',
     'chains/evm/index': 'src/chains/evm/index.ts',
     'chains/stellar/index': 'src/chains/stellar/index.ts',
+    'chains/solana/index': 'src/chains/solana/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,

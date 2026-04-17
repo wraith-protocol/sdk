@@ -17,6 +17,11 @@
       "types": "./dist/chains/stellar/index.d.ts",
       "import": "./dist/chains/stellar/index.js",
       "require": "./dist/chains/stellar/index.cjs"
+    },
+    "./chains/solana": {
+      "types": "./dist/chains/solana/index.d.ts",
+      "import": "./dist/chains/solana/index.js",
+      "require": "./dist/chains/solana/index.cjs"
     }
   },
   "files": [
@@ -37,16 +42,21 @@
     "viem": "^2.23.0"
   },
   "peerDependencies": {
-    "@stellar/stellar-sdk": "^13.1.0"
+    "@stellar/stellar-sdk": "^13.1.0",
+    "@solana/web3.js": "^1.95.0"
   },
   "peerDependenciesMeta": {
     "@stellar/stellar-sdk": {
+      "optional": true
+    },
+    "@solana/web3.js": {
       "optional": true
     }
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
+    "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",
     "husky": "^9.1.0",
     "prettier": "^3.4.0",
