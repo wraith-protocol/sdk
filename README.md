@@ -1,6 +1,6 @@
 # @wraith-protocol/sdk
 
-The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, three entry points — an agent client for the managed TEE platform and stealth address cryptography for EVM and Stellar chains.
+The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, four entry points — an agent client for the managed TEE platform and stealth address cryptography for EVM, Stellar, and Solana chains.
 
 ## Installation
 
@@ -10,7 +10,7 @@ npm install @wraith-protocol/sdk
 pnpm add @wraith-protocol/sdk
 ```
 
-`@stellar/stellar-sdk` is an optional peer dependency — only required if you import `@wraith-protocol/sdk/chains/stellar`.
+`@stellar/stellar-sdk` and `@solana/web3.js` are optional peer dependencies — only required if you import their respective chain modules.
 
 ## Entry Points
 
@@ -19,6 +19,7 @@ pnpm add @wraith-protocol/sdk
 | `@wraith-protocol/sdk`                | Agent client (`Wraith`, `WraithAgent`, `Chain` enum) |
 | `@wraith-protocol/sdk/chains/evm`     | EVM stealth address crypto (secp256k1)               |
 | `@wraith-protocol/sdk/chains/stellar` | Stellar stealth address crypto (ed25519)             |
+| `@wraith-protocol/sdk/chains/solana`  | Solana stealth address crypto (ed25519)              |
 
 ## Agent Client
 
