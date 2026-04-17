@@ -1,6 +1,6 @@
 # @wraith-protocol/sdk
 
-The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, four entry points — an agent client for the managed TEE platform and stealth address cryptography for EVM, Stellar, and Solana chains.
+The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, five entry points — an agent client for the managed TEE platform and stealth address cryptography for EVM, Stellar, Solana, and CKB chains.
 
 ## Installation
 
@@ -20,6 +20,7 @@ pnpm add @wraith-protocol/sdk
 | `@wraith-protocol/sdk/chains/evm`     | EVM stealth address crypto (secp256k1)               |
 | `@wraith-protocol/sdk/chains/stellar` | Stellar stealth address crypto (ed25519)             |
 | `@wraith-protocol/sdk/chains/solana`  | Solana stealth address crypto (ed25519)              |
+| `@wraith-protocol/sdk/chains/ckb`     | CKB (Nervos) stealth address crypto (secp256k1)      |
 
 ## Agent Client
 
@@ -61,6 +62,7 @@ enum Chain {
   Base = 'base',
   Stellar = 'stellar',
   Solana = 'solana',
+  CKB = 'ckb',
   All = 'all',
 }
 ```
@@ -185,6 +187,49 @@ const signature = signStellarTransaction(
   txHash,
   matched[0].stealthPrivateScalar,
   matched[0].stealthPubKeyBytes,
+);
+```
+
+## CKB (Nervos) Stealth Addresses
+
+Stealth address cryptography for CKB using secp256k1 with blake2b hashing. CKB uses a UTXO-based Cell model where the Cell itself is the announcement. No separate announcer contract needed.
+
+```ts
+import {
+  deriveStealthKeys,
+  generateStealthAddress,
+  scanStealthCells,
+  deriveStealthPrivateKey,
+  encodeStealthMetaAddress,
+  decodeStealthMetaAddress,
+  fetchStealthCells,
+  SCHEME_ID,
+  type StealthCell,
+  type HexString,
+} from '@wraith-protocol/sdk/chains/ckb';
+
+// Derive stealth keys from a wallet signature
+const keys = deriveStealthKeys(walletSignature as HexString);
+
+// Encode as a meta-address
+const metaAddress = encodeStealthMetaAddress(keys.spendingPubKey, keys.viewingPubKey);
+// => "st:ckb:..."
+
+// Sender: generate a stealth address (returns lock script args)
+const { spendingPubKey, viewingPubKey } = decodeStealthMetaAddress(metaAddress);
+const stealth = generateStealthAddress(spendingPubKey, viewingPubKey);
+// => { stealthPubKey, stealthPubKeyHash, ephemeralPubKey, lockArgs }
+// lockArgs = ephemeral_pubkey (33 bytes) || blake160(stealth_pubkey) (20 bytes)
+
+// Recipient: fetch and scan stealth cells
+const cells = await fetchStealthCells('ckb');
+const matched = scanStealthCells(cells, keys.viewingKey, keys.spendingPubKey, keys.spendingKey);
+
+// Recipient: derive the private key to spend
+const privKey = deriveStealthPrivateKey(
+  keys.spendingKey,
+  matched[0].ephemeralPubKey,
+  keys.viewingKey,
 );
 ```
 
