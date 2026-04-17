@@ -22,6 +22,11 @@
       "types": "./dist/chains/solana/index.d.ts",
       "import": "./dist/chains/solana/index.js",
       "require": "./dist/chains/solana/index.cjs"
+    },
+    "./chains/ckb": {
+      "types": "./dist/chains/ckb/index.d.ts",
+      "import": "./dist/chains/ckb/index.js",
+      "require": "./dist/chains/ckb/index.cjs"
     }
   },
   "files": [
