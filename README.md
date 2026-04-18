@@ -233,6 +233,38 @@ const privKey = deriveStealthPrivateKey(
 );
 ```
 
+### CKB .wraith Names
+
+The CKB module supports `.wraith` name registration and resolution via the `wraith-names-type` on-chain contract. Names are 3-32 characters (lowercase alphanumeric and hyphens) and map to stealth meta-addresses stored in CKB Cells.
+
+```ts
+import {
+  hashName,
+  buildRegisterName,
+  buildResolveName,
+  metaAddressFromNameData,
+} from '@wraith-protocol/sdk/chains/ckb';
+
+// Hash a name to get the type script args
+const nameHash = hashName('alice');
+
+// Build the type script and cell data for registration
+const reg = buildRegisterName({
+  name: 'alice',
+  spendingPubKey: keys.spendingPubKey,
+  viewingPubKey: keys.viewingPubKey,
+});
+// reg.typeScript — use as the Cell's type script
+// reg.data — 66-byte cell data (spending_pub || viewing_pub)
+
+// Build the type script to resolve a name (use with CKB RPC get_cells)
+const { typeScript } = buildResolveName({ name: 'alice' });
+
+// Parse resolved cell data back into a stealth meta-address
+const metaAddress = metaAddressFromNameData(cellData);
+// => "st:ckb:..."
+```
+
 ## Documentation
 
 Full protocol documentation, architecture details, and integration guides are available at [wraith-protocol/docs](https://github.com/wraith-protocol/docs).
