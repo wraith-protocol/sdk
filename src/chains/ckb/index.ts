@@ -6,6 +6,7 @@ export { checkStealthCell, scanStealthCells } from './scan';
 export { deriveStealthPrivateKey } from './spend';
 export { blake160, blake160Hex } from './blake';
 export { fetchStealthCells } from './announcements';
+export { hashName, buildRegisterName, buildResolveName, metaAddressFromNameData } from './names';
 export { DEPLOYMENTS, getDeployment } from './deployments';
 export type { CKBChainDeployment } from './deployments';
 export type {
