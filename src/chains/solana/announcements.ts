@@ -62,31 +62,31 @@ function parseAnnouncementFromLogs(
       if (!log.startsWith('Program data: ')) continue;
 
       const base64Data = log.replace('Program data: ', '');
-      const buffer = Buffer.from(base64Data, 'base64');
+      const bytes = base64ToBytes(base64Data);
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
       // Check Anchor event discriminator (first 8 bytes)
-      if (buffer.length < 8) continue;
-      const discriminator = Array.from(buffer.slice(0, 8));
-      const matches = ANNOUNCEMENT_EVENT_DISCRIMINATOR.every((b, i) => b === discriminator[i]);
-      if (!matches) continue;
+      if (bytes.length < 8) continue;
+      const matchesDisc = ANNOUNCEMENT_EVENT_DISCRIMINATOR.every((b, i) => b === bytes[i]);
+      if (!matchesDisc) continue;
 
       let offset = 8;
 
-      const schemeId = buffer.readUInt32LE(offset);
+      const schemeId = view.getUint32(offset, true);
       offset += 4;
 
-      const stealthAddress = buffer.slice(offset, offset + 32);
+      const stealthAddress = bytes.slice(offset, offset + 32);
       offset += 32;
 
-      const caller = buffer.slice(offset, offset + 32);
+      const caller = bytes.slice(offset, offset + 32);
       offset += 32;
 
-      const ephemeralPubKey = buffer.slice(offset, offset + 32);
+      const ephemeralPubKey = bytes.slice(offset, offset + 32);
       offset += 32;
 
-      const metadataLen = buffer.readUInt32LE(offset);
+      const metadataLen = view.getUint32(offset, true);
       offset += 4;
-      const metadata = buffer.slice(offset, offset + metadataLen);
+      const metadata = bytes.slice(offset, offset + metadataLen);
 
       return {
         schemeId,
@@ -100,4 +100,13 @@ function parseAnnouncementFromLogs(
   } catch {
     return null;
   }
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
 }

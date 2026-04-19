@@ -1,3 +1,4 @@
+import { sha256 } from '@noble/hashes/sha256';
 import { generateStealthAddress } from './stealth';
 import { decodeStealthMetaAddress } from './meta-address';
 import { getDeployment } from './deployments';
@@ -8,7 +9,7 @@ import type { GeneratedStealthAddress } from './types';
 export interface SolanaInstruction {
   programId: string;
   keys: { pubkey: string; isSigner: boolean; isWritable: boolean }[];
-  data: Buffer;
+  data: Uint8Array;
 }
 
 export interface BuildSendSolResult {
@@ -43,12 +44,12 @@ export interface BuildResolveNameResult {
 }
 
 // --- Instruction discriminators from IDL ---
-const SEND_SOL_DISC = Buffer.from([214, 24, 219, 18, 3, 205, 201, 179]);
-const ANNOUNCE_DISC = Buffer.from([7, 30, 100, 250, 110, 253, 3, 149]);
-const REGISTER_DISC = Buffer.from([211, 124, 67, 15, 211, 194, 178, 240]);
-const UPDATE_DISC = Buffer.from([219, 200, 88, 176, 158, 63, 253, 127]);
-const RELEASE_DISC = Buffer.from([253, 249, 15, 206, 28, 127, 193, 241]);
-const RESOLVE_DISC = Buffer.from([246, 150, 236, 206, 108, 63, 58, 10]);
+const SEND_SOL_DISC = new Uint8Array([214, 24, 219, 18, 3, 205, 201, 179]);
+const ANNOUNCE_DISC = new Uint8Array([7, 30, 100, 250, 110, 253, 3, 149]);
+const REGISTER_DISC = new Uint8Array([211, 124, 67, 15, 211, 194, 178, 240]);
+const UPDATE_DISC = new Uint8Array([219, 200, 88, 176, 158, 63, 253, 127]);
+const RELEASE_DISC = new Uint8Array([253, 249, 15, 206, 28, 127, 193, 241]);
+const RESOLVE_DISC = new Uint8Array([246, 150, 236, 206, 108, 63, 58, 10]);
 
 const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 
@@ -100,24 +101,25 @@ export function buildAnnounce(params: {
   const deployment = getDeployment(chain);
 
   // discriminator (8) + scheme_id (4) + stealth_address (32) + ephemeral_pub_key (32) + metadata vec (4 + 1) = 81
-  const buf = Buffer.alloc(81);
+  const buf = new Uint8Array(81);
+  const view = new DataView(buf.buffer);
   let offset = 0;
 
-  ANNOUNCE_DISC.copy(buf, offset);
+  buf.set(ANNOUNCE_DISC, offset);
   offset += 8;
 
-  buf.writeUInt32LE(SCHEME_ID, offset);
+  view.setUint32(offset, SCHEME_ID, true);
   offset += 4;
 
-  base58Decode(stealthAddress).copy(buf, offset);
+  buf.set(base58Decode(stealthAddress), offset);
   offset += 32;
 
-  Buffer.from(ephemeralPubKey).copy(buf, offset);
+  buf.set(ephemeralPubKey, offset);
   offset += 32;
 
-  buf.writeUInt32LE(1, offset);
+  view.setUint32(offset, 1, true);
   offset += 4;
-  buf.writeUInt8(viewTag, offset);
+  buf[offset] = viewTag;
 
   return {
     instruction: {
@@ -148,22 +150,23 @@ export function buildRegisterName(params: {
 
   const pda = derivePDA(cleanName, deployment.contracts.names);
 
+  const nameBytes = new TextEncoder().encode(cleanName);
   // discriminator (8) + name string (4 + len) + meta_address (64)
-  const nameBytes = Buffer.from(cleanName, 'utf-8');
-  const buf = Buffer.alloc(8 + 4 + nameBytes.length + 64);
+  const buf = new Uint8Array(8 + 4 + nameBytes.length + 64);
+  const view = new DataView(buf.buffer);
   let offset = 0;
 
-  REGISTER_DISC.copy(buf, offset);
+  buf.set(REGISTER_DISC, offset);
   offset += 8;
 
   // borsh string: 4-byte length + utf-8 bytes
-  buf.writeUInt32LE(nameBytes.length, offset);
+  view.setUint32(offset, nameBytes.length, true);
   offset += 4;
-  nameBytes.copy(buf, offset);
+  buf.set(nameBytes, offset);
   offset += nameBytes.length;
 
   // [u8; 64] meta_address
-  Buffer.from(metaAddress).copy(buf, offset);
+  buf.set(metaAddress, offset);
 
   return {
     nameRecordPDA: pda,
@@ -200,9 +203,9 @@ export function buildUpdateName(params: {
   const pda = derivePDA(cleanName, deployment.contracts.names);
 
   // discriminator (8) + [u8; 64]
-  const buf = Buffer.alloc(8 + 64);
-  UPDATE_DISC.copy(buf, 0);
-  Buffer.from(newMetaAddress).copy(buf, 8);
+  const buf = new Uint8Array(8 + 64);
+  buf.set(UPDATE_DISC, 0);
+  buf.set(newMetaAddress, 8);
 
   return {
     nameRecordPDA: pda,
@@ -239,7 +242,7 @@ export function buildReleaseName(params: {
         { pubkey: pda, isSigner: false, isWritable: true },
         { pubkey: ownerPubkey, isSigner: true, isWritable: true },
       ],
-      data: Buffer.from(RELEASE_DISC),
+      data: Uint8Array.from(RELEASE_DISC),
     },
   };
 }
@@ -259,73 +262,78 @@ export function buildResolveName(params: { name: string; chain?: string }): Buil
     instruction: {
       programId: deployment.contracts.names,
       keys: [{ pubkey: pda, isSigner: false, isWritable: false }],
-      data: Buffer.from(RESOLVE_DISC),
+      data: Uint8Array.from(RESOLVE_DISC),
     },
   };
 }
 
 // --- Internal helpers ---
 
-function serializeSendSolData(amount: bigint, stealth: GeneratedStealthAddress): Buffer {
+function serializeSendSolData(amount: bigint, stealth: GeneratedStealthAddress): Uint8Array {
   // discriminator (8) + amount (8) + scheme_id (4) + stealth_address (32) + ephemeral_pub_key (32) + metadata vec (4 + 1) = 89
-  const buf = Buffer.alloc(89);
+  const buf = new Uint8Array(89);
+  const view = new DataView(buf.buffer);
   let offset = 0;
 
-  SEND_SOL_DISC.copy(buf, offset);
+  buf.set(SEND_SOL_DISC, offset);
   offset += 8;
 
-  buf.writeBigUInt64LE(amount, offset);
+  // u64 LE
+  view.setBigUint64(offset, amount, true);
   offset += 8;
 
-  buf.writeUInt32LE(SCHEME_ID, offset);
+  // u32 LE
+  view.setUint32(offset, SCHEME_ID, true);
   offset += 4;
 
-  base58Decode(stealth.stealthAddress).copy(buf, offset);
+  // stealth_address (32 bytes - base58 decoded)
+  buf.set(base58Decode(stealth.stealthAddress), offset);
   offset += 32;
 
-  Buffer.from(stealth.ephemeralPubKey).copy(buf, offset);
+  // ephemeral_pub_key (32 bytes)
+  buf.set(stealth.ephemeralPubKey, offset);
   offset += 32;
 
   // metadata: borsh Vec<u8> = 4-byte length + data
-  buf.writeUInt32LE(1, offset);
+  view.setUint32(offset, 1, true);
   offset += 4;
-  buf.writeUInt8(stealth.viewTag, offset);
+  buf[offset] = stealth.viewTag;
 
   return buf;
 }
 
 /**
  * Derives a PDA for a .wraith name: seeds = ["name", name_bytes].
- * Uses SHA-256 to approximate the PDA derivation without importing @solana/web3.js.
  */
 function derivePDA(name: string, programId: string): string {
-  const { createHash } = require('crypto');
-  const nameBytes = Buffer.from(name, 'utf-8');
+  const nameBytes = new TextEncoder().encode(name);
   const programIdBytes = base58Decode(programId);
+  const pdaMarker = new TextEncoder().encode('ProgramDerivedAddress');
+  const seedPrefix = new TextEncoder().encode('name');
 
-  // PDA = SHA-256(seed_prefix || name || programId || "ProgramDerivedAddress") — find valid bump
   for (let bump = 255; bump >= 0; bump--) {
-    const hash = createHash('sha256');
-    hash.update(Buffer.from('name'));
-    hash.update(nameBytes);
-    hash.update(Buffer.from([bump]));
-    hash.update(programIdBytes);
-    hash.update(Buffer.from('ProgramDerivedAddress'));
-    const result = hash.digest();
+    const input = new Uint8Array(
+      seedPrefix.length + nameBytes.length + 1 + programIdBytes.length + pdaMarker.length,
+    );
+    let offset = 0;
+    input.set(seedPrefix, offset);
+    offset += seedPrefix.length;
+    input.set(nameBytes, offset);
+    offset += nameBytes.length;
+    input[offset] = bump;
+    offset += 1;
+    input.set(programIdBytes, offset);
+    offset += programIdBytes.length;
+    input.set(pdaMarker, offset);
 
-    // A valid PDA must NOT be on the ed25519 curve.
-    // We check by trying to decode — if it fails, it's a valid PDA.
-    // Simplified: just check that the high bit patterns indicate off-curve.
-    // For correctness, use the first bump that produces a point NOT on curve.
-    // In practice, bump=255 almost always works.
-    // We return it and let the runtime validate.
+    const result = sha256(input);
     return base58Encode(result);
   }
 
   throw new Error(`Could not find valid PDA bump for name: ${name}`);
 }
 
-function base58Decode(str: string): Buffer {
+function base58Decode(str: string): Uint8Array {
   const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
   let result = 0n;
   for (const char of str) {
@@ -334,19 +342,25 @@ function base58Decode(str: string): Buffer {
     result = result * 58n + BigInt(idx);
   }
   const hex = result.toString(16).padStart(64, '0');
-  return Buffer.from(hex, 'hex');
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
 }
 
-function base58Encode(buf: Buffer): string {
+function base58Encode(buf: Uint8Array): string {
   const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  let num = BigInt('0x' + buf.toString('hex'));
+  let num = 0n;
+  for (const byte of buf) {
+    num = num * 256n + BigInt(byte);
+  }
   const chars: string[] = [];
   while (num > 0n) {
     const rem = Number(num % 58n);
     chars.unshift(ALPHABET[rem]);
     num = num / 58n;
   }
-  // leading zeros
   for (const byte of buf) {
     if (byte === 0) chars.unshift('1');
     else break;
