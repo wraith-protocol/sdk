@@ -14,7 +14,24 @@ export {
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
 export { fetchAnnouncements } from './announcements';
+export {
+  buildSendSol,
+  buildAnnounce,
+  buildRegisterName,
+  buildUpdateName,
+  buildReleaseName,
+  buildResolveName,
+} from './builders';
 export { DEPLOYMENTS, getDeployment } from './deployments';
+export type {
+  SolanaInstruction,
+  BuildSendSolResult,
+  BuildAnnounceResult,
+  BuildRegisterNameResult,
+  BuildUpdateNameResult,
+  BuildReleaseNameResult,
+  BuildResolveNameResult,
+} from './builders';
 export type { SolanaChainDeployment } from './deployments';
 export type {
   HexString,
