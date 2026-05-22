@@ -12,6 +12,10 @@ pnpm add @wraith-protocol/sdk
 
 `@stellar/stellar-sdk` and `@solana/web3.js` are optional peer dependencies — only required if you import their respective chain modules.
 
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the SDK semver policy, deprecation rules, release checklist, PR conventions, and the rubric for adding a new chain module.
+
 ## Entry Points
 
 | Import                                | Purpose                                              |
