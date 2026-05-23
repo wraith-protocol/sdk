@@ -12,6 +12,17 @@ pnpm add @wraith-protocol/sdk
 
 `@stellar/stellar-sdk` and `@solana/web3.js` are optional peer dependencies — only required if you import their respective chain modules.
 
+## Property Tests
+
+The Stellar scalar arithmetic has property-based coverage for modular addition, scalar byte round-trips, deterministic seed derivation, stealth public-key equations, view-tag distribution, and `signWithScalar` verification.
+
+```bash
+pnpm test:properties
+pnpm test:fuzz
+```
+
+`test:properties` runs the default 1,000 generated cases per property. `test:fuzz` raises the same properties to 100,000 cases and is also scheduled in CI as the nightly `slow-tests` job.
+
 ## Entry Points
 
 | Import                                | Purpose                                              |
