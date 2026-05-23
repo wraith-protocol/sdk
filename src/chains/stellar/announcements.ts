@@ -3,15 +3,32 @@ import { bytesToHex } from './utils';
 import { getDeployment } from './deployments';
 
 /**
- * Fetches all stealth address announcements from the Soroban RPC
- * for the specified Stellar network.
+ * Fetches Stellar stealth announcements from the configured Soroban RPC.
  *
- * Uses the `getEvents` JSON-RPC method to query contract events
- * from the announcer contract.
+ * Use this before {@link scanAnnouncements} when a recipient wants to discover
+ * incoming payments. The helper queries the configured announcer contract with
+ * `getEvents`, handles pagination, and parses event XDR into SDK announcement
+ * objects.
  *
- * @param chain The chain identifier (default: "stellar").
- * @param sorobanUrl Optional override for the Soroban RPC URL.
- * @returns Array of announcements.
+ * @param chain - Deployment key from {@link DEPLOYMENTS}; defaults to `stellar`.
+ * @param sorobanUrl - Optional Soroban RPC URL override.
+ * @returns Parsed announcements from the selected announcer contract.
+ * @throws {Error} If the deployment key is unknown or the RPC request fails before returning JSON.
+ *
+ * @example
+ * ```ts
+ * import { fetchAnnouncements, scanAnnouncements } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const announcements = await fetchAnnouncements("stellar");
+ * const matches = scanAnnouncements(
+ *   announcements,
+ *   keys.viewingKey,
+ *   keys.spendingPubKey,
+ *   keys.spendingScalar,
+ * );
+ * ```
+ *
+ * @see {@link getDeployment}
  */
 export async function fetchAnnouncements(
   chain: string = 'stellar',

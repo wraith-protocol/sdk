@@ -4,21 +4,35 @@ import { sha256 } from '@noble/hashes/sha256';
 import { StrKey } from '@stellar/stellar-sdk';
 
 /**
- * ed25519 group order (order of the base point).
- * L = 2^252 + 27742317777372353535851937790883648493
+ * ed25519 group order used to reduce Stellar stealth scalars.
+ *
+ * All derived spending scalars are reduced modulo this value before signing or
+ * point multiplication.
+ *
+ * @see {@link hashToScalar}
  */
 export const L = BigInt(
   '7237005577332262213973186563042994240857116359379907606001950938285454250989',
 );
 
 /**
- * Derives the clamped ed25519 scalar from a 32-byte seed.
+ * Derives a clamped ed25519 scalar from a 32-byte seed.
  *
- * This mirrors the standard ed25519 key derivation:
- *   1. h = SHA-512(seed)
- *   2. scalar = clamp(h[0:32])
+ * Use this when converting deterministic Wraith seeds into the scalar form used
+ * by Stellar stealth derivation and signing.
  *
- * Clamping: clear bits 0,1,2 of byte 0; clear bit 7, set bit 6 of byte 31.
+ * @param seed - 32-byte ed25519 seed.
+ * @returns Clamped ed25519 private scalar as a bigint.
+ * @throws This function does not validate length; pass a 32-byte seed.
+ *
+ * @example
+ * ```ts
+ * import { seedToScalar } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const spendingScalar = seedToScalar(spendingSeed);
+ * ```
+ *
+ * @see {@link deriveStealthKeys}
  */
 export function seedToScalar(seed: Uint8Array): bigint {
   const h = sha512(seed);
@@ -33,7 +47,21 @@ export function seedToScalar(seed: Uint8Array): bigint {
 }
 
 /**
- * Converts a 32-byte little-endian array to a bigint scalar.
+ * Converts a little-endian byte array into a bigint scalar.
+ *
+ * This helper is exported for low-level integrations that need the same scalar
+ * encoding used by the Stellar stealth primitives.
+ *
+ * @param bytes - Little-endian scalar bytes.
+ * @returns Scalar represented as a bigint.
+ * @throws This function does not throw for byte-array input.
+ *
+ * @example
+ * ```ts
+ * const scalar = bytesToScalar(new Uint8Array(32));
+ * ```
+ *
+ * @see {@link scalarToBytes}
  */
 export function bytesToScalar(bytes: Uint8Array): bigint {
   let scalar = 0n;
@@ -44,7 +72,21 @@ export function bytesToScalar(bytes: Uint8Array): bigint {
 }
 
 /**
- * Converts a bigint scalar to a 32-byte little-endian Uint8Array.
+ * Converts a bigint scalar into a 32-byte little-endian array.
+ *
+ * Use this when a derived scalar needs to be serialized for Stellar ed25519
+ * signing internals.
+ *
+ * @param scalar - Scalar value to serialize.
+ * @returns 32-byte little-endian scalar.
+ * @throws This function does not throw; values larger than 32 bytes are truncated.
+ *
+ * @example
+ * ```ts
+ * const bytes = scalarToBytes(1n);
+ * ```
+ *
+ * @see {@link bytesToScalar}
  */
 export function scalarToBytes(scalar: bigint): Uint8Array {
   const bytes = new Uint8Array(32);
@@ -57,12 +99,25 @@ export function scalarToBytes(scalar: bigint): Uint8Array {
 }
 
 /**
- * Derives the stealth public key via point addition:
- *   P_stealth = K_spend + s_h * G
+ * Derives a Stellar stealth public key from a spending key and hash scalar.
  *
- * where s_h is the hashed shared secret reduced mod L.
+ * This performs the public-key side of DKSAP: `K_spend + hashScalar * G`.
+ * Senders use it while generating a one-time address; recipients use it while
+ * checking whether an announcement matches.
  *
- * Returns the 32-byte compressed ed25519 public key.
+ * @param spendingPubKey - Recipient's 32-byte ed25519 spending public key.
+ * @param hashScalar - Shared-secret scalar reduced modulo {@link L}.
+ * @returns 32-byte compressed ed25519 public key for the stealth account.
+ * @throws {Error} If `spendingPubKey` is not a valid ed25519 public key.
+ *
+ * @example
+ * ```ts
+ * import { deriveStealthPubKey, hashToScalar } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const stealthPubKey = deriveStealthPubKey(spendingPubKey, hashToScalar(sharedSecret));
+ * ```
+ *
+ * @see {@link pubKeyToStellarAddress}
  */
 export function deriveStealthPubKey(spendingPubKey: Uint8Array, hashScalar: bigint): Uint8Array {
   const K_spend = ed25519.ExtendedPoint.fromHex(spendingPubKey);
@@ -72,7 +127,23 @@ export function deriveStealthPubKey(spendingPubKey: Uint8Array, hashScalar: bigi
 }
 
 /**
- * Converts a 32-byte ed25519 public key to a Stellar G... address.
+ * Converts a 32-byte ed25519 public key into a Stellar `G...` address.
+ *
+ * Use this after deriving a stealth public key to get the account string that
+ * can be funded on Stellar.
+ *
+ * @param pubKeyBytes - 32-byte ed25519 public key.
+ * @returns Stellar StrKey public account address.
+ * @throws {Error} If Stellar StrKey encoding rejects the public key bytes.
+ *
+ * @example
+ * ```ts
+ * import { pubKeyToStellarAddress } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const account = pubKeyToStellarAddress(stealthPubKey);
+ * ```
+ *
+ * @see {@link deriveStealthPubKey}
  */
 export function pubKeyToStellarAddress(pubKeyBytes: Uint8Array): string {
   // StrKey typings expect Buffer, but Uint8Array works at runtime
@@ -80,10 +151,24 @@ export function pubKeyToStellarAddress(pubKeyBytes: Uint8Array): string {
 }
 
 /**
- * Hashes a shared secret to produce a scalar mod L.
+ * Hashes an ECDH shared secret into a Stellar stealth scalar.
  *
- * hash_scalar = SHA-256("wraith:scalar:" || shared_secret) interpreted
- * as a little-endian integer, reduced mod L.
+ * The hash is domain-separated with `wraith:scalar:` and reduced modulo
+ * {@link L}. Use the result for public-key derivation and private-scalar
+ * derivation.
+ *
+ * @param sharedSecret - 32-byte shared secret from {@link computeSharedSecret}.
+ * @returns Shared-secret scalar reduced modulo {@link L}.
+ * @throws This function does not throw for byte-array input.
+ *
+ * @example
+ * ```ts
+ * import { computeSharedSecret, hashToScalar } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const hashScalar = hashToScalar(computeSharedSecret(viewingKey, ephemeralPubKey));
+ * ```
+ *
+ * @see {@link deriveStealthPubKey}
  */
 export function hashToScalar(sharedSecret: Uint8Array): bigint {
   const prefix = new TextEncoder().encode('wraith:scalar:');
@@ -97,17 +182,25 @@ export function hashToScalar(sharedSecret: Uint8Array): bigint {
 }
 
 /**
- * Signs a message using a raw ed25519 scalar (not a seed).
+ * Signs a message with a raw ed25519 scalar instead of a seed.
  *
- * Implements the ed25519 signature algorithm:
- *   1. Generate deterministic nonce: r = SHA-512(prefix || message) mod L
- *   2. R = r * G
- *   3. k = SHA-512(R || A || message) mod L
- *   4. S = (r + k * a) mod L
- *   5. signature = R || S  (64 bytes)
+ * Stellar stealth private keys are derived scalars, not raw ed25519 seeds. This
+ * helper implements deterministic ed25519 signing directly for those scalars.
  *
- * The "prefix" for nonce generation is derived from SHA-256 of the scalar,
- * providing determinism without needing the original seed.
+ * @param message - Message or transaction hash bytes to sign.
+ * @param scalar - Raw ed25519 private scalar.
+ * @param publicKey - 32-byte public key corresponding to `scalar`.
+ * @returns 64-byte ed25519 signature.
+ * @throws This function does not validate key correspondence; callers must pass the matching public key.
+ *
+ * @example
+ * ```ts
+ * import { signWithScalar } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const signature = signWithScalar(txHash, match.stealthPrivateScalar, match.stealthPubKeyBytes);
+ * ```
+ *
+ * @see {@link signStellarTransaction}
  */
 export function signWithScalar(
   message: Uint8Array,

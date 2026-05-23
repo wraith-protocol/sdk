@@ -4,16 +4,29 @@ import type { StealthKeys } from './types';
 import { seedToScalar } from './scalar';
 
 /**
- * Derives stealth spending and viewing keys from a wallet signature.
+ * Derives Stellar stealth spending and viewing keys from a wallet signature.
  *
- * The 64-byte ed25519 signature is domain-separated and hashed
- * to produce two independent ed25519 seeds:
- *   - spendingKey = SHA-256("wraith:spending:" || signature)
- *   - viewingKey  = SHA-256("wraith:viewing:" || signature)
+ * Use this with a 64-byte ed25519 signature of {@link STEALTH_SIGNING_MESSAGE}.
+ * The result is deterministic for the same wallet and signature message, so
+ * keep the returned seeds and scalars private.
  *
- * Each seed is then expanded via SHA-512 and clamped to produce
- * the actual ed25519 scalar (matching how standard ed25519 derives
- * the private scalar from a seed).
+ * @param signature - 64-byte ed25519 signature produced by the user's Stellar wallet.
+ * @returns Spending and viewing seeds, scalars, and public keys for Stellar stealth payments.
+ * @throws {Error} If `signature` is not exactly 64 bytes.
+ *
+ * @example
+ * ```ts
+ * import { Keypair } from "@stellar/stellar-sdk";
+ * import { deriveStealthKeys, STEALTH_SIGNING_MESSAGE } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const keypair = Keypair.random();
+ * const signature = keypair.sign(Buffer.from(STEALTH_SIGNING_MESSAGE));
+ * const keys = deriveStealthKeys(signature);
+ *
+ * console.log(keys.spendingPubKey, keys.viewingPubKey);
+ * ```
+ *
+ * @see {@link encodeStealthMetaAddress} to publish the public keys for senders.
  */
 export function deriveStealthKeys(signature: Uint8Array): StealthKeys {
   if (signature.length !== 64) {

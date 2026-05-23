@@ -5,16 +5,32 @@ import type { Announcement, MatchedAnnouncement } from './types';
 import { hexToBytes } from './utils';
 
 /**
- * Checks whether a single announcement belongs to the recipient.
+ * Checks whether one Stellar announcement can belong to a recipient.
  *
- * Uses only the viewing key and spending PUBLIC key (no spending private key):
- *   1. Compute shared secret: S = ECDH(viewing_key, R_ephemeral)
- *   2. View tag quick filter (eliminates ~255/256 non-matches)
- *   3. Compute hash_scalar = SHA-256("wraith:scalar:" || S) mod L
- *   4. Expected stealth pubkey = K_spend + hash_scalar * G
- *   5. Compare with announced stealth address
+ * This is view-only detection. It uses the viewing key and spending public key
+ * to reconstruct the expected stealth account, but it cannot derive the private
+ * scalar needed to spend.
  *
- * This is view-only: it can detect payments but NOT derive the spending key.
+ * @param ephemeralPubKey - 32-byte ephemeral public key from the announcement.
+ * @param viewingKey - Recipient's 32-byte viewing seed.
+ * @param spendingPubKey - Recipient's 32-byte spending public key.
+ * @param viewTag - One-byte view tag from announcement metadata.
+ * @returns Match status plus the derived address and scalar details when matched.
+ * @throws {Error} If the ephemeral or spending public key is not a valid ed25519 point.
+ *
+ * @example
+ * ```ts
+ * import { checkStealthAddress, hexToBytes } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const result = checkStealthAddress(
+ *   hexToBytes(announcement.ephemeralPubKey),
+ *   keys.viewingKey,
+ *   keys.spendingPubKey,
+ *   hexToBytes(announcement.metadata)[0],
+ * );
+ * ```
+ *
+ * @see {@link scanAnnouncements}
  */
 export function checkStealthAddress(
   ephemeralPubKey: Uint8Array,
@@ -43,15 +59,33 @@ export function checkStealthAddress(
 }
 
 /**
- * Scans a list of on-chain announcements to find those belonging to the recipient.
+ * Scans Stellar stealth announcements and returns the ones a recipient can spend.
  *
- * Requires the spending SCALAR (not just public key) to derive the stealth
- * private scalar for each match. This is the key separation:
- *   - Scanning (detection) needs: viewing_key + spending_pubkey
- *   - Spending needs: spending_scalar
+ * Use this after fetching Soroban announcements. The spending scalar is required
+ * because matched results include the derived stealth private scalar for later
+ * transaction signing.
  *
- * The stealth private scalar is: (spending_scalar + hash_scalar) mod L
- * This matches the EVM version: p_stealth = (m + s_h) mod n
+ * @param announcements - Candidate announcements from Soroban events.
+ * @param viewingKey - Recipient's 32-byte viewing seed.
+ * @param spendingPubKey - Recipient's 32-byte spending public key.
+ * @param spendingScalar - Recipient's private spending scalar.
+ * @returns Announcements that match the recipient, each with spendable scalar data.
+ * @throws {Error} If a matching announcement contains malformed public-key data.
+ *
+ * @example
+ * ```ts
+ * import { fetchAnnouncements, scanAnnouncements } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const announcements = await fetchAnnouncements("stellar");
+ * const matches = scanAnnouncements(
+ *   announcements,
+ *   keys.viewingKey,
+ *   keys.spendingPubKey,
+ *   keys.spendingScalar,
+ * );
+ * ```
+ *
+ * @see {@link deriveStealthPrivateScalar}
  */
 export function scanAnnouncements(
   announcements: Announcement[],

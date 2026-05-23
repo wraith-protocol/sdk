@@ -1,5 +1,21 @@
 /**
- * Converts a Uint8Array to a hex string (no 0x prefix).
+ * Converts bytes to a lowercase hex string without a `0x` prefix.
+ *
+ * Use this for serializing Stellar announcement metadata and public keys before
+ * they are written into event payloads.
+ *
+ * @param bytes - Bytes to encode.
+ * @returns Lowercase hex string without a prefix.
+ * @throws This function does not throw for byte-array input.
+ *
+ * @example
+ * ```ts
+ * import { bytesToHex } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const hex = bytesToHex(new Uint8Array([0xab, 0xcd]));
+ * ```
+ *
+ * @see {@link hexToBytes}
  */
 export function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
@@ -8,7 +24,23 @@ export function bytesToHex(bytes: Uint8Array): string {
 }
 
 /**
- * Converts a hex string (with or without 0x prefix) to a Uint8Array.
+ * Converts a hex string into bytes.
+ *
+ * Accepts either prefixed (`0x...`) or unprefixed hex. Use this when parsing
+ * announcement metadata or stealth meta-address payloads.
+ *
+ * @param hex - Hex string with or without a `0x` prefix.
+ * @returns Parsed bytes.
+ * @throws {Error} If `hex` has an odd number of characters after removing `0x`.
+ *
+ * @example
+ * ```ts
+ * import { hexToBytes } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const bytes = hexToBytes("abcd");
+ * ```
+ *
+ * @see {@link bytesToHex}
  */
 export function hexToBytes(hex: string): Uint8Array {
   const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
