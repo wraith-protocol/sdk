@@ -158,6 +158,8 @@ import {
   signStellarTransaction,
   encodeStealthMetaAddress,
   decodeStealthMetaAddress,
+  fetchAnnouncements,
+  RetentionExceededError,
   SCHEME_ID,
   bytesToHex,
 } from '@wraith-protocol/sdk/chains/stellar';
@@ -188,6 +190,36 @@ const signature = signStellarTransaction(
   matched[0].stealthPrivateScalar,
   matched[0].stealthPubKeyBytes,
 );
+```
+
+### Stellar Incremental Scanning
+
+Use ledger or timestamp bounds to scan only new Soroban announcement events. Persist `nextCursor` after a successful run and pass it back on the next scan; the cursor resumes pagination and takes precedence over `fromLedger`.
+
+```ts
+let cursor = loadCursor();
+
+try {
+  const { announcements, nextCursor } = await fetchAnnouncements('stellar', {
+    cursor,
+    fromTimestamp: cursor ? undefined : new Date(Date.now() - 5 * 60 * 1000),
+  });
+
+  const matched = scanAnnouncements(
+    announcements,
+    keys.viewingKey,
+    keys.spendingPubKey,
+    keys.spendingScalar,
+  );
+
+  saveCursor(nextCursor);
+} catch (error) {
+  if (error instanceof RetentionExceededError) {
+    console.warn(`Restart from ledger ${error.oldestAvailableLedger}`);
+  } else {
+    throw error;
+  }
+}
 ```
 
 ## CKB (Nervos) Stealth Addresses

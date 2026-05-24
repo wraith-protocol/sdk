@@ -13,7 +13,8 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
-export { fetchAnnouncements } from './announcements';
+export { fetchAnnouncements, RetentionExceededError } from './announcements';
+export type { FetchAnnouncementsOptions, FetchAnnouncementsResult } from './announcements';
 export { DEPLOYMENTS, getDeployment } from './deployments';
 export type { StellarChainDeployment } from './deployments';
 export type {
