@@ -5,16 +5,47 @@ import type { Announcement, MatchedAnnouncement } from './types';
 import { hexToBytes } from './utils';
 
 /**
- * Checks whether a single announcement belongs to the recipient.
+ * Checks whether a single on-chain announcement belongs to the recipient — without
+ * requiring the spending private key.
  *
- * Uses only the viewing key and spending PUBLIC key (no spending private key):
- *   1. Compute shared secret: S = ECDH(viewing_key, R_ephemeral)
- *   2. View tag quick filter (eliminates ~255/256 non-matches)
- *   3. Compute hash_scalar = SHA-256("wraith:scalar:" || S) mod L
- *   4. Expected stealth pubkey = K_spend + hash_scalar * G
- *   5. Compare with announced stealth address
+ * This is the low-level primitive used inside {@link scanAnnouncements}. Call it
+ * directly when you need fine-grained control (e.g. streaming announcements one at a
+ * time). For batch processing, prefer {@link scanAnnouncements}.
  *
- * This is view-only: it can detect payments but NOT derive the spending key.
+ * The check proceeds in two stages for efficiency:
+ * 1. **View-tag filter** — computes `SHA-256("wraith:tag:" || ECDH(viewingKey, R))[0]`
+ *    and rejects immediately if it does not match. Eliminates ~255/256 non-matches
+ *    without full public-key arithmetic.
+ * 2. **Address match** — computes the expected stealth public key via point addition
+ *    (`K_spend + s_h·G`) and compares the Stellar encoding to the announcement.
+ *
+ * This function requires only the viewing key and spending *public* key — the spending
+ * scalar is not needed and is never exposed here.
+ *
+ * @param ephemeralPubKey - 32-byte ephemeral public key from the announcement.
+ * @param viewingKey - Recipient's 32-byte ed25519 viewing seed.
+ * @param spendingPubKey - Recipient's 32-byte ed25519 spending public key.
+ * @param viewTag - The expected view tag byte (first byte of the announcement `metadata`).
+ * @returns An object indicating whether the announcement matches, plus the computed
+ *   stealth address and hash scalar when it does (all null on a miss).
+ *
+ * @example
+ * ```ts
+ * import { checkStealthAddress } from '@wraith-protocol/sdk/chains/stellar';
+ *
+ * const result = checkStealthAddress(
+ *   ephPubKeyBytes,
+ *   keys.viewingKey,
+ *   keys.spendingPubKey,
+ *   announcementViewTag,
+ * );
+ *
+ * if (result.isMatch && result.stealthAddress === ann.stealthAddress) {
+ *   // Payment is ours — proceed to derive the spending scalar
+ * }
+ * ```
+ *
+ * @see {@link scanAnnouncements} for the higher-level batch scan API
  */
 export function checkStealthAddress(
   ephemeralPubKey: Uint8Array,
@@ -43,15 +74,57 @@ export function checkStealthAddress(
 }
 
 /**
- * Scans a list of on-chain announcements to find those belonging to the recipient.
+ * Scans a list of on-chain announcements and returns those that belong to the recipient,
+ * each enriched with the stealth private scalar needed to spend the funds.
  *
- * Requires the spending SCALAR (not just public key) to derive the stealth
- * private scalar for each match. This is the key separation:
- *   - Scanning (detection) needs: viewing_key + spending_pubkey
- *   - Spending needs: spending_scalar
+ * This is the main entry point for the recipient-side payment detection flow. Pair it
+ * with {@link fetchAnnouncements} to get the announcement list.
  *
- * The stealth private scalar is: (spending_scalar + hash_scalar) mod L
- * This matches the EVM version: p_stealth = (m + s_h) mod n
+ * **Key separation:** scanning (detection) requires only `viewingKey` +
+ * `spendingPubKey`. Spending additionally requires `spendingScalar`. Pass the scalar
+ * only when you need to produce signed transactions.
+ *
+ * Announcements with a `schemeId` that doesn't match {@link SCHEME_ID} or malformed
+ * fields are silently skipped.
+ *
+ * @param announcements - Array of announcements from the on-chain event log (see
+ *   {@link fetchAnnouncements}).
+ * @param viewingKey - Recipient's 32-byte ed25519 viewing seed.
+ * @param spendingPubKey - Recipient's 32-byte ed25519 spending public key.
+ * @param spendingScalar - Recipient's spending private scalar (from
+ *   {@link StealthKeys.spendingScalar}). Used to derive `stealthPrivateScalar` for each
+ *   match — keep this secret.
+ * @returns Array of {@link MatchedAnnouncement} objects, each containing the original
+ *   announcement fields plus `stealthPrivateScalar` and `stealthPubKeyBytes`.
+ *
+ * @example
+ * ```ts
+ * import {
+ *   deriveStealthKeys,
+ *   fetchAnnouncements,
+ *   scanAnnouncements,
+ *   signStellarTransaction,
+ * } from '@wraith-protocol/sdk/chains/stellar';
+ *
+ * const keys = deriveStealthKeys(signatureBytes);
+ * const announcements = await fetchAnnouncements('stellar');
+ *
+ * const matched = scanAnnouncements(
+ *   announcements,
+ *   keys.viewingKey,
+ *   keys.spendingPubKey,
+ *   keys.spendingScalar,
+ * );
+ *
+ * for (const match of matched) {
+ *   console.log('Found payment to', match.stealthAddress);
+ *   // Use match.stealthPrivateScalar to sign transactions
+ * }
+ * ```
+ *
+ * @see {@link fetchAnnouncements} to retrieve announcements from the Soroban RPC
+ * @see {@link signStellarTransaction} to spend a matched payment
+ * @see {@link checkStealthAddress} for the single-announcement variant
  */
 export function scanAnnouncements(
   announcements: Announcement[],

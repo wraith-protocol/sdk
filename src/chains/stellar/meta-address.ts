@@ -4,9 +4,38 @@ import type { StealthMetaAddress } from './types';
 import { bytesToHex, hexToBytes } from './utils';
 
 /**
- * Encodes spending and viewing public keys into a stealth meta-address string.
+ * Encodes a recipient's spending and viewing public keys into a shareable stealth
+ * meta-address string.
  *
- * Format: `st:xlm:<spending_pubkey_hex 32 bytes><viewing_pubkey_hex 32 bytes>`
+ * The resulting string is what a recipient publishes (e.g. in their profile or ENS
+ * equivalent) so that senders can generate one-time stealth addresses for them without
+ * any further interaction.
+ *
+ * Format: `st:xlm:<spending_pubkey_hex><viewing_pubkey_hex>` (128 hex chars after the
+ * prefix, representing two 32-byte ed25519 keys).
+ *
+ * Use {@link decodeStealthMetaAddress} on the sender side to extract the keys back out.
+ *
+ * @param spendingPubKey - Recipient's 32-byte ed25519 spending public key
+ *   (from {@link deriveStealthKeys}).
+ * @param viewingPubKey - Recipient's 32-byte ed25519 viewing public key
+ *   (from {@link deriveStealthKeys}).
+ * @returns The `st:xlm:...` meta-address string.
+ * @throws {Error} If either key is not 32 bytes or is not a valid ed25519 point.
+ *
+ * @example
+ * ```ts
+ * import {
+ *   deriveStealthKeys,
+ *   encodeStealthMetaAddress,
+ * } from '@wraith-protocol/sdk/chains/stellar';
+ *
+ * const { spendingPubKey, viewingPubKey } = deriveStealthKeys(signatureBytes);
+ * const metaAddress = encodeStealthMetaAddress(spendingPubKey, viewingPubKey);
+ * // => "st:xlm:a1b2c3...d4e5f6..."
+ * ```
+ *
+ * @see {@link decodeStealthMetaAddress} to reverse this operation
  */
 export function encodeStealthMetaAddress(
   spendingPubKey: Uint8Array,
@@ -32,7 +61,29 @@ export function encodeStealthMetaAddress(
 /**
  * Decodes a stealth meta-address string into its component public keys.
  *
- * Validates the prefix, length, and that both keys are valid ed25519 points.
+ * Use this on the sender side, after the recipient has shared their meta-address, to
+ * extract the keys needed to call {@link generateStealthAddress}.
+ *
+ * Validates the `st:xlm:` prefix, total length, and that both embedded keys are
+ * valid ed25519 curve points before returning.
+ *
+ * @param metaAddress - A `st:xlm:...` string produced by {@link encodeStealthMetaAddress}.
+ * @returns An object with `prefix`, `spendingPubKey`, and `viewingPubKey`.
+ * @throws {Error} If the prefix is wrong, the length is incorrect, or either key is not
+ *   a valid ed25519 point.
+ *
+ * @example
+ * ```ts
+ * import {
+ *   decodeStealthMetaAddress,
+ *   generateStealthAddress,
+ * } from '@wraith-protocol/sdk/chains/stellar';
+ *
+ * const { spendingPubKey, viewingPubKey } = decodeStealthMetaAddress(recipientMetaAddress);
+ * const stealth = generateStealthAddress(spendingPubKey, viewingPubKey);
+ * ```
+ *
+ * @see {@link encodeStealthMetaAddress} to produce a meta-address
  */
 export function decodeStealthMetaAddress(metaAddress: string): StealthMetaAddress {
   if (!metaAddress.startsWith(META_ADDRESS_PREFIX)) {

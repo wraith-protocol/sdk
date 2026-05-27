@@ -1,0 +1,13 @@
+{
+    "entryPoints": ["src/chains/stellar/index.ts"],
+    "entryPointStrategy": "resolve",
+    "out": "docs/stellar",
+    "name": "@wraith-protocol/sdk — Stellar",
+    "readme": "none",
+    "skipErrorChecking": false,
+    "excludePrivate": true,
+    "excludeInternal": true,
+    "includeVersion": true,
+    "searchInComments": true,
+    "tsconfig": "tsconfig.json"
+  }

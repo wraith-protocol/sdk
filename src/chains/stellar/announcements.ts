@@ -3,15 +3,45 @@ import { bytesToHex } from './utils';
 import { getDeployment } from './deployments';
 
 /**
- * Fetches all stealth address announcements from the Soroban RPC
- * for the specified Stellar network.
+ * Fetches all stealth address announcements from the Soroban event log for the
+ * specified Stellar network.
  *
- * Uses the `getEvents` JSON-RPC method to query contract events
- * from the announcer contract.
+ * Queries the announcer contract using the `getEvents` Soroban RPC method, paginating
+ * automatically until all events are retrieved. Handles the case where the requested
+ * start ledger falls outside the node's archival window by probing first and adjusting
+ * to the oldest available ledger.
  *
- * @param chain The chain identifier (default: "stellar").
- * @param sorobanUrl Optional override for the Soroban RPC URL.
- * @returns Array of announcements.
+ * Use the returned array as the input to {@link scanAnnouncements} to find payments
+ * addressed to a specific recipient.
+ *
+ * @param chain - The chain identifier key from {@link DEPLOYMENTS} (default: `"stellar"`).
+ * @param sorobanUrl - Optional override for the Soroban RPC endpoint URL. Defaults to
+ *   the URL defined in the matching {@link StellarChainDeployment}.
+ * @returns A promise that resolves to an array of {@link Announcement} objects. Returns
+ *   an empty array if no events are found or the node returns an unrecognised error.
+ * @throws {TypeError} If `fetch` is not available in the current environment.
+ *
+ * @example
+ * ```ts
+ * import {
+ *   deriveStealthKeys,
+ *   fetchAnnouncements,
+ *   scanAnnouncements,
+ * } from '@wraith-protocol/sdk/chains/stellar';
+ *
+ * const keys = deriveStealthKeys(signatureBytes);
+ * const announcements = await fetchAnnouncements('stellar');
+ *
+ * const matched = scanAnnouncements(
+ *   announcements,
+ *   keys.viewingKey,
+ *   keys.spendingPubKey,
+ *   keys.spendingScalar,
+ * );
+ * ```
+ *
+ * @see {@link scanAnnouncements} to filter the results for a specific recipient
+ * @see {@link DEPLOYMENTS} for available chain configurations
  */
 export async function fetchAnnouncements(
   chain: string = 'stellar',
