@@ -303,6 +303,31 @@ const metaAddress = metaAddressFromNameData(cellData);
 // => "st:ckb:..."
 ```
 
+## Property tests
+
+The Stellar scalar module is covered by [fast-check](https://fast-check.dev/) property tests in `test/chains/stellar/properties.test.ts`. These go beyond fixed unit tests by generating thousands of random inputs and asserting mathematical invariants:
+
+| Property                    | What it checks                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| Addition associativity      | `(a+b)+c == a+(b+c) mod L` for all scalars                                            |
+| Addition commutativity      | `a+b == b+a mod L`                                                                    |
+| Additive identity           | `a+0 == a mod L`                                                                      |
+| Reduction stability         | `bytesToScalar(scalarToBytes(a)) == a` round-trips losslessly                         |
+| `seedToScalar` determinism  | same seed → same scalar; distinct seeds → distinct scalars                            |
+| Stealth equation            | `(m + s_h)*G == m*G + s_h*G` — the homomorphism that makes stealth spending work      |
+| View-tag uniformity         | chi-square test over 10k inputs confirms `computeViewTag` output is uniform `[0,255]` |
+| `signWithScalar` round-trip | every `(scalar, message)` pair produces a verifiable ed25519 signature                |
+
+```bash
+# Standard run — 1 000 cases per property
+pnpm test
+
+# Thorough fuzz run — 100 000 cases per property
+pnpm test:fuzz
+```
+
+The nightly CI job (`slow-tests`) runs `pnpm test:fuzz` automatically at 02:00 UTC.
+
 ## Documentation
 
 Full protocol documentation, architecture details, and integration guides are available at [wraith-protocol/docs](https://github.com/wraith-protocol/docs).

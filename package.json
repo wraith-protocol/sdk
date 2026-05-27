@@ -49,7 +49,8 @@
     "clean": "rm -rf dist",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:fuzz": "FC_RUNS=100000 vitest run test/chains/stellar/properties.test.ts"
   },
   "dependencies": {
     "@noble/curves": "^1.8.0",
@@ -57,8 +58,8 @@
     "viem": "^2.23.0"
   },
   "peerDependencies": {
-    "@stellar/stellar-sdk": "^13.1.0",
-    "@solana/web3.js": "^1.95.0"
+    "@solana/web3.js": "^1.95.0",
+    "@stellar/stellar-sdk": "^13.1.0"
   },
   "peerDependenciesMeta": {
     "@stellar/stellar-sdk": {
@@ -73,6 +74,7 @@
     "@commitlint/config-conventional": "^19.6.0",
     "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",
+    "fast-check": "^4.8.0",
     "husky": "^9.1.0",
     "prettier": "^3.4.0",
     "tinybench": "^2.9.0",
