@@ -34,7 +34,10 @@
   ],
   "scripts": {
     "build": "tsup",
-    "test": "vitest run",
+    "test": "vitest run --exclude test/leak/**",
+    "test:leak": "node --expose-gc ./node_modules/vitest/vitest.mjs run test/leak/scan-leak.test.ts --pool=threads --poolOptions.threads.singleThread",
+    "profile:scan:v8": "node --expose-gc --prof ./node_modules/vitest/vitest.mjs run test/leak/scan-leak.test.ts --pool=threads --poolOptions.threads.singleThread",
+    "profile:scan:clinic": "pnpm dlx clinic doctor -- node --expose-gc ./node_modules/vitest/vitest.mjs run test/leak/scan-leak.test.ts --pool=threads --poolOptions.threads.singleThread",
     "test:watch": "vitest",
     "clean": "rm -rf dist",
     "format": "prettier --write .",

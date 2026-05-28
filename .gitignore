@@ -2,3 +2,9 @@ reference/
 node_modules/
 dist/
 *.tsbuildinfo
+test/leak/artifacts/
+test/leak/profiles/*.log
+test/leak/profiles/*.cpuprofile
+test/leak/profiles/*.heapsnapshot
+test/leak/profiles/.clinic/
+isolate-*.log
