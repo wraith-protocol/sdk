@@ -1,10 +1,21 @@
 /**
  * Multichain Scanner Pool
  *
- * Fans out scanning across multiple blockchains in parallel using:
- * - Browser: Web Workers (one per chain)
- * - Node: worker_threads (for ≥2 chains) or inline (for 1 chain)
- * - React Native: Sequential (pool size = 1, no Worker support)
+ * Fans out scanning across multiple blockchains in parallel using Promise.all.
+ * Each chain scan runs concurrently — no chain waits for another.
+ *
+ * Environment behaviour:
+ * - Browser / Node / React Native: all use Promise-based concurrency.
+ *   True thread-level parallelism via Web Workers / worker_threads is a
+ *   future optimisation; the JS event loop already parallelises I/O-bound
+ *   work and the crypto operations here are fast enough that worker overhead
+ *   would dominate for typical announcement counts.
+ *
+ * Security note on key material:
+ * - Private keys are passed as Uint8Array / hex strings within the same
+ *   JS heap. structuredClone (used by postMessage) copies Uint8Array safely,
+ *   but we deliberately keep everything in-process to avoid any serialisation
+ *   risk until a hardened worker transport is implemented.
  */
 
 import type {
@@ -26,13 +37,6 @@ import type {
 } from './chains/ckb/types';
 
 export type SupportedChain = 'evm' | 'stellar' | 'solana' | 'ckb';
-
-export interface ScanInput {
-  evm?: EvmScanInput;
-  stellar?: StellarScanInput;
-  solana?: SolanaScanInput;
-  ckb?: CkbScanInput;
-}
 
 export interface EvmScanInput {
   announcements: EvmAnnouncement[];
@@ -62,6 +66,13 @@ export interface CkbScanInput {
   spendingKey: HexString;
 }
 
+export interface ScanInput {
+  evm?: EvmScanInput;
+  stellar?: StellarScanInput;
+  solana?: SolanaScanInput;
+  ckb?: CkbScanInput;
+}
+
 export interface ScanResults {
   evm?: EvmMatchedAnnouncement[];
   stellar?: StellarMatchedAnnouncement[];
@@ -76,235 +87,139 @@ export interface ProgressEvent {
 }
 
 export interface MultichainScannerPoolOptions {
+  /**
+   * Which chains to include. Defaults to all four.
+   * Only chains that also have a corresponding key in the `scanAll` input
+   * will actually be scanned.
+   */
   chains?: SupportedChain[];
+  /**
+   * Maximum number of chain scans to run concurrently.
+   * Defaults to 4 (one per chain). Lower values throttle parallelism.
+   */
   concurrency?: number;
+  /**
+   * When true (default), the first chain error rejects the whole scanAll call.
+   * When false, all chains run to completion and per-chain errors are thrown
+   * individually (currently surfaces as a rejection after all settle).
+   */
+  failFast?: boolean;
 }
 
 export class MultichainScannerPool {
-  private chains: SupportedChain[];
-  private concurrency: number;
-  private isNode: boolean;
-  private isBrowser: boolean;
-  private isReactNative: boolean;
-  private progressListeners: Set<(event: ProgressEvent) => void> = new Set();
+  private readonly chains: SupportedChain[];
+  private readonly concurrency: number;
+  private readonly failFast: boolean;
+  private readonly progressListeners = new Set<(event: ProgressEvent) => void>();
 
   constructor(options: MultichainScannerPoolOptions = {}) {
-    this.chains = options.chains || (['evm', 'stellar', 'solana', 'ckb'] as SupportedChain[]);
-    this.concurrency = options.concurrency || 4;
-
-    // Environment detection
-    this.isNode =
-      typeof globalThis.process !== 'undefined' &&
-      globalThis.process.versions !== undefined &&
-      globalThis.process.versions.node !== undefined &&
-      typeof globalThis.Worker === 'undefined';
-
-    this.isBrowser =
-      typeof globalThis.window !== 'undefined' && typeof globalThis.Worker !== 'undefined';
-
-    // React Native: has neither Node process.versions nor window
-    this.isReactNative = !this.isNode && !this.isBrowser;
+    this.chains = options.chains ?? (['evm', 'stellar', 'solana', 'ckb'] as SupportedChain[]);
+    this.concurrency = Math.max(1, options.concurrency ?? 4);
+    this.failFast = options.failFast ?? true;
   }
 
-  on(event: 'progress', listener: (e: ProgressEvent) => void): void {
-    if (event === 'progress') {
-      this.progressListeners.add(listener);
-    }
+  on(event: 'progress', listener: (e: ProgressEvent) => void): this {
+    if (event === 'progress') this.progressListeners.add(listener);
+    return this;
   }
 
-  off(event: 'progress', listener: (e: ProgressEvent) => void): void {
-    if (event === 'progress') {
-      this.progressListeners.delete(listener);
-    }
+  off(event: 'progress', listener: (e: ProgressEvent) => void): this {
+    if (event === 'progress') this.progressListeners.delete(listener);
+    return this;
   }
 
-  private emitProgress(event: ProgressEvent): void {
-    this.progressListeners.forEach((listener) => listener(event));
+  private emit(event: ProgressEvent): void {
+    this.progressListeners.forEach((fn) => fn(event));
   }
 
+  /**
+   * Scan all configured chains in parallel.
+   *
+   * @param input   Per-chain scan parameters. Chains absent from this object
+   *                are skipped even if listed in `options.chains`.
+   * @param signal  Optional AbortSignal. Aborting cancels pending scans and
+   *                rejects the returned promise.
+   */
   async scanAll(input: ScanInput, signal?: AbortSignal): Promise<ScanResults> {
-    // React Native: sequential scanning only
-    if (this.isReactNative) {
-      return this.scanSequential(input, signal);
-    }
+    if (signal?.aborted) throw new DOMException('Scan cancelled', 'AbortError');
 
-    // For single chain, always inline (no worker overhead)
-    const activeChains = this.chains.filter((c) => input[c]);
-    if (activeChains.length === 1) {
-      return this.scanSequential(input, signal);
-    }
+    // Only scan chains that have input provided
+    const activeChains = this.chains.filter((c) => input[c] !== undefined);
+    if (activeChains.length === 0) return {};
 
-    // Node with ≥2 chains: try worker_threads if available
-    if (this.isNode && activeChains.length >= 2) {
+    const results: ScanResults = {};
+
+    // Run up to `concurrency` chains at a time using a simple queue
+    await this.runWithConcurrency(activeChains, this.concurrency, async (chain) => {
+      if (signal?.aborted) throw new DOMException('Scan cancelled', 'AbortError');
+
+      const chainInput = input[chain]!;
+      const matched = await this.scanChain(chain, chainInput, signal);
+
+      // Type-safe result assignment
+      (results as Record<string, unknown>)[chain] = matched;
+    });
+
+    return results;
+  }
+
+  /**
+   * Runs `tasks` with at most `limit` running concurrently.
+   * Respects `failFast`: if true, the first rejection propagates immediately.
+   * If false, all tasks run to completion before any error is thrown.
+   */
+  private async runWithConcurrency<T>(
+    items: T[],
+    limit: number,
+    fn: (item: T) => Promise<void>,
+  ): Promise<void> {
+    if (this.failFast) {
+      await this.runFailFast(items, limit, fn);
+    } else {
+      await this.runSettleAll(items, limit, fn);
+    }
+  }
+
+  private async runFailFast<T>(
+    items: T[],
+    limit: number,
+    fn: (item: T) => Promise<void>,
+  ): Promise<void> {
+    const queue = [...items];
+    const active = new Set<Promise<void>>();
+
+    const launch = (): Promise<void> | undefined => {
+      if (queue.length === 0) return undefined;
+      const item = queue.shift()!;
+      const p: Promise<void> = fn(item).finally(() => active.delete(p));
+      active.add(p);
+      return p;
+    };
+
+    // Fill up to the concurrency limit
+    while (active.size < limit && queue.length > 0) launch();
+
+    // As each slot frees up, launch the next item
+    while (active.size > 0) {
+      await Promise.race(active);
+      while (active.size < limit && queue.length > 0) launch();
+    }
+  }
+
+  private async runSettleAll<T>(
+    items: T[],
+    limit: number,
+    fn: (item: T) => Promise<void>,
+  ): Promise<void> {
+    const errors: unknown[] = [];
+    await this.runFailFast(items, limit, async (item) => {
       try {
-        return await this.scanWithWorkerThreads(input, activeChains, signal);
-      } catch {
-        // Fall back to inline if worker_threads fails
-        return this.scanSequential(input, signal);
-      }
-    }
-
-    // Browser: use Web Workers
-    if (this.isBrowser && activeChains.length >= 2) {
-      return this.scanWithWebWorkers(input, activeChains, signal);
-    }
-
-    // Default: sequential
-    return this.scanSequential(input, signal);
-  }
-
-  private async scanSequential(input: ScanInput, signal?: AbortSignal): Promise<ScanResults> {
-    const results: ScanResults = {};
-
-    for (const chain of this.chains) {
-      if (signal?.aborted) break;
-
-      const chainInput = input[chain];
-      if (!chainInput) continue;
-
-      const result = await this.scanChain(chain, chainInput as never, signal);
-      // Type-safe assignment per chain
-      switch (chain) {
-        case 'evm':
-          results.evm = result as EvmMatchedAnnouncement[];
-          break;
-        case 'stellar':
-          results.stellar = result as StellarMatchedAnnouncement[];
-          break;
-        case 'solana':
-          results.solana = result as SolanaMatchedAnnouncement[];
-          break;
-        case 'ckb':
-          results.ckb = result as CkbMatchedCell[];
-          break;
-      }
-    }
-
-    return results;
-  }
-
-  private async scanWithWorkerThreads(
-    input: ScanInput,
-    activeChains: SupportedChain[],
-    signal?: AbortSignal,
-  ): Promise<ScanResults> {
-    // Dynamic import to avoid breaking browser builds
-    const { Worker } = await import('worker_threads');
-
-    const results: ScanResults = {};
-    const promises: Promise<void>[] = [];
-
-    for (const chain of activeChains) {
-      if (signal?.aborted) break;
-
-      const chainInput = input[chain];
-      if (!chainInput) continue;
-
-      const promise = (async () => {
-        try {
-          // For now, run inline in worker_threads. Full worker implementation
-          // would spawn actual worker files. This keeps bundle size small.
-          const result = await this.scanChain(chain, chainInput as never, signal);
-          // Type-safe assignment per chain
-          switch (chain) {
-            case 'evm':
-              results.evm = result as EvmMatchedAnnouncement[];
-              break;
-            case 'stellar':
-              results.stellar = result as StellarMatchedAnnouncement[];
-              break;
-            case 'solana':
-              results.solana = result as SolanaMatchedAnnouncement[];
-              break;
-            case 'ckb':
-              results.ckb = result as CkbMatchedCell[];
-              break;
-          }
-        } catch (error) {
-          if (signal?.aborted) return;
-          throw error;
-        }
-      })();
-
-      promises.push(promise);
-
-      // Respect concurrency limit
-      if (promises.length >= this.concurrency) {
-        await Promise.race(promises);
-        promises.splice(
-          promises.findIndex((p) => p instanceof Promise && p),
-          1,
-        );
-      }
-    }
-
-    await Promise.all(promises);
-    return results;
-  }
-
-  private scanWithWebWorkers(
-    input: ScanInput,
-    activeChains: SupportedChain[],
-    signal?: AbortSignal,
-  ): Promise<ScanResults> {
-    return new Promise((resolve, reject) => {
-      const results: ScanResults = {};
-      const completed = new Set<SupportedChain>();
-
-      const cleanup = () => {
-        // Cleanup is handled by garbage collection
-      };
-
-      for (const chain of activeChains) {
-        if (signal?.aborted) {
-          cleanup();
-          reject(new Error('Scan cancelled'));
-          return;
-        }
-
-        const chainInput = input[chain];
-        if (!chainInput) continue;
-
-        // Run inline for simplicity (Web Workers can be added as optimization)
-        this.scanChain(chain, chainInput as never, signal).then(
-          (result) => {
-            // Type-safe assignment per chain
-            switch (chain) {
-              case 'evm':
-                results.evm = result as EvmMatchedAnnouncement[];
-                break;
-              case 'stellar':
-                results.stellar = result as StellarMatchedAnnouncement[];
-                break;
-              case 'solana':
-                results.solana = result as SolanaMatchedAnnouncement[];
-                break;
-              case 'ckb':
-                results.ckb = result as CkbMatchedCell[];
-                break;
-            }
-            completed.add(chain);
-
-            if (completed.size === activeChains.length) {
-              cleanup();
-              resolve(results);
-            }
-          },
-          (error) => {
-            cleanup();
-            reject(error);
-          },
-        );
-      }
-
-      // Handle abort signal
-      if (signal) {
-        signal.addEventListener('abort', () => {
-          cleanup();
-          reject(new Error('Scan cancelled'));
-        });
+        await fn(item);
+      } catch (err) {
+        errors.push(err);
       }
     });
+    if (errors.length > 0) throw errors[0];
   }
 
   private async scanChain(
@@ -312,55 +227,62 @@ export class MultichainScannerPool {
     input: EvmScanInput | StellarScanInput | SolanaScanInput | CkbScanInput,
     signal?: AbortSignal,
   ): Promise<unknown[]> {
-    if (signal?.aborted) {
-      throw new Error('Scan cancelled');
-    }
+    if (signal?.aborted) throw new DOMException('Scan cancelled', 'AbortError');
 
-    // Dynamic imports keep bundle size small
     switch (chain) {
       case 'evm': {
         const { scanAnnouncements } = await import('./chains/evm/scan');
-        const evmInput = input as EvmScanInput;
-        return scanAnnouncements(
-          evmInput.announcements,
-          evmInput.viewingKey,
-          evmInput.spendingPubKey,
-          evmInput.spendingKey,
+        const i = input as EvmScanInput;
+        const total = i.announcements.length;
+        this.emit({ chain, processed: 0, total });
+        const result = scanAnnouncements(
+          i.announcements,
+          i.viewingKey,
+          i.spendingPubKey,
+          i.spendingKey,
         );
+        this.emit({ chain, processed: total, total });
+        return result;
       }
       case 'stellar': {
         const { scanAnnouncements } = await import('./chains/stellar/scan');
-        const stellarInput = input as StellarScanInput;
-        return scanAnnouncements(
-          stellarInput.announcements,
-          stellarInput.viewingKey,
-          stellarInput.spendingPubKey,
-          stellarInput.spendingScalar,
+        const i = input as StellarScanInput;
+        const total = i.announcements.length;
+        this.emit({ chain, processed: 0, total });
+        const result = scanAnnouncements(
+          i.announcements,
+          i.viewingKey,
+          i.spendingPubKey,
+          i.spendingScalar,
         );
+        this.emit({ chain, processed: total, total });
+        return result;
       }
       case 'solana': {
         const { scanAnnouncements } = await import('./chains/solana/scan');
-        const solanaInput = input as SolanaScanInput;
-        return scanAnnouncements(
-          solanaInput.announcements,
-          solanaInput.viewingKey,
-          solanaInput.spendingPubKey,
-          solanaInput.spendingScalar,
+        const i = input as SolanaScanInput;
+        const total = i.announcements.length;
+        this.emit({ chain, processed: 0, total });
+        const result = scanAnnouncements(
+          i.announcements,
+          i.viewingKey,
+          i.spendingPubKey,
+          i.spendingScalar,
         );
+        this.emit({ chain, processed: total, total });
+        return result;
       }
       case 'ckb': {
         const { scanStealthCells } = await import('./chains/ckb/scan');
-        const ckbInput = input as CkbScanInput;
-        return scanStealthCells(
-          ckbInput.cells,
-          ckbInput.viewingKey,
-          ckbInput.spendingPubKey,
-          ckbInput.spendingKey,
-        );
+        const i = input as CkbScanInput;
+        const total = i.cells.length;
+        this.emit({ chain, processed: 0, total });
+        const result = scanStealthCells(i.cells, i.viewingKey, i.spendingPubKey, i.spendingKey);
+        this.emit({ chain, processed: total, total });
+        return result;
       }
-      default: {
+      default:
         throw new Error(`Unsupported chain: ${chain}`);
-      }
     }
   }
 }

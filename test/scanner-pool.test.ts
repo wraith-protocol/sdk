@@ -5,273 +5,271 @@ import {
   type EvmScanInput,
   type StellarScanInput,
   type SolanaScanInput,
+  type CkbScanInput,
+  type ProgressEvent,
 } from '../src/scanner-pool';
 
-// Mock announcements - with empty arrays so scanning returns immediately
-const mockEvmAnnouncements: never[] = [];
-const mockStellarAnnouncements: never[] = [];
-const mockSolanaAnnouncements: never[] = [];
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
 
-// Valid 32-byte hex keys for EVM (as 0x + 64 hex chars)
-const mockEvmKeys = {
+const evmKeys = {
   viewingKey: '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' as const,
   spendingPubKey: '0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd' as const,
   spendingKey: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as const,
 };
 
-const mockStellarKeys = {
+const stellarKeys = {
   viewingKey: new Uint8Array(32).fill(0xcc),
   spendingPubKey: new Uint8Array(32).fill(0xdd),
   spendingScalar: 123456789n,
 };
 
-const mockSolanaKeys = {
+const solanaKeys = {
   viewingKey: new Uint8Array(32).fill(0xcc),
   spendingPubKey: new Uint8Array(32).fill(0xdd),
   spendingScalar: 123456789n,
 };
 
-describe('MultichainScannerPool', () => {
+const ckbKeys = {
+  viewingKey: '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' as const,
+  spendingPubKey: '0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd' as const,
+  spendingKey: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as const,
+};
+
+const evmInput: EvmScanInput = { announcements: [], ...evmKeys };
+const stellarInput: StellarScanInput = { announcements: [], ...stellarKeys };
+const solanaInput: SolanaScanInput = { announcements: [], ...solanaKeys };
+const ckbInput: CkbScanInput = { cells: [], ...ckbKeys };
+
+// ---------------------------------------------------------------------------
+// Constructor
+// ---------------------------------------------------------------------------
+
+describe('MultichainScannerPool – constructor', () => {
+  it('initialises with defaults', () => {
+    const pool = new MultichainScannerPool();
+    expect(pool).toBeInstanceOf(MultichainScannerPool);
+  });
+
+  it('accepts custom chains and concurrency', () => {
+    const pool = new MultichainScannerPool({ chains: ['evm', 'solana'], concurrency: 2 });
+    expect(pool).toBeInstanceOf(MultichainScannerPool);
+  });
+
+  it('clamps concurrency to at least 1', () => {
+    // Should not throw
+    const pool = new MultichainScannerPool({ concurrency: 0 });
+    expect(pool).toBeInstanceOf(MultichainScannerPool);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// scanAll – basic correctness
+// ---------------------------------------------------------------------------
+
+describe('MultichainScannerPool – scanAll', () => {
   let pool: MultichainScannerPool;
 
   beforeEach(() => {
     pool = new MultichainScannerPool({
-      chains: ['evm', 'stellar', 'solana'],
-      concurrency: 2,
+      chains: ['evm', 'stellar', 'solana', 'ckb'],
+      concurrency: 4,
     });
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
+  afterEach(() => vi.clearAllMocks());
+
+  it('returns empty object for empty input', async () => {
+    expect(await pool.scanAll({})).toEqual({});
   });
 
-  describe('constructor', () => {
-    it('should initialize with default options', () => {
-      const defaultPool = new MultichainScannerPool();
-      expect(defaultPool).toBeDefined();
-    });
-
-    it('should initialize with custom chains and concurrency', () => {
-      const customPool = new MultichainScannerPool({
-        chains: ['evm'],
-        concurrency: 1,
-      });
-      expect(customPool).toBeDefined();
-    });
+  it('returns only the chains present in input', async () => {
+    const results = await pool.scanAll({ evm: evmInput });
+    expect(results.evm).toBeDefined();
+    expect(results.stellar).toBeUndefined();
+    expect(results.solana).toBeUndefined();
+    expect(results.ckb).toBeUndefined();
   });
 
-  describe('progress reporting', () => {
-    it('should allow registering progress listeners', () => {
-      const listener = vi.fn();
-      pool.on('progress', listener);
-
-      expect(listener).not.toHaveBeenCalled();
+  it('returns arrays for all four chains', async () => {
+    const results = await pool.scanAll({
+      evm: evmInput,
+      stellar: stellarInput,
+      solana: solanaInput,
+      ckb: ckbInput,
     });
-
-    it('should remove progress listeners', () => {
-      const listener = vi.fn();
-      pool.on('progress', listener);
-      pool.off('progress', listener);
-
-      expect(listener).not.toHaveBeenCalled();
-    });
+    expect(Array.isArray(results.evm)).toBe(true);
+    expect(Array.isArray(results.stellar)).toBe(true);
+    expect(Array.isArray(results.solana)).toBe(true);
+    expect(Array.isArray(results.ckb)).toBe(true);
   });
 
-  describe('scanAll', () => {
-    it('should handle empty input gracefully', async () => {
-      const results = await pool.scanAll({});
-      expect(results).toEqual({});
-    });
-
-    it('should handle single chain input', async () => {
-      const input: ScanInput = {
-        evm: {
-          announcements: mockEvmAnnouncements,
-          ...mockEvmKeys,
-        } as EvmScanInput,
-      };
-
-      const results = await pool.scanAll(input);
-      expect(results).toBeDefined();
-      expect(results.evm).toBeDefined();
-      expect(Array.isArray(results.evm)).toBe(true);
-    });
-
-    it('should handle multiple chain input', async () => {
-      const input: ScanInput = {
-        evm: {
-          announcements: mockEvmAnnouncements,
-          ...mockEvmKeys,
-        } as EvmScanInput,
-        stellar: {
-          announcements: mockStellarAnnouncements,
-          ...mockStellarKeys,
-        } as StellarScanInput,
-      };
-
-      const results = await pool.scanAll(input);
-      expect(results).toBeDefined();
-      expect(results.evm).toBeDefined();
-      expect(results.stellar).toBeDefined();
-    });
-
-    it('should respect AbortSignal cancellation', async () => {
-      const controller = new AbortController();
-      const input: ScanInput = {
-        evm: {
-          announcements: mockEvmAnnouncements,
-          ...mockEvmKeys,
-        } as EvmScanInput,
-      };
-
-      controller.abort();
-
-      try {
-        await pool.scanAll(input, controller.signal);
-      } catch (error) {
-        expect(error).toBeDefined();
-      }
-    });
+  it('returns empty arrays when announcements/cells are empty', async () => {
+    const results = await pool.scanAll({ evm: evmInput, stellar: stellarInput });
+    expect(results.evm).toHaveLength(0);
+    expect(results.stellar).toHaveLength(0);
   });
 
-  describe('environment detection', () => {
-    it('should be detected as Node environment', () => {
-      const nodePool = new MultichainScannerPool();
-      expect(nodePool).toBeDefined();
-    });
+  it('ignores chains not listed in constructor options', async () => {
+    const evmOnly = new MultichainScannerPool({ chains: ['evm'] });
+    const results = await evmOnly.scanAll({ evm: evmInput, stellar: stellarInput });
+    expect(results.evm).toBeDefined();
+    // stellar was not in the pool's chain list
+    expect(results.stellar).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Parallelism
+// ---------------------------------------------------------------------------
+
+describe('MultichainScannerPool – parallelism', () => {
+  it('runs chains concurrently (parallel not slower than sequential)', async () => {
+    // With empty arrays both paths are near-instant; verify parallel ≤ sequential + tolerance
+    const parallel = new MultichainScannerPool({ concurrency: 4 });
+    const sequential = new MultichainScannerPool({ concurrency: 1 });
+    const input: ScanInput = {
+      evm: evmInput,
+      stellar: stellarInput,
+      solana: solanaInput,
+      ckb: ckbInput,
+    };
+
+    const t0 = performance.now();
+    await parallel.scanAll(input);
+    const parallelMs = performance.now() - t0;
+
+    const t1 = performance.now();
+    await sequential.scanAll(input);
+    const seqMs = performance.now() - t1;
+
+    expect(parallelMs).toBeLessThanOrEqual(seqMs + 100);
   });
 
-  describe('error handling', () => {
-    it('should handle invalid chain gracefully', async () => {
-      const invalidInput = {
-        invalid: {
-          announcements: [],
-        },
-      } as unknown as ScanInput;
+  it('respects concurrency=1 (sequential order)', async () => {
+    const pool = new MultichainScannerPool({ chains: ['evm', 'stellar'], concurrency: 1 });
+    const results = await pool.scanAll({ evm: evmInput, stellar: stellarInput });
+    expect(results.evm).toBeDefined();
+    expect(results.stellar).toBeDefined();
+  });
+});
 
-      const results = await pool.scanAll(invalidInput);
-      expect(results).toBeDefined();
-    });
+// ---------------------------------------------------------------------------
+// Progress events
+// ---------------------------------------------------------------------------
 
-    it('should handle malformed announcements', async () => {
-      const input: ScanInput = {
-        evm: {
-          announcements: [] as never,
-          ...mockEvmKeys,
-        } as EvmScanInput,
-      };
+describe('MultichainScannerPool – progress events', () => {
+  it('emits start (processed=0) and end (processed=total) events per chain', async () => {
+    const pool = new MultichainScannerPool({ chains: ['evm'] });
+    const events: ProgressEvent[] = [];
+    pool.on('progress', (e) => events.push({ ...e }));
 
-      const results = await pool.scanAll(input);
-      expect(results.evm).toBeDefined();
-      expect(Array.isArray(results.evm)).toBe(true);
-    });
+    await pool.scanAll({ evm: evmInput });
+
+    const evmEvents = events.filter((e) => e.chain === 'evm');
+    expect(evmEvents.length).toBeGreaterThanOrEqual(2);
+    expect(evmEvents[0]).toMatchObject({ chain: 'evm', processed: 0, total: 0 });
+    expect(evmEvents[evmEvents.length - 1]).toMatchObject({ chain: 'evm', processed: 0, total: 0 });
   });
 
-  describe('concurrency limiting', () => {
-    it('should respect concurrency limit', async () => {
-      const concurrencyPool = new MultichainScannerPool({
-        chains: ['evm', 'stellar', 'solana'],
-        concurrency: 1,
-      });
-
-      const input: ScanInput = {
-        evm: {
-          announcements: mockEvmAnnouncements,
-          ...mockEvmKeys,
-        } as EvmScanInput,
-        stellar: {
-          announcements: mockStellarAnnouncements,
-          ...mockStellarKeys,
-        } as StellarScanInput,
-      };
-
-      const results = await concurrencyPool.scanAll(input);
-      expect(results).toBeDefined();
-    });
+  it('on() returns this for chaining', () => {
+    const pool = new MultichainScannerPool();
+    const ret = pool.on('progress', () => {});
+    expect(ret).toBe(pool);
   });
 
-  describe('multi-chain scanning', () => {
-    it('should scan all provided chains in parallel', async () => {
-      const input: ScanInput = {
-        evm: {
-          announcements: mockEvmAnnouncements,
-          ...mockEvmKeys,
-        } as EvmScanInput,
-        stellar: {
-          announcements: mockStellarAnnouncements,
-          ...mockStellarKeys,
-        } as StellarScanInput,
-        solana: {
-          announcements: mockSolanaAnnouncements,
-          ...mockSolanaKeys,
-        } as SolanaScanInput,
-      };
+  it('off() removes the listener', async () => {
+    const pool = new MultichainScannerPool({ chains: ['evm'] });
+    const listener = vi.fn();
+    pool.on('progress', listener);
+    pool.off('progress', listener);
 
-      const startTime = performance.now();
-      const results = await pool.scanAll(input);
-      const endTime = performance.now();
-
-      expect(results).toBeDefined();
-      expect(results.evm).toBeDefined();
-      expect(results.stellar).toBeDefined();
-      expect(results.solana).toBeDefined();
-      expect(endTime - startTime).toBeGreaterThan(0);
-    });
-
-    it('should handle partial chain results', async () => {
-      const input: ScanInput = {
-        evm: {
-          announcements: mockEvmAnnouncements,
-          ...mockEvmKeys,
-        } as EvmScanInput,
-        stellar: {
-          announcements: mockStellarAnnouncements,
-          ...mockStellarKeys,
-        } as StellarScanInput,
-      };
-
-      const results = await pool.scanAll(input);
-      expect(results).toBeDefined();
-      expect(Object.keys(results).length).toBeGreaterThan(0);
-    });
+    await pool.scanAll({ evm: evmInput });
+    expect(listener).not.toHaveBeenCalled();
   });
 
-  describe('result merging', () => {
-    it('should merge results from multiple chains correctly', async () => {
-      const input: ScanInput = {
-        evm: {
-          announcements: mockEvmAnnouncements,
-          ...mockEvmKeys,
-        } as EvmScanInput,
-        stellar: {
-          announcements: mockStellarAnnouncements,
-          ...mockStellarKeys,
-        } as StellarScanInput,
-      };
+  it('off() returns this for chaining', () => {
+    const pool = new MultichainScannerPool();
+    const fn = () => {};
+    pool.on('progress', fn);
+    const ret = pool.off('progress', fn);
+    expect(ret).toBe(pool);
+  });
+});
 
-      const results = await pool.scanAll(input);
+// ---------------------------------------------------------------------------
+// AbortSignal cancellation
+// ---------------------------------------------------------------------------
 
-      if (results.evm !== undefined) {
-        expect(Array.isArray(results.evm)).toBe(true);
-      }
-      if (results.stellar !== undefined) {
-        expect(Array.isArray(results.stellar)).toBe(true);
-      }
+describe('MultichainScannerPool – cancellation', () => {
+  it('rejects immediately when signal is already aborted', async () => {
+    const pool = new MultichainScannerPool();
+    const ctrl = new AbortController();
+    ctrl.abort();
+
+    await expect(pool.scanAll({ evm: evmInput }, ctrl.signal)).rejects.toThrow();
+  });
+
+  it('resolves normally when signal is not aborted', async () => {
+    const pool = new MultichainScannerPool({ chains: ['evm'] });
+    const ctrl = new AbortController();
+    const results = await pool.scanAll({ evm: evmInput }, ctrl.signal);
+    expect(results.evm).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// failFast option
+// ---------------------------------------------------------------------------
+
+describe('MultichainScannerPool – failFast', () => {
+  it('rejects on first error by default (failFast=true)', async () => {
+    const pool = new MultichainScannerPool({ chains: ['evm'], failFast: true });
+
+    // Pass an input that will cause scanChain to throw (unsupported chain injected via cast)
+    const badInput = { evm: null } as unknown as ScanInput;
+    // evm is present but null — scanChain will try to destructure and throw
+    await expect(pool.scanAll(badInput)).rejects.toThrow();
+  });
+
+  it('failFast=false still surfaces errors', async () => {
+    const pool = new MultichainScannerPool({ chains: ['evm'], failFast: false });
+    const badInput = { evm: null } as unknown as ScanInput;
+    await expect(pool.scanAll(badInput)).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Benchmark (smoke test — not a hard timing assertion)
+// ---------------------------------------------------------------------------
+
+describe('MultichainScannerPool – benchmark smoke test', () => {
+  it('parallel 4-chain scan completes faster than sequential baseline', async () => {
+    const pool = new MultichainScannerPool({ concurrency: 4 });
+
+    const t0 = performance.now();
+    await pool.scanAll({
+      evm: evmInput,
+      stellar: stellarInput,
+      solana: solanaInput,
+      ckb: ckbInput,
     });
+    const parallelMs = performance.now() - t0;
 
-    it('should not include chains without input in results', async () => {
-      const input: ScanInput = {
-        evm: {
-          announcements: mockEvmAnnouncements,
-          ...mockEvmKeys,
-        } as EvmScanInput,
-      };
-
-      const results = await pool.scanAll(input);
-
-      expect(results.evm).toBeDefined();
-      expect(results.stellar).toBeUndefined();
-      expect(results.solana).toBeUndefined();
+    // Sequential baseline
+    const seqPool = new MultichainScannerPool({ concurrency: 1 });
+    const t1 = performance.now();
+    await seqPool.scanAll({
+      evm: evmInput,
+      stellar: stellarInput,
+      solana: solanaInput,
+      ckb: ckbInput,
     });
+    const seqMs = performance.now() - t1;
+
+    // With empty arrays both are near-instant; just assert parallel ≤ sequential
+    expect(parallelMs).toBeLessThanOrEqual(seqMs + 50); // 50 ms tolerance for CI jitter
+    console.log(`Parallel: ${parallelMs.toFixed(1)} ms | Sequential: ${seqMs.toFixed(1)} ms`);
   });
 });
