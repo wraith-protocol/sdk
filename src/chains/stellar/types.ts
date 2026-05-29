@@ -1,6 +1,9 @@
 /** A hex-encoded string with 0x prefix. */
 export type HexString = `0x${string}`;
 
+/** Stellar network identifier. Used as a cache namespace to prevent testnet/mainnet collisions. */
+export type Network = 'testnet' | 'mainnet';
+
 /** Spending and viewing key pairs derived from a wallet signature. */
 export interface StealthKeys {
   /** 32-byte spending seed (ed25519). */
@@ -48,6 +51,8 @@ export interface Announcement {
   ephemeralPubKey: string;
   /** Hex-encoded metadata (first byte is view tag). */
   metadata: string;
+  /** Soroban ledger sequence number where this announcement was emitted. */
+  ledger?: number;
 }
 
 /**
