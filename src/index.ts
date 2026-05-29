@@ -15,3 +15,16 @@ export type {
   Notification,
   Conversation,
 } from './agent/types';
+
+export { MultichainScannerPool } from './scanner-pool';
+export type {
+  SupportedChain,
+  ScanInput,
+  EvmScanInput,
+  StellarScanInput,
+  SolanaScanInput,
+  CkbScanInput,
+  ScanResults,
+  ProgressEvent,
+  MultichainScannerPoolOptions,
+} from './scanner-pool';
