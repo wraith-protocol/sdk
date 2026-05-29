@@ -4,6 +4,8 @@ export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-addre
 export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
 export { checkStealthAddress, scanAnnouncements, scanAnnouncementsStream } from './scan';
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
+export { buildStealthPayment, buildStealthAnnouncement } from './builders';
+export type { BuildStealthPaymentOptions, BuildAnnouncementOptions } from './builders';
 export {
   seedToScalar,
   hashToScalar,
