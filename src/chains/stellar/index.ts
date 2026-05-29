@@ -2,7 +2,7 @@ export { deriveStealthKeys } from './keys';
 export { STEALTH_SIGNING_MESSAGE, SCHEME_ID, META_ADDRESS_PREFIX } from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
 export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
-export { checkStealthAddress, scanAnnouncements } from './scan';
+export { checkStealthAddress, scanAnnouncements, scanAnnouncementsStream } from './scan';
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export {
   seedToScalar,
@@ -13,7 +13,7 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
-export { fetchAnnouncements, RetentionExceededError } from './announcements';
+export { fetchAnnouncements, fetchAnnouncementsStream, RetentionExceededError } from './announcements';
 export type { FetchAnnouncementsOptions, FetchAnnouncementsResult } from './announcements';
 export { DEPLOYMENTS, getDeployment } from './deployments';
 export type { StellarChainDeployment } from './deployments';

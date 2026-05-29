@@ -68,6 +68,8 @@ export class RetentionExceededError extends Error {
  * ```
  *
  * @see {@link getDeployment}
+ *
+ * @deprecated Prefer {@link fetchAnnouncementsStream} for memory-efficient streaming.
  */
 export async function fetchAnnouncements(
   chain?: string,
@@ -175,6 +177,86 @@ export async function fetchAnnouncements(
   }
 
   return returnsCursor ? { announcements: all, nextCursor } : all;
+}
+
+/**
+ * Streaming version of announcement fetching. Yields announcements page by page
+ * from the Soroban RPC as they arrive, never holding more than one page in memory.
+ *
+ * Cancellation is automatic: breaking out of the `for-await` loop stops the stream.
+ *
+ * @param chain The chain identifier (default: "stellar").
+ * @param sorobanUrl Optional override for the Soroban RPC URL.
+ */
+export async function* fetchAnnouncementsStream(
+  chain: string = 'stellar',
+  sorobanUrl?: string,
+): AsyncGenerator<Announcement> {
+  const deployment = getDeployment(chain);
+  const url = sorobanUrl || deployment.sorobanUrl;
+  const announcerContract = deployment.contracts.announcer;
+
+  const probeRes = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 0,
+      method: 'getEvents',
+      params: {
+        startLedger: 1,
+        filters: [{ type: 'contract', contractIds: [announcerContract] }],
+        pagination: { limit: 1 },
+      },
+    }),
+  });
+
+  const probeData = await probeRes.json();
+  let startLedger = 1;
+
+  if (probeData.error?.message) {
+    const range = parseLedgerRange(probeData.error.message);
+    if (range) {
+      startLedger = Math.max(range.oldest, range.latest - 5000);
+    } else {
+      return;
+    }
+  }
+
+  let cursor: string | undefined;
+  let hasMore = true;
+
+  while (hasMore) {
+    const params: Record<string, unknown> = {
+      filters: [{ type: 'contract', contractIds: [announcerContract] }],
+      pagination: cursor ? { limit: 1000, cursor } : { limit: 1000 },
+    };
+
+    if (!cursor) {
+      params.startLedger = startLedger;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'getEvents', params }),
+    });
+
+    const data = await res.json();
+    const events: Record<string, unknown>[] = data.result?.events ?? [];
+
+    for (const event of events) {
+      const ann = parseAnnouncementEvent(event);
+      if (ann) yield ann;
+    }
+
+    if (events.length < 1000) {
+      hasMore = false;
+    } else {
+      cursor = data.result?.cursor;
+      if (!cursor) hasMore = false;
+    }
+  }
 }
 
 async function getSorobanLedgerWindow(
