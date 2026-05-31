@@ -1,3 +1,5 @@
+import { InvalidMetaAddressError } from '../../errors';
+
 /**
  * Converts a Uint8Array to a hex string (no 0x prefix).
  */
@@ -13,7 +15,7 @@ export function bytesToHex(bytes: Uint8Array): string {
 export function hexToBytes(hex: string): Uint8Array {
   const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
   if (clean.length % 2 !== 0) {
-    throw new Error('Invalid hex string length');
+    throw new InvalidMetaAddressError('', 'Invalid hex string length');
   }
   const bytes = new Uint8Array(clean.length / 2);
   for (let i = 0; i < bytes.length; i++) {

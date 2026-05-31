@@ -1,3 +1,5 @@
+import { UnsupportedAssetError } from '../../errors';
+
 export interface StellarChainDeployment {
   network: string;
   networkPassphrase: string;
@@ -25,9 +27,7 @@ export const DEPLOYMENTS: Record<string, StellarChainDeployment> = {
 export function getDeployment(chain: string): StellarChainDeployment {
   const deployment = DEPLOYMENTS[chain];
   if (!deployment) {
-    throw new Error(
-      `No Stellar deployment for "${chain}". Available: ${Object.keys(DEPLOYMENTS).join(', ')}`,
-    );
+    throw new UnsupportedAssetError('native', chain);
   }
   return deployment;
 }

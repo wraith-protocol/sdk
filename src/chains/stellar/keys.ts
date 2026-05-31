@@ -1,3 +1,4 @@
+import { InvalidSignatureError } from '../../errors';
 import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha256';
 import type { StealthKeys } from './types';
@@ -14,10 +15,12 @@ import { seedToScalar } from './scalar';
  * Each seed is then expanded via SHA-512 and clamped to produce
  * the actual ed25519 scalar (matching how standard ed25519 derives
  * the private scalar from a seed).
+ *
+ * @throws {InvalidSignatureError} If signature length is not 64.
  */
 export function deriveStealthKeys(signature: Uint8Array): StealthKeys {
   if (signature.length !== 64) {
-    throw new Error(`Expected 64-byte ed25519 signature, got ${signature.length} bytes`);
+    throw new InvalidSignatureError(signature, 64, signature.length);
   }
 
   const spendingPrefix = new TextEncoder().encode('wraith:spending:');

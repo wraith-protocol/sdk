@@ -15,3 +15,28 @@ export type {
   Notification,
   Conversation,
 } from './agent/types';
+
+export {
+  WraithError,
+  WraithInputError,
+  WraithCryptoError,
+  WraithNetworkError,
+  WraithContractError,
+  WraithBuilderError,
+  InvalidMetaAddressError,
+  InvalidNameError,
+  InvalidSignatureError,
+  InvalidScalarError,
+  KeyDerivationFailedError,
+  ViewTagMismatchError,
+  ECDHFailedError,
+  RPCRequestError,
+  RPCRetryExhaustedError,
+  RetentionExceededError,
+  NameNotFoundError,
+  NameAlreadyRegisteredError,
+  InsufficientAuthError,
+  ContractRevertError,
+  InsufficientBalanceError,
+  UnsupportedAssetError,
+} from './errors';
