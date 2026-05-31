@@ -1,0 +1,36 @@
+{
+  "name": "@wraith-protocol/sdk-react",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "React hooks for Wraith Protocol stealth address SDK",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@wraith-protocol/sdk": "workspace:*",
+    "@stellar/stellar-sdk": "^13.1.0",
+    "react": "^18.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/react-hooks": "^8.0.1",
+    "@types/react": "^18.3.18",
+    "react": "^18.3.1",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.0"
+  }
+}

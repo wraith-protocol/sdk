@@ -34,7 +34,11 @@
   ],
   "scripts": {
     "build": "tsup",
+    "build:react": "pnpm --filter @wraith-protocol/sdk-react build",
+    "build:all": "pnpm build && pnpm build:react",
     "test": "vitest run",
+    "test:react": "pnpm --filter @wraith-protocol/sdk-react test",
+    "test:all": "pnpm test && pnpm test:react",
     "test:watch": "vitest",
     "clean": "rm -rf dist",
     "format": "prettier --write .",
