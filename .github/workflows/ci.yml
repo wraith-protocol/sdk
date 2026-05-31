@@ -20,3 +20,54 @@ jobs:
       - run: pnpm run format:check
       - run: pnpm build
       - run: pnpm test
+  bundle-size:
+    name: Bundle size check
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Check bundle sizes
+        run: pnpm bundle:check
+
+      - name: Generate bundle stats
+        run: pnpm bundle:visualize
+
+      - name: Upload bundle stats
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-stats-${{ github.sha }}
+          path: dist/stats/
+          retention-days: 30
+
+      - name: Comment sizes on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            // Read BUNDLE_SIZE.md and post the table as a PR comment
+            const content = fs.readFileSync('BUNDLE_SIZE.md', 'utf8');
+            const table = content.match(/\| Entry.*?\n\|[-|]+\n([\s\S]*?)\n\n/)?.[0] ?? 'See BUNDLE_SIZE.md';
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Bundle sizes\n\n${table}\n\n[Full report](BUNDLE_SIZE.md)`,
+            });

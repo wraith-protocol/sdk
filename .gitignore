@@ -1,6 +1,8 @@
 reference/
 node_modules/
 dist/
+!dist/stats/
+!dist/stats/*.html
 *.tsbuildinfo
 test/leak/artifacts/
 test/leak/profiles/*.log

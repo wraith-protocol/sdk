@@ -29,20 +29,55 @@
       "require": "./dist/chains/ckb/index.cjs"
     }
   },
+  "size-limit": [
+    {
+      "name": "index",
+      "path": "dist/index.js",
+      "limit": "1.03 KB",
+      "import": "{ Wraith, WraithAgent, Chain }"
+    },
+    {
+      "name": "chains/stellar",
+      "path": "dist/chains/stellar/index.js",
+      "limit": "18.01 KB",
+      "import": "{ deriveStealthKeys, generateStealthAddress, scanAnnouncements }"
+    },
+    {
+      "name": "chains/evm",
+      "path": "dist/chains/evm/index.js",
+      "limit": "26.32 KB",
+      "import": "{ deriveStealthKeys, generateStealthAddress, scanAnnouncements }"
+    },
+    {
+      "name": "chains/solana",
+      "path": "dist/chains/solana/index.js",
+      "limit": "18.95 KB",
+      "import": "{ deriveStealthKeys, generateStealthAddress, scanAnnouncements }"
+    },
+    {
+      "name": "chains/ckb",
+      "path": "dist/chains/ckb/index.js",
+      "limit": "22.68 KB",
+      "import": "{ deriveStealthKeys, generateStealthAddress, scanStealthCells }"
+    }
+  ],
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsup",
-    "test": "vitest run --exclude test/leak/**",
-    "test:leak": "node --expose-gc ./node_modules/vitest/vitest.mjs run test/leak/scan-leak.test.ts --pool=threads --poolOptions.threads.singleThread",
-    "profile:scan:v8": "node --expose-gc --prof ./node_modules/vitest/vitest.mjs run test/leak/scan-leak.test.ts --pool=threads --poolOptions.threads.singleThread",
-    "profile:scan:clinic": "pnpm dlx clinic doctor -- node --expose-gc ./node_modules/vitest/vitest.mjs run test/leak/scan-leak.test.ts --pool=threads --poolOptions.threads.singleThread",
-    "test:watch": "vitest",
+    "bundle:check": "pnpm build && size-limit",
+    "bundle:measure": "pnpm build && tsx scripts/measure-bundles.ts",
+    "bundle:visualize": "pnpm build && tsx scripts/visualize-bundles.ts",
     "clean": "rm -rf dist",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "profile:scan:clinic": "pnpm dlx clinic doctor -- node --expose-gc ./node_modules/vitest/vitest.mjs run test/leak/scan-leak.test.ts --pool=threads --poolOptions.threads.singleThread",
+    "profile:scan:v8": "node --expose-gc --prof ./node_modules/vitest/vitest.mjs run test/leak/scan-leak.test.ts --pool=threads --poolOptions.threads.singleThread",
+    "test": "vitest run --exclude test/leak/**",
+    "test:leak": "node --expose-gc ./node_modules/vitest/vitest.mjs run test/leak/scan-leak.test.ts --pool=threads --poolOptions.threads.singleThread",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@noble/curves": "^1.8.0",
@@ -50,8 +85,8 @@
     "viem": "^2.23.0"
   },
   "peerDependencies": {
-    "@stellar/stellar-sdk": "^13.1.0",
-    "@solana/web3.js": "^1.95.0"
+    "@solana/web3.js": "^1.95.0",
+    "@stellar/stellar-sdk": "^13.1.0"
   },
   "peerDependenciesMeta": {
     "@stellar/stellar-sdk": {
@@ -64,11 +99,18 @@
   "devDependencies": {
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
+    "@size-limit/preset-small-lib": "^11.0.0",
     "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",
+    "@types/node": "^25.9.1",
+    "esbuild": "^0.21.0",
     "husky": "^9.1.0",
     "prettier": "^3.4.0",
+    "rollup": "^4.0.0",
+    "rollup-plugin-visualizer": "^5.12.0",
+    "size-limit": "^11.0.0",
     "tsup": "^8.4.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.7.0",
     "vitest": "^3.1.0"
   }
