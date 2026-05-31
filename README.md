@@ -269,6 +269,14 @@ const metaAddress = metaAddressFromNameData(cellData);
 
 Full protocol documentation, architecture details, and integration guides are available at [wraith-protocol/docs](https://github.com/wraith-protocol/docs).
 
+## Contributing
+
+We welcome contributions. Before opening a PR, please read
+[**CONTRIBUTING.md**](./CONTRIBUTING.md) — it covers our **semver policy**, **deprecation
+policy**, **release process**, **PR conventions**, and the rubric for **adding a new chain**.
+
+Migration notes for major versions live in [**MIGRATING.md**](./MIGRATING.md).
+
 ## License
 
 MIT
