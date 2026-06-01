@@ -5,7 +5,7 @@ import { generateStealthAddress } from '../../../../src/chains/stellar/stealth';
 import { scanAnnouncements, checkStealthAddress } from '../../../../src/chains/stellar/scan';
 import { deriveStealthPrivateScalar } from '../../../../src/chains/stellar/spend';
 import { encodeStealthMetaAddress, decodeStealthMetaAddress } from '../../../../src/chains/stellar/meta-address';
-import { deriveStealthPubKey, signWithScalar } from '../../../../src/chains/stellar/scalar';
+import { signWithScalar } from '../../../../src/chains/stellar/scalar';
 import { fetchAnnouncements } from '../../../../src/chains/stellar/announcements';
 import { bytesToHex } from '../../../../src/chains/stellar/utils';
 import type { Announcement } from '../../../../src/chains/stellar/types';
@@ -25,7 +25,6 @@ describe('Stellar Stealth Benchmarks', () => {
   const ephemeralPubKey = ed25519.getPublicKey(ephemeralSeed);
   const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, ephemeralSeed);
   const messageHash = new Uint8Array(32).fill(42);
-  const stealthPubKeyBytes = deriveStealthPubKey(keys.spendingPubKey, keys.viewingScalar);
 
   const generateAnnouncements = (count: number): Announcement[] => {
     const announcements: Announcement[] = [];
