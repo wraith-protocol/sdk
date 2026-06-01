@@ -2,6 +2,13 @@ import type { Announcement } from './types';
 import { bytesToHex } from './utils';
 import { getDeployment } from './deployments';
 
+let stellarSdkPromise: Promise<typeof import('@stellar/stellar-sdk')> | undefined;
+
+function loadStellarSdk(): Promise<typeof import('@stellar/stellar-sdk')> {
+  stellarSdkPromise ??= import('@stellar/stellar-sdk');
+  return stellarSdkPromise;
+}
+
 export interface FetchAnnouncementsOptions {
   /** Earliest ledger to include, inclusive. Ignored when cursor is provided. */
   fromLedger?: number;
@@ -154,7 +161,7 @@ export async function fetchAnnouncements(
         hasMore = false;
         continue;
       }
-      const ann = parseAnnouncementEvent(event);
+      const ann = await parseAnnouncementEvent(event);
       if (ann) all.push(ann);
     }
 
@@ -253,14 +260,11 @@ function parseLedgerRange(message: string): { oldest: number; latest: number } |
   };
 }
 
-function eventLedger(event: Record<string, unknown>): number | undefined {
-  const ledger = event.ledger;
-  return typeof ledger === 'number' ? ledger : undefined;
-}
-
-function parseAnnouncementEvent(event: Record<string, unknown>): Announcement | null {
+async function parseAnnouncementEvent(
+  event: Record<string, unknown>,
+): Promise<Announcement | null> {
   try {
-    const { xdr, Address } = require('@stellar/stellar-sdk');
+    const { xdr, Address } = await loadStellarSdk();
 
     const topics = event.topic as string[];
     if (!topics || topics.length < 3) return null;
@@ -288,4 +292,9 @@ function parseAnnouncementEvent(event: Record<string, unknown>): Announcement | 
   } catch {
     return null;
   }
+}
+
+function eventLedger(event: Record<string, unknown>): number | undefined {
+  const ledger = event.ledger;
+  return typeof ledger === 'number' ? ledger : undefined;
 }
