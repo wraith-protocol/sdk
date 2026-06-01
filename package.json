@@ -36,6 +36,8 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
+    "bench": "vitest bench --run",
+    "bench:watch": "vitest bench",
     "clean": "rm -rf dist",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -67,6 +69,8 @@
     "prettier": "^3.4.0",
     "tsup": "^8.4.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.1.0"
+    "vitest": "^3.1.0",
+    "@vitest/benchmark": "^2.1.0",
+    "tinybench": "^2.9.0"
   }
 }
