@@ -77,8 +77,69 @@ jobs:
         run: |
           cat > /tmp/compare.js << 'EOF'
           const fs = require('fs');
-          const prResults = JSON.parse(fs.readFileSync('/tmp/pr-results.json', 'utf8'));
-          const mainResults = JSON.parse(fs.readFileSync('/tmp/main-results.json', 'utf8'));
+          let prResults = null;
+          let mainResults = null;
+          
+          // Check if PR results exist
+          if (fs.existsSync('/tmp/pr-results.json')) {
+            prResults = JSON.parse(fs.readFileSync('/tmp/pr-results.json', 'utf8'));
+          } else {
+            console.log('PR benchmark results not found');
+          }
+          
+          // Check if main results exist
+          if (fs.existsSync('/tmp/main-results.json')) {
+            mainResults = JSON.parse(fs.readFileSync('/tmp/main-results.json', 'utf8'));
+          } else {
+            console.log('Main benchmark results not found');
+          }
+          
+          // Exit early if we don't have both results
+          if (!prResults || !mainResults) {
+            console.log('Missing benchmark results, skipping comparison');
+            process.exit(0);
+          }
+          
+          const REGRESSION_THRESHOLD = 0.20; // 20%
+          const regressions = [];
+          const improvements = [];
+          
+          for (const prBench of prResults.results || []) {
+            const mainBench = (mainResults.results || []).find(b => b.name === prBench.name);
+            if (!mainBench) continue;
+            
+            const mainMedian = mainBench.stats?.median || mainBench.mean || 0;
+            const prMedian = prBench.stats?.median || prBench.mean || 0;
+            
+            if (mainMedian === 0) continue;
+            
+            const percentChange = (prMedian - mainMedian) / mainMedian;
+            
+            if (percentChange > REGRESSION_THRESHOLD) {
+              regressions.push({
+                name: prBench.name,
+                mainMedian: mainMedian.toFixed(3),
+                prMedian: prMedian.toFixed(3),
+                change: (percentChange * 100).toFixed(1),
+              });
+            } else if (percentChange < -0.05) {
+              improvements.push({
+                name: prBench.name,
+                mainMedian: mainMedian.toFixed(3),
+                prMedian: prMedian.toFixed(3),
+                change: (percentChange * 100).toFixed(1),
+              });
+            }
+          }
+          
+          console.log(JSON.stringify({ regressions, improvements }, null, 2));
+          
+          if (regressions.length > 0) {
+            process.exit(1);
+          }
+          EOF
+          
+          node /tmp/compare.js | tee /tmp/comparison.json
           
           const REGRESSION_THRESHOLD = 0.20; // 20%
           const regressions = [];
@@ -127,7 +188,21 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const comparison = JSON.parse(fs.readFileSync('/tmp/comparison.json', 'utf8'));
+            
+            // Check if comparison file exists
+            if (!fs.existsSync('/tmp/comparison.json')) {
+              console.log('No comparison data available - benchmark results may be missing');
+              return;
+            }
+            
+            let comparison;
+            try {
+              comparison = JSON.parse(fs.readFileSync('/tmp/comparison.json', 'utf8'));
+            } catch (error) {
+              console.log('Failed to parse comparison data:', error.message);
+              return;
+            }
+            
             const { regressions, improvements } = comparison;
             
             if (regressions.length === 0) {

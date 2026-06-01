@@ -30,7 +30,7 @@
 **package.json**:
 - Added `bench` script: `vitest bench --run`
 - Added `bench:watch` script: `vitest bench`
-- Added dev dependencies: `@vitest/benchmark@^2.1.0`, `tinybench@^2.9.0`
+- Added dev dependencies: `tinybench@^2.9.0`
 
 **vitest.config.ts**:
 - Configured benchmark discovery: `test/chains/**/bench/**/*.bench.ts`

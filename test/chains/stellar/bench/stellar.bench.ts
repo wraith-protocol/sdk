@@ -19,7 +19,8 @@ import type { Announcement } from '../../../../src/chains/stellar/types';
  */
 
 describe('Stellar Stealth Benchmarks', () => {
-  const testSignature = ed25519.utils.randomPrivateKey();
+  // Fixed: Generate 64-byte signature as expected by deriveStealthKeys
+  const testSignature = ed25519.utils.randomPrivateKey().concat(ed25519.utils.randomPrivateKey());
   const keys = deriveStealthKeys(testSignature);
   const ephemeralSeed = ed25519.utils.randomPrivateKey();
   const ephemeralPubKey = ed25519.getPublicKey(ephemeralSeed);
@@ -43,6 +44,13 @@ describe('Stellar Stealth Benchmarks', () => {
     }
     return announcements;
   };
+
+  // Pre-generate announcements for scanning benchmarks to isolate scan performance
+  const announcements10 = generateAnnouncements(10);
+  const announcements100 = generateAnnouncements(100);
+  const announcements1000 = generateAnnouncements(1000);
+  const announcements10000 = generateAnnouncements(10000);
+  const announcements100000 = generateAnnouncements(100000);
 
   describe('Key Derivation', () => {
     bench('deriveStealthKeys (from 64-byte signature)', () => {
@@ -91,28 +99,23 @@ describe('Stellar Stealth Benchmarks', () => {
     });
 
     bench('scanAnnouncements - 10 announcements', () => {
-      const announcements = generateAnnouncements(10);
-      scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
+      scanAnnouncements(announcements10, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
     });
 
     bench('scanAnnouncements - 100 announcements', () => {
-      const announcements = generateAnnouncements(100);
-      scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
+      scanAnnouncements(announcements100, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
     });
 
     bench('scanAnnouncements - 1,000 announcements', () => {
-      const announcements = generateAnnouncements(1000);
-      scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
+      scanAnnouncements(announcements1000, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
     });
 
     bench('scanAnnouncements - 10,000 announcements', () => {
-      const announcements = generateAnnouncements(10000);
-      scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
+      scanAnnouncements(announcements10000, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
     });
 
     bench('scanAnnouncements - 100,000 announcements', () => {
-      const announcements = generateAnnouncements(100000);
-      scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
+      scanAnnouncements(announcements100000, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
     });
   });
 
@@ -146,8 +149,11 @@ describe('Stellar Stealth Benchmarks', () => {
           );
         });
 
-      await fetchAnnouncements('stellar', 'https://localhost:8000/soroban/rpc');
-      fetchMock.mockRestore();
+      try {
+        await fetchAnnouncements('stellar', 'https://localhost:8000/soroban/rpc');
+      } finally {
+        fetchMock.mockRestore();
+      }
     });
   });
 });
