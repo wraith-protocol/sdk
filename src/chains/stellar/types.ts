@@ -67,7 +67,7 @@ export interface GeneratedStealthAddress {
  * @see {@link fetchAnnouncements}
  */
 export interface Announcement {
-  /** Scheme identifier (1 for ed25519). */
+  /** Scheme identifier (1 = v1 layout, 2 = v2 bucketed layout). */
   schemeId: number;
   /** The Stellar public key (G...) of the stealth address. */
   stealthAddress: string;
@@ -77,6 +77,8 @@ export interface Announcement {
   ephemeralPubKey: string;
   /** Hex-encoded metadata; the first byte is the view tag. */
   metadata: string;
+  /** v2 RPC topic bucket (0–255); undefined for v1 announcements. */
+  viewTagBucket?: number;
 }
 
 /**

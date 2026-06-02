@@ -17,8 +17,13 @@ export interface StellarChainDeployment {
   sorobanUrl: string;
   /** Deployed Soroban contract IDs used by Wraith on this network. */
   contracts: {
-    /** Contract that stores stealth payment announcements. */
+    /** v1 announcer — topics: ("announce", scheme_id, stealth_address). */
     announcer: string;
+    /**
+     * v2 announcer — topics: ("announce", 2, view_tag_bucket, metadata_kind).
+     * Optional until the v2 contract is deployed (contracts issue #24).
+     */
+    announcerV2?: string;
     /** Contract that resolves Wraith names to stealth meta-addresses. */
     names: string;
   };

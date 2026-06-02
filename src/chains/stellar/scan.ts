@@ -1,6 +1,6 @@
 import { computeSharedSecret, computeViewTag } from './stealth';
 import { hashToScalar, deriveStealthPubKey, pubKeyToStellarAddress, L } from './scalar';
-import { SCHEME_ID } from './constants';
+import { SCHEME_ID, SCHEME_ID_V2 } from './constants';
 import type { Announcement, MatchedAnnouncement } from './types';
 import { hexToBytes } from './utils';
 
@@ -39,7 +39,7 @@ export async function* scanAnnouncementsStream(
       if (batch.length === 0) break;
 
       for (const ann of batch) {
-        if (ann.schemeId !== SCHEME_ID) continue;
+        if (ann.schemeId !== SCHEME_ID && ann.schemeId !== SCHEME_ID_V2) continue;
 
         const metadataBytes = hexToBytes(ann.metadata);
         if (metadataBytes.length === 0) continue;
@@ -169,7 +169,7 @@ export function scanAnnouncements(
   const matched: MatchedAnnouncement[] = [];
 
   for (const ann of announcements) {
-    if (ann.schemeId !== SCHEME_ID) continue;
+    if (ann.schemeId !== SCHEME_ID && ann.schemeId !== SCHEME_ID_V2) continue;
 
     const metadataBytes = hexToBytes(ann.metadata);
     if (metadataBytes.length === 0) continue;

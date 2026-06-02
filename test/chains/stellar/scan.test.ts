@@ -12,9 +12,7 @@ import type { Announcement, MatchedAnnouncement } from '../../../src/chains/stel
 
 const testSig = new Uint8Array(64).fill(0xaa);
 
-async function* announcementsFrom(
-  items: Announcement[],
-): AsyncGenerator<Announcement> {
+async function* announcementsFrom(items: Announcement[]): AsyncGenerator<Announcement> {
   for (const item of items) yield item;
 }
 
@@ -103,6 +101,30 @@ describe('scanAnnouncements', () => {
     expect(matched[0].stealthAddress).toBe(stealth.stealthAddress);
     expect(typeof matched[0].stealthPrivateScalar).toBe('bigint');
     expect(matched[0].stealthPubKeyBytes).toBeInstanceOf(Uint8Array);
+  });
+
+  test('accepts v2 scheme ID announcements', () => {
+    const keys = deriveStealthKeys(testSig);
+    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
+
+    const announcements: Announcement[] = [
+      {
+        schemeId: 2,
+        stealthAddress: stealth.stealthAddress,
+        caller: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+        ephemeralPubKey: bytesToHex(stealth.ephemeralPubKey),
+        metadata: stealth.viewTag.toString(16).padStart(2, '0'),
+        viewTagBucket: stealth.viewTag,
+      },
+    ];
+
+    const matched = scanAnnouncements(
+      announcements,
+      keys.viewingKey,
+      keys.spendingPubKey,
+      keys.spendingScalar,
+    );
+    expect(matched).toHaveLength(1);
   });
 
   test('skips wrong scheme ID', () => {
