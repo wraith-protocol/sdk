@@ -59,6 +59,8 @@
     }
   },
   "devDependencies": {
+    "ed2curve": "^0.3.0",
+    "tweetnacl": "^1.0.3",
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
     "@solana/web3.js": "^1.98.4",
