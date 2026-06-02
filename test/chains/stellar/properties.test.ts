@@ -41,21 +41,11 @@ const sharedSecretArb = fc.uint8Array({ minLength: 1, maxLength: 64 });
  * Verification: S*G == R + k*pubKeyPoint
  */
 function verifySignature(sig: Uint8Array, message: Uint8Array, publicKey: Uint8Array): boolean {
-  const R_bytes = sig.slice(0, 32);
-  const S = bytesToScalar(sig.slice(32, 64));
-
-  const kInput = new Uint8Array(R_bytes.length + publicKey.length + message.length);
-  kInput.set(R_bytes);
-  kInput.set(publicKey, R_bytes.length);
-  kInput.set(message, R_bytes.length + publicKey.length);
-  const k = bytesToScalar(sha512(kInput)) % L;
-
-  const R = ed25519.ExtendedPoint.fromHex(R_bytes);
-  const A = ed25519.ExtendedPoint.fromHex(publicKey);
-  const lhs = ed25519.ExtendedPoint.BASE.multiply(S);
-  const rhs = R.add(A.multiply(k));
-
-  return lhs.equals(rhs);
+  try {
+    return ed25519.verify(sig, message, publicKey);
+  } catch {
+    return false;
+  }
 }
 
 // ─── 1. Scalar arithmetic ────────────────────────────────────────────────────
