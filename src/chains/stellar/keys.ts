@@ -5,12 +5,11 @@ import type { StealthKeys } from './types';
 import { seedToScalar } from './scalar';
 
 /**
- * Derives stealth spending and viewing keys from a wallet signature.
+ * Derives Stellar stealth spending and viewing keys from a wallet signature.
  *
- * The 64-byte ed25519 signature is domain-separated and hashed
- * to produce two independent ed25519 seeds:
- *   - spendingKey = SHA-256("wraith:spending:" || signature)
- *   - viewingKey  = SHA-256("wraith:viewing:" || signature)
+ * Use this with a 64-byte ed25519 signature of {@link STEALTH_SIGNING_MESSAGE}.
+ * The result is deterministic for the same wallet and signature message, so
+ * keep the returned seeds and scalars private.
  *
  * Each seed is then expanded via SHA-512 and clamped to produce
  * the actual ed25519 scalar (matching how standard ed25519 derives

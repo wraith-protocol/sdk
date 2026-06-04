@@ -1,0 +1,23 @@
+{
+  "name": "wraith-sdk-react-native-stellar",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "dependencies": {
+    "@wraith-protocol/sdk": "file:../..",
+    "@stellar/stellar-sdk": "^13.1.0",
+    "buffer": "^6.0.3",
+    "expo": "~51.0.0",
+    "expo-crypto": "~14.2.0",
+    "react": "18.3.1",
+    "react-native": "0.72.4",
+    "react-native-get-random-values": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
