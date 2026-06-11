@@ -2,6 +2,9 @@
   "name": "@wraith-protocol/sdk",
   "version": "1.4.5",
   "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "react-native": "./dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -17,6 +20,11 @@
       "types": "./dist/chains/stellar/index.d.ts",
       "import": "./dist/chains/stellar/index.js",
       "require": "./dist/chains/stellar/index.cjs"
+    },
+    "./compat/react-native": {
+      "types": "./dist/compat/react-native.d.ts",
+      "import": "./dist/compat/react-native.js",
+      "require": "./dist/compat/react-native.cjs"
     },
     "./chains/solana": {
       "types": "./dist/chains/solana/index.d.ts",
@@ -36,10 +44,13 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
+    "bench": "vitest bench --run",
+    "bench:watch": "vitest bench",
     "clean": "rm -rf dist",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:fuzz": "FC_RUNS=100000 vitest run test/chains/stellar/properties.test.ts"
   },
   "dependencies": {
     "@noble/curves": "^1.8.0",
@@ -64,8 +75,10 @@
     "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",
     "fake-indexeddb": "^6.2.5",
+    "fast-check": "^4.8.0",
     "husky": "^9.1.0",
     "prettier": "^3.4.0",
+    "tinybench": "^2.9.0",
     "tsup": "^8.4.0",
     "typescript": "^5.7.0",
     "vitest": "^3.1.0"

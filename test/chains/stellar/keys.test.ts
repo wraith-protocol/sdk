@@ -1,3 +1,4 @@
+import { InvalidSignatureError } from '../../../src/errors';
 import { describe, test, expect } from 'vitest';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
 
@@ -45,11 +46,11 @@ describe('deriveStealthKeys', () => {
 
   test('rejects wrong signature length (63 bytes)', () => {
     const short = new Uint8Array(63).fill(0xaa);
-    expect(() => deriveStealthKeys(short)).toThrow('Expected 64-byte');
+    expect(() => deriveStealthKeys(short)).toThrow(InvalidSignatureError);
   });
 
   test('rejects wrong signature length (65 bytes)', () => {
     const long = new Uint8Array(65).fill(0xaa);
-    expect(() => deriveStealthKeys(long)).toThrow('Expected 64-byte');
+    expect(() => deriveStealthKeys(long)).toThrow(InvalidSignatureError);
   });
 });
