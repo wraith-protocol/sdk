@@ -57,3 +57,13 @@ export type {
   Announcement,
   MatchedAnnouncement,
 } from './types';
+export {
+  estimateStellarFee,
+  parseFeeStats,
+} from './fee-estimation';
+export type {
+  EstimateFeeParams,
+  FeeEstimate,
+  FeeBreakdown,
+  SorobanResources,
+} from './fee-estimation';
