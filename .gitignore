@@ -2,3 +2,5 @@ reference/
 node_modules/
 dist/
 *.tsbuildinfo
+stats/
+*.stats.html

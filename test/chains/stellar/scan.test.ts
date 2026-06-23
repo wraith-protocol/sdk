@@ -18,11 +18,14 @@ import type { Announcement } from '../../../src/chains/stellar/types';
 const testSig = new Uint8Array(64).fill(0xaa);
 
 describe('checkStealthAddress', () => {
-  test('matches own announcement', () => {
+  test('matches own announcement', async () => {
     const keys = deriveStealthKeys(testSig);
-    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
+    const stealth = await generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+    );
 
-    const result = checkStealthAddress(
+    const result = await checkStealthAddress(
       stealth.ephemeralPubKey,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -33,12 +36,15 @@ describe('checkStealthAddress', () => {
     expect(result.stealthAddress).toBe(stealth.stealthAddress);
   });
 
-  test('rejects wrong view tag', () => {
+  test('rejects wrong view tag', async () => {
     const keys = deriveStealthKeys(testSig);
-    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
+    const stealth = await generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+    );
 
     const wrongTag = (stealth.viewTag + 1) % 256;
-    const result = checkStealthAddress(
+    const result = await checkStealthAddress(
       stealth.ephemeralPubKey,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -49,14 +55,17 @@ describe('checkStealthAddress', () => {
     expect(result.stealthAddress).toBeNull();
   });
 
-  test('rejects wrong viewing key', () => {
+  test('rejects wrong viewing key', async () => {
     const keys = deriveStealthKeys(testSig);
-    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
+    const stealth = await generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+    );
 
     const otherSig = new Uint8Array(64).fill(0xbb);
     const otherKeys = deriveStealthKeys(otherSig);
 
-    const result = checkStealthAddress(
+    const result = await checkStealthAddress(
       stealth.ephemeralPubKey,
       otherKeys.viewingKey,
       keys.spendingPubKey,
@@ -70,9 +79,12 @@ describe('checkStealthAddress', () => {
 });
 
 describe('scanAnnouncements', () => {
-  test('finds matching payments', () => {
+  test('finds matching payments', async () => {
     const keys = deriveStealthKeys(testSig);
-    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
+    const stealth = await generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+    );
 
     const announcements: Announcement[] = [
       {
@@ -84,7 +96,7 @@ describe('scanAnnouncements', () => {
       },
     ];
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -96,9 +108,12 @@ describe('scanAnnouncements', () => {
     expect(matched[0].stealthPubKeyBytes).toBeInstanceOf(Uint8Array);
   });
 
-  test('skips wrong scheme ID', () => {
+  test('skips wrong scheme ID', async () => {
     const keys = deriveStealthKeys(testSig);
-    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
+    const stealth = await generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+    );
 
     const announcements: Announcement[] = [
       {
@@ -110,7 +125,7 @@ describe('scanAnnouncements', () => {
       },
     ];
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -119,7 +134,7 @@ describe('scanAnnouncements', () => {
     expect(matched).toHaveLength(0);
   });
 
-  test('skips invalid ephemeral keys even when the public view tag matches', () => {
+  test('skips invalid ephemeral keys even when the public view tag matches', async () => {
     const keys = deriveStealthKeys(testSig);
     const invalidEphemeralPubKey = new Uint8Array(32);
     const matchingPublicTag = computeAnnouncementViewTag(
@@ -137,7 +152,7 @@ describe('scanAnnouncements', () => {
       },
     ];
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -147,10 +162,14 @@ describe('scanAnnouncements', () => {
     expect(matched).toHaveLength(0);
   });
 
-  test('keeps legacy shared-secret view tags on the legacy scanner path', () => {
+  test('keeps legacy shared-secret view tags on the legacy scanner path', async () => {
     const keys = deriveStealthKeys(testSig);
     let ephemeralSeed = new Uint8Array(32).fill(0x11);
-    let stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, ephemeralSeed);
+    let stealth = await generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+      ephemeralSeed,
+    );
     let sharedSecret = computeSharedSecret(ephemeralSeed, keys.viewingPubKey);
     let legacyTag = computeViewTag(sharedSecret);
 
@@ -158,7 +177,11 @@ describe('scanAnnouncements', () => {
     // optimized public-announcement tag so the migration boundary is explicit.
     for (let i = 0; legacyTag === stealth.viewTag && i < 255; i++) {
       ephemeralSeed = new Uint8Array(32).fill(0x12 + i);
-      stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, ephemeralSeed);
+      stealth = await generateStealthAddress(
+        keys.spendingPubKey,
+        keys.viewingPubKey,
+        ephemeralSeed,
+      );
       sharedSecret = computeSharedSecret(ephemeralSeed, keys.viewingPubKey);
       legacyTag = computeViewTag(sharedSecret);
     }
@@ -176,10 +199,15 @@ describe('scanAnnouncements', () => {
     ];
 
     expect(
-      scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar),
+      await scanAnnouncements(
+        announcements,
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+      ),
     ).toHaveLength(0);
 
-    const legacyMatched = scanAnnouncementsLegacySharedSecretTag(
+    const legacyMatched = await scanAnnouncementsLegacySharedSecretTag(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -190,13 +218,19 @@ describe('scanAnnouncements', () => {
     expect(legacyMatched[0].stealthAddress).toBe(stealth.stealthAddress);
   });
 
-  test('filters mix of own and foreign announcements', () => {
+  test('filters mix of own and foreign announcements', async () => {
     const keys = deriveStealthKeys(testSig);
-    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
+    const stealth = await generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+    );
 
     const otherSig = new Uint8Array(64).fill(0xbb);
     const otherKeys = deriveStealthKeys(otherSig);
-    const otherStealth = generateStealthAddress(otherKeys.spendingPubKey, otherKeys.viewingPubKey);
+    const otherStealth = await generateStealthAddress(
+      otherKeys.spendingPubKey,
+      otherKeys.viewingPubKey,
+    );
 
     const announcements: Announcement[] = [
       {
@@ -215,7 +249,7 @@ describe('scanAnnouncements', () => {
       },
     ];
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,

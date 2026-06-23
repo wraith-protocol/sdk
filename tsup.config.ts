@@ -13,4 +13,5 @@ export default defineConfig({
   splitting: true,
   clean: true,
   treeshake: true,
+  metafile: !!process.env.ANALYZE,
 });

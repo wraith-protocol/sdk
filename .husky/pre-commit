@@ -1,1 +1,1 @@
-pnpm format:check && pnpm build && pnpm test
+pnpm format:check && pnpm build && pnpm test && pnpm size

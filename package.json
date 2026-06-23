@@ -39,8 +39,24 @@
     "clean": "rm -rf dist",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "size": "size-limit",
+    "analyze": "ANALYZE=true tsup",
+    "measure:vite": "node scripts/measure-vite.mjs"
   },
+  "size-limit": [
+    {
+      "name": "Stellar ESM (import *)",
+      "path": "dist/chains/stellar/index.js",
+      "import": "*",
+      "limit": "20 KB"
+    },
+    {
+      "name": "Stellar CJS (require)",
+      "path": "dist/chains/stellar/index.cjs",
+      "limit": "20 KB"
+    }
+  ],
   "dependencies": {
     "@noble/curves": "^1.8.0",
     "@noble/hashes": "^1.7.0",
@@ -61,10 +77,13 @@
   "devDependencies": {
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
+    "@size-limit/esbuild": "^11.0.0",
     "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",
+    "esbuild": "^0.25.0",
     "husky": "^9.1.0",
     "prettier": "^3.4.0",
+    "size-limit": "^11.0.0",
     "tsup": "^8.4.0",
     "typescript": "^5.7.0",
     "vitest": "^3.1.0"

@@ -1,7 +1,6 @@
 import { ed25519 } from '@noble/curves/ed25519';
 import { sha512 } from '@noble/hashes/sha512';
 import { sha256 } from '@noble/hashes/sha256';
-import { StrKey } from '@stellar/stellar-sdk';
 
 /**
  * ed25519 group order (order of the base point).
@@ -73,9 +72,13 @@ export function deriveStealthPubKey(spendingPubKey: Uint8Array, hashScalar: bigi
 
 /**
  * Converts a 32-byte ed25519 public key to a Stellar G... address.
+ *
+ * Uses a dynamic import of @stellar/stellar-sdk to avoid requiring
+ * the optional peer dependency at module load time — it is only
+ * loaded when this function is actually called.
  */
-export function pubKeyToStellarAddress(pubKeyBytes: Uint8Array): string {
-  // StrKey typings expect Buffer, but Uint8Array works at runtime
+export async function pubKeyToStellarAddress(pubKeyBytes: Uint8Array): Promise<string> {
+  const { StrKey } = await import('@stellar/stellar-sdk');
   return (StrKey as any).encodeEd25519PublicKey(pubKeyBytes);
 }
 

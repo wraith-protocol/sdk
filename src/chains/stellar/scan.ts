@@ -18,17 +18,17 @@ import { hexToBytes } from './utils';
  *
  * This is view-only: it can detect payments but NOT derive the spending key.
  */
-export function checkStealthAddress(
+export async function checkStealthAddress(
   ephemeralPubKey: Uint8Array,
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
   viewTag: number,
-): {
+): Promise<{
   isMatch: boolean;
   stealthAddress: string | null;
   hashScalar: bigint | null;
   stealthPubKeyBytes: Uint8Array | null;
-} {
+}> {
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
   return checkStealthAddressWithViewingPubKey(
     ephemeralPubKey,
@@ -39,45 +39,49 @@ export function checkStealthAddress(
   );
 }
 
-function checkStealthAddressWithViewingPubKey(
+async function checkStealthAddressWithViewingPubKey(
   ephemeralPubKey: Uint8Array,
   viewingKey: Uint8Array,
   viewingPubKey: Uint8Array,
   spendingPubKey: Uint8Array,
   viewTag: number,
-): {
+): Promise<{
   isMatch: boolean;
   stealthAddress: string | null;
   hashScalar: bigint | null;
   stealthPubKeyBytes: Uint8Array | null;
-} {
+}> {
   const computedTag = computeAnnouncementViewTag(ephemeralPubKey, viewingPubKey);
   if (computedTag !== viewTag) {
     return { isMatch: false, stealthAddress: null, hashScalar: null, stealthPubKeyBytes: null };
   }
 
   try {
-    return deriveStealthAddressFromAnnouncement(ephemeralPubKey, viewingKey, spendingPubKey);
+    return await deriveStealthAddressFromAnnouncement(
+      ephemeralPubKey,
+      viewingKey,
+      spendingPubKey,
+    );
   } catch {
     return { isMatch: false, stealthAddress: null, hashScalar: null, stealthPubKeyBytes: null };
   }
 }
 
-function deriveStealthAddressFromAnnouncement(
+async function deriveStealthAddressFromAnnouncement(
   ephemeralPubKey: Uint8Array,
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
-): {
+): Promise<{
   isMatch: boolean;
   stealthAddress: string | null;
   hashScalar: bigint | null;
   stealthPubKeyBytes: Uint8Array | null;
-} {
+}> {
   const sharedSecret = computeSharedSecret(viewingKey, ephemeralPubKey);
   const hScalar = hashToScalar(sharedSecret);
 
   const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar);
-  const stealthAddress = pubKeyToStellarAddress(stealthPubKeyBytes);
+  const stealthAddress = await pubKeyToStellarAddress(stealthPubKeyBytes);
 
   return { isMatch: true, stealthAddress, hashScalar: hScalar, stealthPubKeyBytes };
 }
@@ -93,12 +97,12 @@ function deriveStealthAddressFromAnnouncement(
  * The stealth private scalar is: (spending_scalar + hash_scalar) mod L
  * This matches the EVM version: p_stealth = (m + s_h) mod n
  */
-export function scanAnnouncements(
+export async function scanAnnouncements(
   announcements: Announcement[],
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
   spendingScalar: bigint,
-): MatchedAnnouncement[] {
+): Promise<MatchedAnnouncement[]> {
   const matched: MatchedAnnouncement[] = [];
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
 
@@ -112,7 +116,7 @@ export function scanAnnouncements(
     const ephPubKey = hexToBytes(ann.ephemeralPubKey);
     if (ephPubKey.length !== 32) continue;
 
-    const result = checkStealthAddressWithViewingPubKey(
+    const result = await checkStealthAddressWithViewingPubKey(
       ephPubKey,
       viewingKey,
       viewingPubKey,
@@ -146,12 +150,12 @@ export function scanAnnouncements(
  * X25519 first, computes the legacy shared-secret tag second, and only then
  * compares the announced stealth address.
  */
-export function scanAnnouncementsLegacySharedSecretTag(
+export async function scanAnnouncementsLegacySharedSecretTag(
   announcements: Announcement[],
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
   spendingScalar: bigint,
-): MatchedAnnouncement[] {
+): Promise<MatchedAnnouncement[]> {
   const matched: MatchedAnnouncement[] = [];
 
   for (const ann of announcements) {
@@ -176,7 +180,7 @@ export function scanAnnouncementsLegacySharedSecretTag(
 
     const hScalar = hashToScalar(sharedSecret);
     const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar);
-    const stealthAddress = pubKeyToStellarAddress(stealthPubKeyBytes);
+    const stealthAddress = await pubKeyToStellarAddress(stealthPubKeyBytes);
 
     if (stealthAddress === ann.stealthAddress) {
       const stealthPrivateScalar = (spendingScalar + hScalar) % L;
