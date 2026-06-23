@@ -47,6 +47,8 @@ export {
 } from './event-filters';
 export type { SorobanEventFilter, SorobanTopicMatcher } from './event-filters';
 export { DEPLOYMENTS, getDeployment } from './deployments';
+export { StellarBatchBuilder, encodeAnnouncementData, decodeAnnouncementData } from './batch';
+export type { StealthPaymentConfig, BatchConfig, BuildResult } from './batch';
 export type { StellarChainDeployment } from './deployments';
 export type {
   HexString,
