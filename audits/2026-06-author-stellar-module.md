@@ -3,7 +3,7 @@
 **Auditor:** Independent review [@Timrossid](https://github.com/Timrossid)  
 **Date:** 2026-06-24  
 **Version:** 1.4.5  
-**Scope:** `src/chains/stellar/`  
+**Scope:** `src/chains/stellar/`
 
 ## Summary
 
@@ -197,34 +197,34 @@ The `^1.8.0` semver range allows minor/patch updates. `@noble/curves` follows se
 
 See `test/chains/stellar/signwithscalar-vectors.test.ts` with:
 
-| Test | Status |
-|------|--------|
-| Known-answer test vectors | Pass |
-| Determinism | Pass |
-| Cross-validation with `ed25519.verify()` | Pass |
-| Scalar = 0 rejection | Pass |
-| Scalar = L-1 | Pass |
-| Empty message | Pass |
-| 1 MB message | Pass |
-| Different scalars → different signatures | Pass |
+| Test                                     | Status |
+| ---------------------------------------- | ------ |
+| Known-answer test vectors                | Pass   |
+| Determinism                              | Pass   |
+| Cross-validation with `ed25519.verify()` | Pass   |
+| Scalar = 0 rejection                     | Pass   |
+| Scalar = L-1                             | Pass   |
+| Empty message                            | Pass   |
+| 1 MB message                             | Pass   |
+| Different scalars → different signatures | Pass   |
 
 ---
 
 ## Appendix A: Full file review
 
-| File | Lines | Coverage | Status |
-|------|-------|----------|--------|
-| `constants.ts` | 9 | N/A | Correct |
-| `types.ts` | 64 | N/A | Correct |
-| `keys.ts` | 51 | 5 tests | **Minor: one extra test added** |
-| `stealth.ts` | 99 | 4 tests | Correct |
-| `scan.ts` | 193 | 8 tests | **Minor: zero-scalar skip** |
-| `spend.ts` | 48 | 3 tests | **Minor: zero-scalar guard** |
-| `scalar.ts` | 143 | New test file | **Minor: zero-scalar guard** |
-| `meta-address.ts` | 65 | 5 tests | Correct |
-| `utils.ts` | 23 | N/A | Correct |
-| `announcements.ts` | 124 | N/A | Not reviewed (I/O layer) |
-| `deployments.ts` | 33 | N/A | Correct |
+| File               | Lines | Coverage      | Status                          |
+| ------------------ | ----- | ------------- | ------------------------------- |
+| `constants.ts`     | 9     | N/A           | Correct                         |
+| `types.ts`         | 64    | N/A           | Correct                         |
+| `keys.ts`          | 51    | 5 tests       | **Minor: one extra test added** |
+| `stealth.ts`       | 99    | 4 tests       | Correct                         |
+| `scan.ts`          | 193   | 8 tests       | **Minor: zero-scalar skip**     |
+| `spend.ts`         | 48    | 3 tests       | **Minor: zero-scalar guard**    |
+| `scalar.ts`        | 143   | New test file | **Minor: zero-scalar guard**    |
+| `meta-address.ts`  | 65    | 5 tests       | Correct                         |
+| `utils.ts`         | 23    | N/A           | Correct                         |
+| `announcements.ts` | 124   | N/A           | Not reviewed (I/O layer)        |
+| `deployments.ts`   | 33    | N/A           | Correct                         |
 
 ## Appendix B: Coordinated disclosure
 
@@ -232,5 +232,5 @@ No Critical or High findings were identified. No coordinated disclosure required
 
 ---
 
-*Report produced as part of the Wraith Stellar Wave audit program.*  
-*Closes #55. Also addresses #54 (signWithScalar audit).*
+_Report produced as part of the Wraith Stellar Wave audit program._  
+_Closes #55. Also addresses #54 (signWithScalar audit)._

@@ -3,7 +3,10 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
 import { generateStealthAddress } from '../../../src/chains/stellar/stealth';
 import { scanAnnouncements } from '../../../src/chains/stellar/scan';
-import { deriveStealthPrivateScalar, signStellarTransaction } from '../../../src/chains/stellar/spend';
+import {
+  deriveStealthPrivateScalar,
+  signStellarTransaction,
+} from '../../../src/chains/stellar/spend';
 import {
   encodeStealthMetaAddress,
   decodeStealthMetaAddress,

@@ -70,8 +70,8 @@ describe('deriveStealthKeys', () => {
     const keys = deriveStealthKeys(testSig);
     // In ed25519, clamping sets bit 6 of byte 31 (0x40) → bit 254 of the scalar
     const bytes = scalarToBytes(keys.spendingScalar);
-    expect((bytes[31] & 0x40)).toBe(0x40);
+    expect(bytes[31] & 0x40).toBe(0x40);
     // Bits 0,1,2 of byte 0 should be cleared
-    expect((bytes[0] & 0x07)).toBe(0);
+    expect(bytes[0] & 0x07).toBe(0);
   });
 });

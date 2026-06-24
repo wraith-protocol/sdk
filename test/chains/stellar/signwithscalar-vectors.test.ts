@@ -1,7 +1,12 @@
 import { describe, test, expect } from 'vitest';
 import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha256';
-import { signWithScalar, L, bytesToScalar, scalarToBytes } from '../../../src/chains/stellar/scalar';
+import {
+  signWithScalar,
+  L,
+  bytesToScalar,
+  scalarToBytes,
+} from '../../../src/chains/stellar/scalar';
 
 /**
  * signWithScalar is a custom ed25519 signing routine that operates on a

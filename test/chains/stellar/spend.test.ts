@@ -2,7 +2,10 @@ import { describe, test, expect } from 'vitest';
 import { ed25519 } from '@noble/curves/ed25519';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
 import { generateStealthAddress } from '../../../src/chains/stellar/stealth';
-import { deriveStealthPrivateScalar, signStellarTransaction } from '../../../src/chains/stellar/spend';
+import {
+  deriveStealthPrivateScalar,
+  signStellarTransaction,
+} from '../../../src/chains/stellar/spend';
 import { pubKeyToStellarAddress, L } from '../../../src/chains/stellar/scalar';
 
 const testSig = new Uint8Array(64).fill(0xaa);
