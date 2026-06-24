@@ -3,13 +3,15 @@ function btoaPolyfill(input: string): string {
   let str = input;
   let output = '';
 
-  for (let block = 0, charCode, idx = 0, map = chars; str.charAt(idx | 0) || ((map = '='), idx % 1); ) {
+  for (
+    let block = 0, charCode, idx = 0, map = chars;
+    str.charAt(idx | 0) || ((map = '='), idx % 1);
+  ) {
     charCode = str.charCodeAt((idx += 3 / 4));
     if (charCode > 0xff) {
-      throw new Error("Unable to encode character as binary data");
+      throw new Error('Unable to encode character as binary data');
     }
-    output +=
-      map.charAt((block = (block << 8) | charCode) >> ((3.5 - (idx % 1)) * 8) & 0x3f);
+    output += map.charAt(((block = (block << 8) | charCode) >> ((3.5 - (idx % 1)) * 8)) & 0x3f);
   }
 
   return output;
@@ -21,7 +23,7 @@ function atobPolyfill(input: string): string {
   let output = '';
 
   if (str.length % 4 === 1) {
-    throw new Error("InvalidCharacterError: Incorrect base64 string length");
+    throw new Error('InvalidCharacterError: Incorrect base64 string length');
   }
 
   for (let bc = 0, bs = 0, buffer, idx = 0; (buffer = str.charAt(idx++)); ) {

@@ -79,31 +79,31 @@ jobs:
           const fs = require('fs');
           let prResults = null;
           let mainResults = null;
-          
+
           // Check if PR results exist
           if (fs.existsSync('/tmp/pr-results.json')) {
             prResults = JSON.parse(fs.readFileSync('/tmp/pr-results.json', 'utf8'));
           } else {
             console.log('PR benchmark results not found');
           }
-          
+
           // Check if main results exist
           if (fs.existsSync('/tmp/main-results.json')) {
             mainResults = JSON.parse(fs.readFileSync('/tmp/main-results.json', 'utf8'));
           } else {
             console.log('Main benchmark results not found');
           }
-          
+
           // Exit early if we don't have both results
           if (!prResults || !mainResults) {
             console.log('Missing benchmark results, skipping comparison');
             process.exit(0);
           }
-          
+
           const REGRESSION_THRESHOLD = 0.20; // 20%
           const regressions = [];
           const improvements = [];
-          
+
           for (const prBench of prResults.results || []) {
             const mainBench = (mainResults.results || []).find(b => b.name === prBench.name);
             if (!mainBench) continue;
@@ -131,20 +131,20 @@ jobs:
               });
             }
           }
-          
+
           console.log(JSON.stringify({ regressions, improvements }, null, 2));
-          
+
           if (regressions.length > 0) {
             process.exit(1);
           }
           EOF
-          
+
           node /tmp/compare.js | tee /tmp/comparison.json
-          
+
           const REGRESSION_THRESHOLD = 0.20; // 20%
           const regressions = [];
           const improvements = [];
-          
+
           for (const prBench of prResults.results || []) {
             const mainBench = (mainResults.results || []).find(b => b.name === prBench.name);
             if (!mainBench) continue;
@@ -172,14 +172,14 @@ jobs:
               });
             }
           }
-          
+
           console.log(JSON.stringify({ regressions, improvements }, null, 2));
-          
+
           if (regressions.length > 0) {
             process.exit(1);
           }
           EOF
-          
+
           node /tmp/compare.js | tee /tmp/comparison.json
 
       - name: Comment on PR (regressions)
@@ -188,13 +188,13 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            
+
             // Check if comparison file exists
             if (!fs.existsSync('/tmp/comparison.json')) {
               console.log('No comparison data available - benchmark results may be missing');
               return;
             }
-            
+
             let comparison;
             try {
               comparison = JSON.parse(fs.readFileSync('/tmp/comparison.json', 'utf8'));
@@ -202,29 +202,29 @@ jobs:
               console.log('Failed to parse comparison data:', error.message);
               return;
             }
-            
+
             const { regressions, improvements } = comparison;
-            
+
             if (regressions.length === 0) {
               console.log('No regressions found');
               return;
             }
-            
+
             let comment = '## 🚨 Benchmark Regression Detected\n\n';
             comment += 'The following benchmarks regressed by more than 20%:\n\n';
             comment += '| Benchmark | Main (p50) | PR (p50) | Change |\n';
             comment += '|-----------|-----------|---------|--------|\n';
-            
+
             for (const reg of regressions) {
               comment += `| ${reg.name} | ${reg.mainMedian}ms | ${reg.prMedian}ms | **+${reg.change}%** |\n`;
             }
-            
+
             comment += '\n**Action**: Please investigate the performance regression and either:\n';
             comment += '1. Optimize the code to meet baseline\n';
             comment += '2. Update the baseline if the regression is acceptable\n';
             comment += '3. File a perf follow-up if the change is necessary\n\n';
             comment += 'See `bench/README.md` for interpretation guidance and `bench/baseline.md` for baseline numbers.\n';
-            
+
             if (improvements.length > 0) {
               comment += '\n### ✅ Improvements Detected\n\n';
               comment += '| Benchmark | Main (p50) | PR (p50) | Change |\n';
@@ -234,7 +234,7 @@ jobs:
                 comment += `| ${imp.name} | ${imp.mainMedian}ms | ${imp.prMedian}ms | ${imp.change}% |\n`;
               }
             }
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -254,10 +254,10 @@ jobs:
             }
             const comparison = JSON.parse(fs.readFileSync('/tmp/comparison.json', 'utf8'));
             const { improvements } = comparison;
-            
+
             let comment = '## ✅ Benchmarks Passed\n\n';
             comment += 'All benchmarks are within regression threshold (20%).\n';
-            
+
             if (improvements.length > 0) {
               comment += '\n### 🎉 Improvements Detected\n\n';
               comment += '| Benchmark | Main (p50) | PR (p50) | Change |\n';
@@ -267,7 +267,7 @@ jobs:
                 comment += `| ${imp.name} | ${imp.mainMedian}ms | ${imp.prMedian}ms | ${imp.change}% |\n`;
               }
             }
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

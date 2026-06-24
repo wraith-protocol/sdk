@@ -1,0 +1,7 @@
+[test]
+# Exclude tests that rely on vitest-only APIs (vi.stubGlobal, vi.fn, vi.mock).
+# These tests continue to run under `pnpm test` (vitest).
+pathIgnorePatterns = [
+  "test/chains/stellar/fee-estimation.test.ts",
+  "test/chains/stellar/announcements.test.ts",
+]
