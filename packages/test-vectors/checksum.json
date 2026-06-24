@@ -1,0 +1,9 @@
+{
+  "algorithm": "sha256",
+  "files": {
+    "vectors/ckb.json": "2665277b147d19d96490bc41f522ebc4d71d065f336d53e95628872f453e3554",
+    "vectors/evm.json": "1434a472a3ad8eb4165f21db20046bdaf158f44fdb798d7d3a19b19ff2177792",
+    "vectors/solana.json": "12b52e0bc8410251aa26d90599eca62ff73b817267d539416ae907db2b2933e1",
+    "vectors/stellar.json": "4b0636ef2b57e949f2aae154eed3736ca6b0c557fa04410d1aabe3f2b808755f"
+  }
+}

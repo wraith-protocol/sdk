@@ -1,0 +1,27 @@
+{
+  "name": "@wraith-protocol/test-vectors",
+  "version": "1.0.0",
+  "description": "Deterministic cryptographic test vectors for the Wraith stealth address protocol",
+  "type": "module",
+  "files": [
+    "vectors",
+    "checksum.json",
+    "README.md"
+  ],
+  "scripts": {
+    "generate": "tsx scripts/generate.ts",
+    "checksum": "tsx scripts/checksum.ts"
+  },
+  "devDependencies": {
+    "@noble/curves": "^1.8.0",
+    "@noble/hashes": "^1.7.0",
+    "@solana/web3.js": "^1.98.4",
+    "@stellar/stellar-sdk": "^13.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "viem": "^2.23.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
