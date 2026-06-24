@@ -24,7 +24,11 @@ export function deriveStealthPrivateScalar(
 ): bigint {
   const sharedSecret = computeSharedSecret(viewingKey, ephemeralPubKey);
   const hScalar = hashToScalar(sharedSecret);
-  return (spendingScalar + hScalar) % L;
+  const stealthScalar = (spendingScalar + hScalar) % L;
+  if (stealthScalar <= 0n) {
+    throw new Error('Derived stealth scalar is zero — this should never happen');
+  }
+  return stealthScalar;
 }
 
 /**

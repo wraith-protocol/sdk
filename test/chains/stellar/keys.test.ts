@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
+import { scalarToBytes } from '../../../src/chains/stellar/scalar';
 
 const testSig = new Uint8Array(64).fill(0xaa);
 
@@ -51,5 +52,26 @@ describe('deriveStealthKeys', () => {
   test('rejects wrong signature length (65 bytes)', () => {
     const long = new Uint8Array(65).fill(0xaa);
     expect(() => deriveStealthKeys(long)).toThrow('Expected 64-byte');
+  });
+
+  test('domain separation: spending and viewing keys are independent', () => {
+    const keys = deriveStealthKeys(testSig);
+    // These should never be equal due to domain-separated SHA-256
+    const spendingHex = Array.from(keys.spendingKey)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    const viewingHex = Array.from(keys.viewingKey)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    expect(spendingHex).not.toBe(viewingHex);
+  });
+
+  test('derived scalars are properly clamped (bit 254 set)', () => {
+    const keys = deriveStealthKeys(testSig);
+    // In ed25519, clamping sets bit 6 of byte 31 (0x40) → bit 254 of the scalar
+    const bytes = scalarToBytes(keys.spendingScalar);
+    expect((bytes[31] & 0x40)).toBe(0x40);
+    // Bits 0,1,2 of byte 0 should be cleared
+    expect((bytes[0] & 0x07)).toBe(0);
   });
 });

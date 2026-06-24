@@ -114,6 +114,9 @@ export function signWithScalar(
   scalar: bigint,
   publicKey: Uint8Array,
 ): Uint8Array {
+  if (scalar <= 0n || scalar >= L) {
+    throw new Error('Scalar must be in range (0, L)');
+  }
   const scalarBytes = scalarToBytes(scalar);
   const prefix = sha256(scalarBytes);
 
