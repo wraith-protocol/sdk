@@ -1,17 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Horizon, SorobanRpc } from '@stellar/stellar-sdk';
-import {
-  estimateStellarFee,
-  parseFeeStats,
-} from '../../../src/chains/stellar/fee-estimation';
+import { estimateStellarFee, parseFeeStats } from '../../../src/chains/stellar/fee-estimation';
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeFeeStats(
-  overrides?: Partial<Horizon.FeeStatsResponse>,
-): Horizon.FeeStatsResponse {
+function makeFeeStats(overrides?: Partial<Horizon.FeeStatsResponse>): Horizon.FeeStatsResponse {
   return {
     last_ledger: '12345',
     last_ledger_base_fee: '100',
@@ -52,23 +47,20 @@ function makeFeeStats(
   } as Horizon.FeeStatsResponse;
 }
 
-function makeSimResult(
-  minResourceFee = '5000',
-): SorobanRpc.Api.SimulateTransactionSuccessResponse {
+function makeSimResult(minResourceFee = '5000'): SorobanRpc.Api.SimulateTransactionSuccessResponse {
   return {
     id: 'sim-1',
     latestLedger: 9999,
     minResourceFee,
     results: [],
-    transactionData: '' as unknown as SorobanRpc.Api.SimulateTransactionSuccessResponse['transactionData'],
+    transactionData:
+      '' as unknown as SorobanRpc.Api.SimulateTransactionSuccessResponse['transactionData'],
     events: [],
     cost: { cpuInsns: '1000', memBytes: '512' },
   } as unknown as SorobanRpc.Api.SimulateTransactionSuccessResponse;
 }
 
-function makeSimError(
-  error = 'out of gas',
-): SorobanRpc.Api.SimulateTransactionErrorResponse {
+function makeSimError(error = 'out of gas'): SorobanRpc.Api.SimulateTransactionErrorResponse {
   return {
     id: 'sim-err',
     latestLedger: 9999,
@@ -136,9 +128,9 @@ describe('estimateStellarFee — classic ops', () => {
       feeStats: makeFeeStats(),
     });
 
-    expect(estimate.low).toBe(100);       // baseFee × 1
-    expect(estimate.expected).toBe(300);  // p50 × 1
-    expect(estimate.high).toBe(10_000);   // p99 × 2 × 1
+    expect(estimate.low).toBe(100); // baseFee × 1
+    expect(estimate.expected).toBe(300); // p50 × 1
+    expect(estimate.high).toBe(10_000); // p99 × 2 × 1
   });
 
   it('scales linearly with op count', async () => {
@@ -155,9 +147,7 @@ describe('estimateStellarFee — classic ops', () => {
   it('fetches fee stats from Horizon when not pre-fetched', async () => {
     mockHorizonFeeStats();
     const estimate = await estimateStellarFee({ operationCount: 1 });
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('fee_stats'),
-    );
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('fee_stats'));
     expect(estimate.low).toBeGreaterThan(0);
   });
 
@@ -167,16 +157,14 @@ describe('estimateStellarFee — classic ops', () => {
       operationCount: 1,
       horizonUrl: 'https://my-horizon.example.com',
     });
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://my-horizon.example.com/fee_stats',
-    );
+    expect(mockFetch).toHaveBeenCalledWith('https://my-horizon.example.com/fee_stats');
   });
 
   it('throws on Horizon error', async () => {
     mockHorizonError();
-    await expect(
-      estimateStellarFee({ operationCount: 1 }),
-    ).rejects.toThrow('Horizon /fee_stats request failed: 503');
+    await expect(estimateStellarFee({ operationCount: 1 })).rejects.toThrow(
+      'Horizon /fee_stats request failed: 503',
+    );
   });
 
   it('throws on negative operationCount', async () => {
@@ -263,7 +251,9 @@ describe('estimateStellarFee — Soroban (pre-fetched simulation)', () => {
         feeStats: makeFeeStats(),
         sorobanResources: {
           transactionXdr: 'AAAAAQ==',
-          simulationResult: makeSimError('wasm trap') as unknown as SorobanRpc.Api.SimulateTransactionResponse,
+          simulationResult: makeSimError(
+            'wasm trap',
+          ) as unknown as SorobanRpc.Api.SimulateTransactionResponse,
         },
       }),
     ).rejects.toThrow('Soroban simulation failed: wasm trap');

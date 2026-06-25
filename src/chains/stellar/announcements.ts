@@ -84,12 +84,7 @@ export interface FetchAnnouncementsOptions {
  * @param options Fetch options including cache bypass and custom cache.
  * @returns Array of all known announcements (cached + fresh).
  */
-export async function fetchAnnouncements(
-  chain: string = 'stellar',
-  options: FetchAnnouncementsOptions = {},
-): Promise<Announcement[]> {
-  const { sorobanUrl, bypassCache = false, cache = getDefaultCache() } = options;
-
+/**
  * Fetches Stellar stealth announcements from the configured Soroban RPC.
  *
  * Use this before {@link scanAnnouncements} when a recipient wants to discover
@@ -307,69 +302,26 @@ export async function* fetchAnnouncementsStream(
   // ------------------------------------------------------------------
   let fetchFromLedger = windowStart;
   let resumeCursor: string | undefined;
-  let cached: Announcement[] = [];
-
-  if (!bypassCache) {
-    const lastSeen = await cache.getLastSeen(network);
-    if (lastSeen) {
-      // Only fetch the delta.
-      fetchFromLedger = lastSeen.ledger + 1;
-      resumeCursor = lastSeen.cursor;
-      const hit = await cache.get(network, windowStart, lastSeen.ledger);
-      cached = hit ?? [];
-  let startLedger = 1;
-
-  if (probeData.error?.message) {
-    const range = parseLedgerRange(probeData.error.message);
-    if (range) {
-      startLedger = Math.max(range.oldest, range.latest - 5000);
-    } else {
-      return;
-    }
-  }
-
-  // Nothing new to fetch.
-  if (fetchFromLedger > windowEnd) return cached;
-
   // ------------------------------------------------------------------
   // Fetch delta from RPC
   // ------------------------------------------------------------------
-  const { announcements: fresh, lastLedger, lastCursor } = await fetchRange(
-    url,
-    announcerContract,
-    fetchFromLedger,
-    resumeCursor,
-  );
-
-  if (!bypassCache && fresh.length > 0 && lastLedger !== undefined && lastCursor) {
-    await cache.put(network, fresh);
-    await cache.setLastSeen(network, lastLedger, lastCursor);
+  for await (const ann of fetchRange(url, announcerContract, fetchFromLedger, resumeCursor)) {
+    yield ann;
   }
-
-  return [...cached, ...fresh];
 }
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-interface FetchRangeResult {
-  announcements: Announcement[];
-  lastLedger: number | undefined;
-  lastCursor: string | undefined;
-}
-
-async function fetchRange(
+async function* fetchRange(
   url: string,
   announcerContract: string,
   startLedger: number,
   resumeCursor?: string,
-): Promise<FetchRangeResult> {
-  const all: Announcement[] = [];
+): AsyncGenerator<Announcement> {
   let cursor = resumeCursor;
   let hasMore = true;
-  let lastLedger: number | undefined;
-  let lastCursor: string | undefined;
 
   while (hasMore) {
     const params: Record<string, unknown> = {
@@ -393,12 +345,8 @@ async function fetchRange(
     for (const event of events) {
       const ann = parseAnnouncementEvent(event);
       if (ann) {
-        all.push(ann);
-        if (ann.ledger !== undefined && (lastLedger === undefined || ann.ledger > lastLedger)) {
-          lastLedger = ann.ledger;
-        }
+        yield ann;
       }
-      if (ann) yield ann;
     }
 
     if (events.length < 1000) {
@@ -406,12 +354,9 @@ async function fetchRange(
     } else {
       cursor = data.result?.cursor as string | undefined;
       if (!cursor) hasMore = false;
-      else lastCursor = cursor;
     }
   }
 }
-
-  return { announcements: all, lastLedger, lastCursor };
 async function getSorobanLedgerWindow(
   sorobanUrl: string,
   announcerContract: string,
@@ -525,29 +470,6 @@ export function parseAnnouncementEvent(event: Record<string, unknown>): Announce
     const topics = event.topic as string[] | undefined;
     if (!topics || topics.length < 3) return null;
 
-    const schemeIdScVal = xdr.ScVal.fromXDR(topics[1], 'base64');
-    const stealthScVal = xdr.ScVal.fromXDR(topics[2], 'base64');
-    const stealthAddress = Address.fromScAddress(stealthScVal.address()).toString();
-
-    const valueScVal = xdr.ScVal.fromXDR(event.value as string, 'base64');
-    const valueVec = valueScVal.vec();
-    if (!valueVec || valueVec.length < 3) return null;
-
-    const caller = Address.fromScAddress(valueVec[0].address()).toString();
-    const ephPubKeyBytes = valueVec[1].bytes();
-    const viewTagBytes = valueVec[2].bytes();
-    if (!ephPubKeyBytes || !viewTagBytes) return null;
-
-    const ledger = typeof event.ledger === 'number' ? event.ledger : typeof event.ledger === 'string' ? parseInt(event.ledger, 10) : undefined;
-
-    return {
-      schemeId: schemeIdScVal.u32(),
-      stealthAddress,
-      caller,
-      ephemeralPubKey: bytesToHex(new Uint8Array(ephPubKeyBytes)),
-      metadata: bytesToHex(new Uint8Array(viewTagBytes)),
-      ledger,
-    };
     if (topics.length === 3) {
       return parseV1AnnouncementEvent(event, topics);
     }

@@ -17,8 +17,47 @@
  * - All values are in stroops (1 XLM = 10,000,000 stroops).
  */
 
-import type { Horizon, Soroban } from '@stellar/stellar-sdk';
+import type { rpc } from '@stellar/stellar-sdk';
 import type { Network } from './types';
+
+/** Shape of the Horizon /fee_stats response (locally defined, SDK types are unstable). */
+export interface HorizonFeeStatsResponse {
+  last_ledger: string;
+  last_ledger_base_fee: string;
+  ledger_capacity_usage: string;
+  fee_charged: {
+    max?: string;
+    min?: string;
+    mode?: string;
+    p10?: string;
+    p20?: string;
+    p30?: string;
+    p40?: string;
+    p50?: string;
+    p60?: string;
+    p70?: string;
+    p80?: string;
+    p90?: string;
+    p95?: string;
+    p99?: string;
+  };
+  max_fee: {
+    max?: string;
+    min?: string;
+    mode?: string;
+    p10?: string;
+    p20?: string;
+    p30?: string;
+    p40?: string;
+    p50?: string;
+    p60?: string;
+    p70?: string;
+    p80?: string;
+    p90?: string;
+    p95?: string;
+    p99?: string;
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,7 +73,7 @@ export interface SorobanResources {
   /**
    * Pre-fetched simulation result. If provided, no RPC call is made.
    */
-  simulationResult?: Soroban.Api.SimulateTransactionResponse;
+  simulationResult?: rpc.Api.SimulateTransactionResponse;
 }
 
 /** Parameters for fee estimation. */
@@ -52,7 +91,7 @@ export interface EstimateFeeParams {
    * Pre-fetched fee stats from Horizon (/fee_stats).
    * If omitted, the helper fetches them itself.
    */
-  feeStats?: Horizon.FeeStatsResponse;
+  feeStats?: HorizonFeeStatsResponse;
   /**
    * Set to true when the transaction will be wrapped in a fee-bump envelope.
    * Adds one extra base-fee unit for the outer transaction (CAP-0015).
@@ -141,28 +180,21 @@ async function fetchFeeStats(
 ): Promise<{ baseFee: number; p50: number; p99: number }> {
   const res = await fetch(`${horizonUrl}/fee_stats`);
   if (!res.ok) {
-    throw new Error(
-      `Horizon /fee_stats request failed: ${res.status} ${res.statusText}`,
-    );
+    throw new Error(`Horizon /fee_stats request failed: ${res.status} ${res.statusText}`);
   }
-  const data = (await res.json()) as Horizon.FeeStatsResponse;
+  const data = (await res.json()) as HorizonFeeStatsResponse;
   return parseFeeStats(data);
 }
 
 /** Parse a Horizon FeeStatsResponse into the numbers we need. */
-export function parseFeeStats(data: Horizon.FeeStatsResponse): {
+export function parseFeeStats(data: HorizonFeeStatsResponse): {
   baseFee: number;
   p50: number;
   p99: number;
 } {
-  const baseFee =
-    parseInt(data.last_ledger_base_fee, 10) || PROTOCOL_MIN_BASE_FEE;
-  const p50 =
-    parseInt(data.fee_charged?.p50 ?? data.last_ledger_base_fee, 10) ||
-    baseFee;
-  const p99 =
-    parseInt(data.fee_charged?.p99 ?? data.last_ledger_base_fee, 10) ||
-    baseFee;
+  const baseFee = parseInt(data.last_ledger_base_fee, 10) || PROTOCOL_MIN_BASE_FEE;
+  const p50 = parseInt(data.fee_charged?.p50 ?? data.last_ledger_base_fee, 10) || baseFee;
+  const p99 = parseInt(data.fee_charged?.p99 ?? data.last_ledger_base_fee, 10) || baseFee;
   return { baseFee, p50, p99 };
 }
 
@@ -170,39 +202,29 @@ export function parseFeeStats(data: Horizon.FeeStatsResponse): {
 async function runSimulation(
   transactionXdr: string,
   rpcUrl: string,
-): Promise<Soroban.Api.SimulateTransactionResponse> {
-  const { SorobanRpc: SorobanRpcModule, TransactionBuilder } = await import(
-    '@stellar/stellar-sdk'
-  );
-  const server = new SorobanRpcModule.Server(rpcUrl);
+): Promise<rpc.Api.SimulateTransactionResponse> {
+  const { rpc: rpcModule, TransactionBuilder } = await import('@stellar/stellar-sdk');
+  const server = new rpcModule.Server(rpcUrl);
   const tx = TransactionBuilder.fromXDR(transactionXdr, 'base64');
-  return server.simulateTransaction(
-    tx as Parameters<typeof server.simulateTransaction>[0],
-  );
+  return server.simulateTransaction(tx as Parameters<typeof server.simulateTransaction>[0]);
 }
 
 /** Extract resource fee in stroops from a simulation result. Throws on error. */
-function extractSorobanResourceFee(
-  result: Soroban.Api.SimulateTransactionResponse,
-): number {
+function extractSorobanResourceFee(result: rpc.Api.SimulateTransactionResponse): number {
   if ('error' in result) {
     throw new Error(
-      `Soroban simulation failed: ${(result as Soroban.Api.SimulateTransactionErrorResponse).error}`,
+      `Soroban simulation failed: ${(result as rpc.Api.SimulateTransactionErrorResponse).error}`,
     );
   }
   if ('restorePreamble' in result) {
     return (
       parseInt(
-        (result as Soroban.Api.SimulateTransactionRestoreResponse)
-          .restorePreamble.minResourceFee,
+        (result as rpc.Api.SimulateTransactionRestoreResponse).restorePreamble.minResourceFee,
         10,
       ) || 0
     );
   }
-  const fee = parseInt(
-    (result as Soroban.Api.SimulateTransactionSuccessResponse).minResourceFee,
-    10,
-  );
+  const fee = parseInt((result as rpc.Api.SimulateTransactionSuccessResponse).minResourceFee, 10);
   return isNaN(fee) ? 0 : fee;
 }
 
@@ -226,9 +248,7 @@ function extractSorobanResourceFee(
  * console.log(estimate.expected); // e.g. 1000 stroops
  * ```
  */
-export async function estimateStellarFee(
-  params: EstimateFeeParams,
-): Promise<FeeEstimate> {
+export async function estimateStellarFee(params: EstimateFeeParams): Promise<FeeEstimate> {
   const {
     operationCount,
     sorobanResources,
@@ -275,8 +295,7 @@ export async function estimateStellarFee(
 
   const inclusionLow = baseFee * safeOps;
   const inclusionExpected = Math.max(p50, baseFee) * safeOps;
-  const inclusionHigh =
-    Math.max(p99, baseFee) * HIGH_SURGE_MULTIPLIER * safeOps;
+  const inclusionHigh = Math.max(p99, baseFee) * HIGH_SURGE_MULTIPLIER * safeOps;
 
   // Step 4: add Soroban resource fee
   const sorobanPadding = simulationUsed
@@ -320,14 +339,10 @@ function buildUncertaintyNote(opts: {
     );
   }
   if (opts.feeBump) {
-    parts.push(
-      'Fee-bump outer envelope adds 1 extra base-fee unit (CAP-0015).',
-    );
+    parts.push('Fee-bump outer envelope adds 1 extra base-fee unit (CAP-0015).');
   }
   if (opts.network === 'mainnet') {
-    parts.push(
-      'Mainnet congestion can spike beyond p99 during high-traffic periods.',
-    );
+    parts.push('Mainnet congestion can spike beyond p99 during high-traffic periods.');
   }
   return parts.join(' ');
 }

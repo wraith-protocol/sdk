@@ -58,7 +58,11 @@ export class MemoryCache implements AnnouncementCache {
     this.maxBytes = maxBytes;
   }
 
-  async get(network: Network, fromLedger: number, toLedger: number): Promise<Announcement[] | null> {
+  async get(
+    network: Network,
+    fromLedger: number,
+    toLedger: number,
+  ): Promise<Announcement[] | null> {
     const ns = this.store.get(network);
     if (!ns || ns.size === 0) return null;
     const results = [...ns.values()].filter(
@@ -166,7 +170,11 @@ export class IndexedDBCache implements AnnouncementCache {
     return this.dbPromise;
   }
 
-  async get(network: Network, fromLedger: number, toLedger: number): Promise<Announcement[] | null> {
+  async get(
+    network: Network,
+    fromLedger: number,
+    toLedger: number,
+  ): Promise<Announcement[] | null> {
     const db = await this.openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_ANN, 'readonly');

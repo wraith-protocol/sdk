@@ -1,41 +1,33 @@
 function btoaPolyfill(input: string): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-  let str = input;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   let output = '';
-
-  for (let block = 0, charCode, idx = 0, map = chars; str.charAt(idx | 0) || ((map = '='), idx % 1); ) {
-    charCode = str.charCodeAt((idx += 3 / 4));
-    if (charCode > 0xff) {
-      throw new Error("Unable to encode character as binary data");
-    }
-    output +=
-      map.charAt((block = (block << 8) | charCode) >> ((3.5 - (idx % 1)) * 8) & 0x3f);
+  const bytes = new TextEncoder().encode(input);
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i];
+    const b1 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+    const b2 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+    output += chars.charAt(b0 >> 2);
+    output += chars.charAt(((b0 & 3) << 4) | (b1 >> 4));
+    output += i + 1 < bytes.length ? chars.charAt(((b1 & 15) << 2) | (b2 >> 6)) : '=';
+    output += i + 2 < bytes.length ? chars.charAt(b2 & 63) : '=';
   }
-
   return output;
 }
 
 function atobPolyfill(input: string): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   let str = input.replace(/=+$/, '');
   let output = '';
-
-  if (str.length % 4 === 1) {
-    throw new Error("InvalidCharacterError: Incorrect base64 string length");
+  if (str.length % 4 === 1) throw new Error('InvalidCharacterError');
+  for (let i = 0; i < str.length; i += 4) {
+    const c0 = chars.indexOf(str[i]);
+    const c1 = chars.indexOf(str[i + 1]);
+    const c2 = chars.indexOf(str[i + 2]);
+    const c3 = chars.indexOf(str[i + 3]);
+    output += String.fromCharCode(((c0 << 2) | (c1 >> 4)) & 0xff);
+    if (c2 !== -1) output += String.fromCharCode(((c1 << 4) | (c2 >> 2)) & 0xff);
+    if (c3 !== -1) output += String.fromCharCode(((c2 << 6) | c3) & 0xff);
   }
-
-  for (let bc = 0, bs = 0, buffer, idx = 0; (buffer = str.charAt(idx++)); ) {
-    const code = chars.indexOf(buffer);
-    if (code === -1) {
-      continue;
-    }
-    bs = (bs << 6) | code;
-    bc += 6;
-    if (bc >= 8) {
-      output += String.fromCharCode((bs >> (bc -= 8)) & 0xff);
-    }
-  }
-
   return output;
 }
 
