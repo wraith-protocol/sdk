@@ -12,6 +12,10 @@ pnpm add @wraith-protocol/sdk
 
 `@stellar/stellar-sdk` and `@solana/web3.js` are optional peer dependencies — only required if you import their respective chain modules.
 
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the SDK semver policy, deprecation rules, release checklist, PR conventions, and the rubric for adding a new chain module.
+
 ## Entry Points
 
 | Import                                | Purpose                                              |
@@ -21,6 +25,8 @@ pnpm add @wraith-protocol/sdk
 | `@wraith-protocol/sdk/chains/stellar` | Stellar stealth address crypto (ed25519)             |
 | `@wraith-protocol/sdk/chains/solana`  | Solana stealth address crypto (ed25519)              |
 | `@wraith-protocol/sdk/chains/ckb`     | CKB (Nervos) stealth address crypto (secp256k1)      |
+
+> React Native support is documented in `docs/guides/react-native-setup.mdx` and the companion example at `examples/react-native-stellar`.
 
 ## Agent Client
 
@@ -158,6 +164,8 @@ import {
   signStellarTransaction,
   encodeStealthMetaAddress,
   decodeStealthMetaAddress,
+  fetchAnnouncements,
+  RetentionExceededError,
   SCHEME_ID,
   bytesToHex,
 } from '@wraith-protocol/sdk/chains/stellar';
@@ -188,6 +196,36 @@ const signature = signStellarTransaction(
   matched[0].stealthPrivateScalar,
   matched[0].stealthPubKeyBytes,
 );
+```
+
+### Stellar Incremental Scanning
+
+Use ledger or timestamp bounds to scan only new Soroban announcement events. Persist `nextCursor` after a successful run and pass it back on the next scan; the cursor resumes pagination and takes precedence over `fromLedger`.
+
+```ts
+let cursor = loadCursor();
+
+try {
+  const { announcements, nextCursor } = await fetchAnnouncements('stellar', {
+    cursor,
+    fromTimestamp: cursor ? undefined : new Date(Date.now() - 5 * 60 * 1000),
+  });
+
+  const matched = scanAnnouncements(
+    announcements,
+    keys.viewingKey,
+    keys.spendingPubKey,
+    keys.spendingScalar,
+  );
+
+  saveCursor(nextCursor);
+} catch (error) {
+  if (error instanceof RetentionExceededError) {
+    console.warn(`Restart from ledger ${error.oldestAvailableLedger}`);
+  } else {
+    throw error;
+  }
+}
 ```
 
 ## CKB (Nervos) Stealth Addresses
@@ -264,6 +302,31 @@ const { typeScript } = buildResolveName({ name: 'alice' });
 const metaAddress = metaAddressFromNameData(cellData);
 // => "st:ckb:..."
 ```
+
+## Property tests
+
+The Stellar scalar module is covered by [fast-check](https://fast-check.dev/) property tests in `test/chains/stellar/properties.test.ts`. These go beyond fixed unit tests by generating thousands of random inputs and asserting mathematical invariants:
+
+| Property                    | What it checks                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| Addition associativity      | `(a+b)+c == a+(b+c) mod L` for all scalars                                            |
+| Addition commutativity      | `a+b == b+a mod L`                                                                    |
+| Additive identity           | `a+0 == a mod L`                                                                      |
+| Reduction stability         | `bytesToScalar(scalarToBytes(a)) == a` round-trips losslessly                         |
+| `seedToScalar` determinism  | same seed → same scalar; distinct seeds → distinct scalars                            |
+| Stealth equation            | `(m + s_h)*G == m*G + s_h*G` — the homomorphism that makes stealth spending work      |
+| View-tag uniformity         | chi-square test over 10k inputs confirms `computeViewTag` output is uniform `[0,255]` |
+| `signWithScalar` round-trip | every `(scalar, message)` pair produces a verifiable ed25519 signature                |
+
+```bash
+# Standard run — 1 000 cases per property
+pnpm test
+
+# Thorough fuzz run — 100 000 cases per property
+pnpm test:fuzz
+```
+
+The nightly CI job (`slow-tests`) runs `pnpm test:fuzz` automatically at 02:00 UTC.
 
 ## Documentation
 
