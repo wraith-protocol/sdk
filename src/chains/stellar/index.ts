@@ -9,27 +9,11 @@ export {
   META_ADDRESS_PREFIX,
 } from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
-export {
-  generateStealthAddress,
-  computeSharedSecret,
-  computeAnnouncementViewTag,
-  computeViewTag,
-} from './stealth';
-export {
-  checkStealthAddress,
-  scanAnnouncements,
-  scanAnnouncementsLegacySharedSecretTag,
-  scanAnnouncementsStream,
-} from './scan';
+export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
+export { checkStealthAddress, scanAnnouncements, scanAnnouncementsStream } from './scan';
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export { buildStealthPayment, buildStealthAnnouncement } from './builders';
 export type { BuildStealthPaymentOptions, BuildAnnouncementOptions } from './builders';
-export {
-  buildMultisigStealthWithdraw,
-  addStealthMultisigSigner,
-  isStealthMultisigReady,
-} from './multisig';
-export type { BuildMultisigStealthWithdrawOptions } from './multisig';
 export {
   seedToScalar,
   hashToScalar,
@@ -39,15 +23,17 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
+
+export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
+export type { AnnouncementCache } from './cache';
+
 export {
-  fetchAnnouncements,
   fetchAnnouncementsStream,
   RetentionExceededError,
   parseAnnouncementEvent,
 } from './announcements';
-export type { FetchAnnouncementsOptions, FetchAnnouncementsResult } from './announcements';
-export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
-export type { AnnouncementCache } from './cache';
+export type { FetchAnnouncementsOptions } from './announcements';
+
 export {
   MAX_RPC_EVENT_FILTERS,
   encodeSymbolTopic,
@@ -71,14 +57,6 @@ export type {
   Announcement,
   MatchedAnnouncement,
 } from './types';
-export { estimateStellarFee, parseFeeStats } from './fee-estimation';
-export type {
-  EstimateFeeParams,
-  FeeEstimate,
-  FeeBreakdown,
-  SorobanResources,
-} from './fee-estimation';
+
 export { buildStellarSwapAndStealth } from './swap';
 export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';
-export { decodeSorobanError, registerErrorRegistry } from './errors';
-export type { SorobanContractError, DecodedSorobanError, ErrorRegistry } from './errors';
