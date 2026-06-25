@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-06-25T14:48:43.822Z",
+  "files": {
+    "evm.json": "125917760e26f2396eeda3ba5b096f47822efba716cb9c74b7d57ff297328666",
+    "stellar.json": "07dce8b383d55d87a9ece929955b5ddcf40e2b4310133c77b1be5705aa099a23",
+    "solana.json": "96ea7a8d89117145cbd6e9e0b6fa38f24d3c4daa70e2701fe15ecc24af7b828d",
+    "ckb.json": "05543ca342961ad6da87f3507a36bedf7cc4314897f5d4f50e85d45fd2b71252"
+  }
+}
