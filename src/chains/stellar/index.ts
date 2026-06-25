@@ -23,17 +23,10 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
-export { fetchAnnouncements } from './announcements';
-export type { FetchAnnouncementsOptions } from './announcements';
+export { fetchAnnouncements, RetentionExceededError } from './announcements';
+export type { FetchAnnouncementsOptions, FetchAnnouncementsResult } from './announcements';
 export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
 export type { AnnouncementCache } from './cache';
-export {
-  fetchAnnouncements,
-  fetchAnnouncementsStream,
-  RetentionExceededError,
-  parseAnnouncementEvent,
-} from './announcements';
-export type { FetchAnnouncementsOptions, FetchAnnouncementsResult } from './announcements';
 export {
   MAX_RPC_EVENT_FILTERS,
   encodeSymbolTopic,
@@ -66,3 +59,5 @@ export type {
 } from './fee-estimation';
 export { buildStellarSwapAndStealth } from './swap';
 export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';
+export { buildPathStealthPayment, findStrictReceivePath } from './path-payment';
+export type { BuildPathStealthPaymentOptions, PathStealthPaymentResult, FindStrictReceivePathOptions, StrictReceivePathResult } from './path-payment';
