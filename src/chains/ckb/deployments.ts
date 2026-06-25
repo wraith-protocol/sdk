@@ -1,3 +1,5 @@
+import { UnsupportedAssetError } from '../../errors';
+
 export interface CKBChainDeployment {
   network: string;
   rpcUrl: string;
@@ -42,7 +44,7 @@ export const DEPLOYMENTS: Record<string, CKBChainDeployment> = {
 export function getDeployment(chain: string = 'ckb'): CKBChainDeployment {
   const deployment = DEPLOYMENTS[chain];
   if (!deployment) {
-    throw new Error(`No CKB deployment found for chain: ${chain}`);
+    throw new UnsupportedAssetError('native', chain);
   }
   return deployment;
 }

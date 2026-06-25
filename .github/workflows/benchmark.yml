@@ -1,0 +1,276 @@
+name: Benchmark Regression Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run benchmarks
+        run: pnpm bench
+        continue-on-error: true
+
+      - name: Save benchmark results
+        if: always()
+        run: |
+          if [ -f bench/results.json ]; then
+            cp bench/results.json /tmp/pr-results.json
+          fi
+
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-branch
+
+      - name: Setup Node.js (main)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'main-branch/pnpm-lock.yaml'
+
+      - name: Install dependencies (main)
+        working-directory: main-branch
+        run: pnpm install --frozen-lockfile
+
+      - name: Run benchmarks (main)
+        working-directory: main-branch
+        run: pnpm bench
+        continue-on-error: true
+
+      - name: Save main benchmark results
+        if: always()
+        run: |
+          if [ -f main-branch/bench/results.json ]; then
+            cp main-branch/bench/results.json /tmp/main-results.json
+          fi
+
+      - name: Compare benchmarks
+        if: always()
+        id: compare
+        run: |
+          cat > /tmp/compare.js << 'EOF'
+          const fs = require('fs');
+          let prResults = null;
+          let mainResults = null;
+          
+          // Check if PR results exist
+          if (fs.existsSync('/tmp/pr-results.json')) {
+            prResults = JSON.parse(fs.readFileSync('/tmp/pr-results.json', 'utf8'));
+          } else {
+            console.log('PR benchmark results not found');
+          }
+          
+          // Check if main results exist
+          if (fs.existsSync('/tmp/main-results.json')) {
+            mainResults = JSON.parse(fs.readFileSync('/tmp/main-results.json', 'utf8'));
+          } else {
+            console.log('Main benchmark results not found');
+          }
+          
+          // Exit early if we don't have both results
+          if (!prResults || !mainResults) {
+            console.log('Missing benchmark results, skipping comparison');
+            process.exit(0);
+          }
+          
+          const REGRESSION_THRESHOLD = 0.20; // 20%
+          const regressions = [];
+          const improvements = [];
+          
+          for (const prBench of prResults.results || []) {
+            const mainBench = (mainResults.results || []).find(b => b.name === prBench.name);
+            if (!mainBench) continue;
+            
+            const mainMedian = mainBench.stats?.median || mainBench.mean || 0;
+            const prMedian = prBench.stats?.median || prBench.mean || 0;
+            
+            if (mainMedian === 0) continue;
+            
+            const percentChange = (prMedian - mainMedian) / mainMedian;
+            
+            if (percentChange > REGRESSION_THRESHOLD) {
+              regressions.push({
+                name: prBench.name,
+                mainMedian: mainMedian.toFixed(3),
+                prMedian: prMedian.toFixed(3),
+                change: (percentChange * 100).toFixed(1),
+              });
+            } else if (percentChange < -0.05) {
+              improvements.push({
+                name: prBench.name,
+                mainMedian: mainMedian.toFixed(3),
+                prMedian: prMedian.toFixed(3),
+                change: (percentChange * 100).toFixed(1),
+              });
+            }
+          }
+          
+          console.log(JSON.stringify({ regressions, improvements }, null, 2));
+          
+          if (regressions.length > 0) {
+            process.exit(1);
+          }
+          EOF
+          
+          node /tmp/compare.js | tee /tmp/comparison.json
+          
+          const REGRESSION_THRESHOLD = 0.20; // 20%
+          const regressions = [];
+          const improvements = [];
+          
+          for (const prBench of prResults.results || []) {
+            const mainBench = (mainResults.results || []).find(b => b.name === prBench.name);
+            if (!mainBench) continue;
+            
+            const mainMedian = mainBench.stats?.median || mainBench.mean || 0;
+            const prMedian = prBench.stats?.median || prBench.mean || 0;
+            
+            if (mainMedian === 0) continue;
+            
+            const percentChange = (prMedian - mainMedian) / mainMedian;
+            
+            if (percentChange > REGRESSION_THRESHOLD) {
+              regressions.push({
+                name: prBench.name,
+                mainMedian: mainMedian.toFixed(3),
+                prMedian: prMedian.toFixed(3),
+                change: (percentChange * 100).toFixed(1),
+              });
+            } else if (percentChange < -0.05) {
+              improvements.push({
+                name: prBench.name,
+                mainMedian: mainMedian.toFixed(3),
+                prMedian: prMedian.toFixed(3),
+                change: (percentChange * 100).toFixed(1),
+              });
+            }
+          }
+          
+          console.log(JSON.stringify({ regressions, improvements }, null, 2));
+          
+          if (regressions.length > 0) {
+            process.exit(1);
+          }
+          EOF
+          
+          node /tmp/compare.js | tee /tmp/comparison.json
+
+      - name: Comment on PR (regressions)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Check if comparison file exists
+            if (!fs.existsSync('/tmp/comparison.json')) {
+              console.log('No comparison data available - benchmark results may be missing');
+              return;
+            }
+            
+            let comparison;
+            try {
+              comparison = JSON.parse(fs.readFileSync('/tmp/comparison.json', 'utf8'));
+            } catch (error) {
+              console.log('Failed to parse comparison data:', error.message);
+              return;
+            }
+            
+            const { regressions, improvements } = comparison;
+            
+            if (regressions.length === 0) {
+              console.log('No regressions found');
+              return;
+            }
+            
+            let comment = '## 🚨 Benchmark Regression Detected\n\n';
+            comment += 'The following benchmarks regressed by more than 20%:\n\n';
+            comment += '| Benchmark | Main (p50) | PR (p50) | Change |\n';
+            comment += '|-----------|-----------|---------|--------|\n';
+            
+            for (const reg of regressions) {
+              comment += `| ${reg.name} | ${reg.mainMedian}ms | ${reg.prMedian}ms | **+${reg.change}%** |\n`;
+            }
+            
+            comment += '\n**Action**: Please investigate the performance regression and either:\n';
+            comment += '1. Optimize the code to meet baseline\n';
+            comment += '2. Update the baseline if the regression is acceptable\n';
+            comment += '3. File a perf follow-up if the change is necessary\n\n';
+            comment += 'See `bench/README.md` for interpretation guidance and `bench/baseline.md` for baseline numbers.\n';
+            
+            if (improvements.length > 0) {
+              comment += '\n### ✅ Improvements Detected\n\n';
+              comment += '| Benchmark | Main (p50) | PR (p50) | Change |\n';
+              comment += '|-----------|-----------|---------|--------|\n';
+              
+              for (const imp of improvements) {
+                comment += `| ${imp.name} | ${imp.mainMedian}ms | ${imp.prMedian}ms | ${imp.change}% |\n`;
+              }
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment,
+            });
+
+      - name: Comment on PR (all pass)
+        if: success() && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('/tmp/comparison.json')) {
+              console.log('No comparison data');
+              return;
+            }
+            const comparison = JSON.parse(fs.readFileSync('/tmp/comparison.json', 'utf8'));
+            const { improvements } = comparison;
+            
+            let comment = '## ✅ Benchmarks Passed\n\n';
+            comment += 'All benchmarks are within regression threshold (20%).\n';
+            
+            if (improvements.length > 0) {
+              comment += '\n### 🎉 Improvements Detected\n\n';
+              comment += '| Benchmark | Main (p50) | PR (p50) | Change |\n';
+              comment += '|-----------|-----------|---------|--------|\n';
+              
+              for (const imp of improvements) {
+                comment += `| ${imp.name} | ${imp.mainMedian}ms | ${imp.prMedian}ms | ${imp.change}% |\n`;
+              }
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment,
+            });

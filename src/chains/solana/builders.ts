@@ -1,4 +1,5 @@
 import { sha256 } from '@noble/hashes/sha256';
+import { InvalidMetaAddressError, InvalidNameError } from '../../errors';
 import { generateStealthAddress } from './stealth';
 import { decodeStealthMetaAddress } from './meta-address';
 import { getDeployment } from './deployments';
@@ -145,7 +146,10 @@ export function buildRegisterName(params: {
   const cleanName = name.replace(/\.wraith$/, '');
 
   if (metaAddress.length !== 64) {
-    throw new Error('Meta-address must be 64 bytes (spending_pub || viewing_pub)');
+    throw new InvalidMetaAddressError(
+      '',
+      'Meta-address must be 64 bytes (spending_pub || viewing_pub)',
+    );
   }
 
   const pda = derivePDA(cleanName, deployment.contracts.names);
@@ -197,7 +201,10 @@ export function buildUpdateName(params: {
   const cleanName = name.replace(/\.wraith$/, '');
 
   if (newMetaAddress.length !== 64) {
-    throw new Error('Meta-address must be 64 bytes (spending_pub || viewing_pub)');
+    throw new InvalidMetaAddressError(
+      '',
+      'Meta-address must be 64 bytes (spending_pub || viewing_pub)',
+    );
   }
 
   const pda = derivePDA(cleanName, deployment.contracts.names);
@@ -330,7 +337,7 @@ function derivePDA(name: string, programId: string): string {
     return base58Encode(result);
   }
 
-  throw new Error(`Could not find valid PDA bump for name: ${name}`);
+  throw new InvalidNameError(name, 'Could not find valid PDA bump for name');
 }
 
 function base58Decode(str: string): Uint8Array {
@@ -338,7 +345,7 @@ function base58Decode(str: string): Uint8Array {
   let result = 0n;
   for (const char of str) {
     const idx = ALPHABET.indexOf(char);
-    if (idx === -1) throw new Error(`Invalid base58 character: ${char}`);
+    if (idx === -1) throw new InvalidMetaAddressError(str, `Invalid base58 character: ${char}`);
     result = result * 58n + BigInt(idx);
   }
   const hex = result.toString(16).padStart(64, '0');
