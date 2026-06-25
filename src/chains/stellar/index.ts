@@ -57,13 +57,12 @@ export type {
   Announcement,
   MatchedAnnouncement,
 } from './types';
-export {
-  estimateStellarFee,
-  parseFeeStats,
-} from './fee-estimation';
+export { estimateStellarFee, parseFeeStats } from './fee-estimation';
 export type {
   EstimateFeeParams,
   FeeEstimate,
   FeeBreakdown,
   SorobanResources,
 } from './fee-estimation';
+export { buildStellarSwapAndStealth } from './swap';
+export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';
