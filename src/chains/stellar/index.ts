@@ -9,7 +9,12 @@ export {
   META_ADDRESS_PREFIX,
 } from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
-export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
+export {
+  generateStealthAddress,
+  computeSharedSecret,
+  computeViewTag,
+  computeAnnouncementViewTag,
+} from './stealth';
 export { checkStealthAddress, scanAnnouncements, scanAnnouncementsStream } from './scan';
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export { buildStealthPayment, buildStealthAnnouncement } from './builders';
@@ -23,10 +28,6 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
-export { fetchAnnouncements } from './announcements';
-export type { FetchAnnouncementsOptions } from './announcements';
-export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
-export type { AnnouncementCache } from './cache';
 export {
   fetchAnnouncements,
   fetchAnnouncementsStream,
@@ -34,6 +35,8 @@ export {
   parseAnnouncementEvent,
 } from './announcements';
 export type { FetchAnnouncementsOptions, FetchAnnouncementsResult } from './announcements';
+export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
+export type { AnnouncementCache } from './cache';
 export {
   MAX_RPC_EVENT_FILTERS,
   encodeSymbolTopic,

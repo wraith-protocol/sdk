@@ -1,6 +1,5 @@
-import type { Announcement, Network } from './types';
+import type { Announcement } from './types';
 import type { AnnouncementCache } from './cache';
-import { autoSelectCache } from './cache';
 import { bytesToHex } from './utils';
 import { getDeployment } from './deployments';
 import type { StellarChainDeployment } from './deployments';
@@ -25,13 +24,19 @@ export interface FetchAnnouncementsOptions {
   cursor?: string;
   /**
    * View-tag buckets (0–255) to query on the v2 announcer via RPC topic filters.
-   * When omitted, all v2 buckets are fetched with `("announce", 2, *, *)`.
+   * When omitted, all v2 buckets are fetched with `(\"announce\", 2, *, *)`.
    */
   viewTagBuckets?: number[];
   /** Fetch the legacy v1 announcer stream (default: `true`). */
   includeV1?: boolean;
   /** Fetch the v2 announcer when `announcerV2` is configured (default: `true`). */
   includeV2?: boolean;
+  /** Override the Soroban RPC URL. */
+  sorobanUrl?: string;
+  /** Reserved for cache-aware callers. */
+  bypassCache?: boolean;
+  /** Reserved for cache-aware callers. */
+  cache?: AnnouncementCache;
 }
 
 export interface FetchAnnouncementsResult {
@@ -53,79 +58,18 @@ export class RetentionExceededError extends Error {
   }
 }
 
-/** Module-level default cache instance (auto-selects Memory or IndexedDB). */
-let _defaultCache: AnnouncementCache | null = null;
-function getDefaultCache(): AnnouncementCache {
-  if (!_defaultCache) _defaultCache = autoSelectCache();
-  return _defaultCache;
-}
-
-export interface FetchAnnouncementsOptions {
-  /** Override the Soroban RPC URL. */
-  sorobanUrl?: string;
-  /**
-   * Skip the cache and always fetch from RPC.
-   * Use after sending a payment to ensure the new announcement is visible.
-   */
-  bypassCache?: boolean;
-  /** Provide a custom cache implementation (e.g., for testing). */
-  cache?: AnnouncementCache;
-}
-
 /**
- * Fetches stealth address announcements from the Soroban RPC for the given
- * Stellar network, using an announcement cache to avoid redundant RPC traffic.
- *
- * On the first call the full available window is fetched. On subsequent calls
- * only the delta since the last seen ledger is fetched, and results are merged
- * with cached data before being returned.
- *
- * @param chain The chain identifier (default: `"stellar"`).
- * @param options Fetch options including cache bypass and custom cache.
- * @returns Array of all known announcements (cached + fresh).
- */
-export async function fetchAnnouncements(
-  chain: string = 'stellar',
-  options: FetchAnnouncementsOptions = {},
-): Promise<Announcement[]> {
-  const { sorobanUrl, bypassCache = false, cache = getDefaultCache() } = options;
-
  * Fetches Stellar stealth announcements from the configured Soroban RPC.
  *
- * Use this before {@link scanAnnouncements} when a recipient wants to discover
- * incoming payments. The helper queries the configured announcer contract with
- * `getEvents`, handles pagination, and parses event XDR into SDK announcement
- * objects.
- *
- * During the v1 → v2 transition window this function reads from **both** announcer
- * deployments when configured. v2 queries use Soroban RPC topic filters; v1 always
- * downloads the full announcer stream. See `EVENT_FETCHING.md` for privacy trade-offs.
- *
- * @param chain - Deployment key from {@link DEPLOYMENTS}; defaults to `stellar`.
- * @param sorobanUrl - Optional Soroban RPC URL override.
- * @returns Parsed announcements from the selected announcer contract.
- * @throws {Error} If the deployment key is unknown or the RPC request fails before returning JSON.
- *
- * @example
- * ```ts
- * import { fetchAnnouncements, scanAnnouncements } from "@wraith-protocol/sdk/chains/stellar";
- *
- * const announcements = await fetchAnnouncements("stellar");
- * const matches = scanAnnouncements(
- *   announcements,
- *   keys.viewingKey,
- *   keys.spendingPubKey,
- *   keys.spendingScalar,
- * );
- * ```
- *
- * @see {@link getDeployment}
- *
- * @deprecated Prefer {@link fetchAnnouncementsStream} for memory-efficient streaming.
+ * The legacy overloads return a plain array for backward compatibility. Passing
+ * an options object enables ledger windows, pagination cursors, and a structured
+ * `{ announcements, nextCursor }` result.
  */
+export async function fetchAnnouncements(): Promise<Announcement[]>;
+export async function fetchAnnouncements(chain: string): Promise<Announcement[]>;
 export async function fetchAnnouncements(
-  chain?: string,
-  sorobanUrl?: string,
+  chain: string,
+  sorobanUrl: string,
 ): Promise<Announcement[]>;
 export async function fetchAnnouncements(
   chain: string,
@@ -141,52 +85,132 @@ export async function fetchAnnouncements(
   sorobanUrlOrOpts?: string | FetchAnnouncementsOptions,
   maybeOpts?: FetchAnnouncementsOptions,
 ): Promise<Announcement[] | FetchAnnouncementsResult> {
-  const deployment = getDeployment(chain);
-  const opts = typeof sorobanUrlOrOpts === 'object' ? sorobanUrlOrOpts : maybeOpts;
-  const returnsCursor = Boolean(opts);
+  if (!isFetchOptions(sorobanUrlOrOpts) && !isFetchOptions(maybeOpts)) {
+    const sorobanUrl = typeof sorobanUrlOrOpts === 'string' ? sorobanUrlOrOpts : undefined;
+    return collectAnnouncements(fetchAnnouncementsStream(chain, sorobanUrl));
+  }
+
   const sorobanUrl = typeof sorobanUrlOrOpts === 'string' ? sorobanUrlOrOpts : undefined;
+  const opts = normalizeFetchOptions(sorobanUrlOrOpts, maybeOpts);
+  return fetchAnnouncementsWithOptions(chain, sorobanUrl ?? opts.sorobanUrl, opts);
+}
+
+/**
+ * Streaming version of announcement fetching. Yields announcements page by page
+ * from the Soroban RPC as they arrive, never holding more than one page in memory.
+ *
+ * Cancellation is automatic: breaking out of the `for-await` loop stops the stream.
+ */
+export async function* fetchAnnouncementsStream(
+  chain: string = 'stellar',
+  sorobanUrl?: string,
+): AsyncGenerator<Announcement> {
+  const deployment = getDeployment(chain);
   const url = sorobanUrl || deployment.sorobanUrl;
   const announcerContract = deployment.contracts.announcer;
-  const network = (chain === 'stellar' ? 'mainnet' : chain) as Network;
+
+  const probeData = await postJson(url, {
+    jsonrpc: '2.0',
+    id: 0,
+    method: 'getEvents',
+    params: {
+      startLedger: 1,
+      filters: [{ type: 'contract', contractIds: [announcerContract] }],
+      pagination: { limit: 1 },
+    },
+  });
+
+  let startLedger = 1;
+
+  if (probeData.error?.message) {
+    const range = parseLedgerRange(probeData.error.message);
+    if (!range) {
+      return;
+    }
+    startLedger = defaultStartLedger(range.oldest, range.latest);
+  }
+
+  let cursor: string | undefined;
+
+  while (true) {
+    const params: Record<string, unknown> = {
+      filters: [{ type: 'contract', contractIds: [announcerContract] }],
+      pagination: cursor ? { limit: 1000, cursor } : { limit: 1000 },
+    };
+
+    if (!cursor) {
+      params.startLedger = startLedger;
+    }
+
+    const data = await postJson(url, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'getEvents',
+      params,
+    });
+
+    const events = asEvents(data.result?.events);
+    for (const event of events) {
+      const announcement = parseAnnouncementEvent(event);
+      if (announcement) {
+        yield announcement;
+      }
+    }
+
+    if (events.length < 1000) {
+      return;
+    }
+
+    cursor = typeof data.result?.cursor === 'string' ? data.result.cursor : undefined;
+    if (!cursor) {
+      return;
+    }
+  }
+}
+
+async function fetchAnnouncementsWithOptions(
+  chain: string,
+  sorobanUrl: string | undefined,
+  opts: FetchAnnouncementsOptions,
+): Promise<FetchAnnouncementsResult> {
+  validateFetchOptions(opts);
+
+  const deployment = getDeployment(chain);
+  const url = sorobanUrl || deployment.sorobanUrl;
   const filterGroups = buildFilterGroups(deployment, opts);
-  const all: Announcement[] = [];
 
   if (filterGroups.length === 0) {
-    return returnsCursor ? { announcements: [], nextCursor: undefined } : [];
+    return { announcements: [], nextCursor: undefined };
   }
 
-  if (opts?.fromLedger !== undefined && opts.fromTimestamp !== undefined) {
-    throw new Error('fromLedger and fromTimestamp are mutually exclusive');
-  }
-  if (opts?.toLedger !== undefined && opts.toTimestamp !== undefined) {
-    throw new Error('toLedger and toTimestamp are mutually exclusive');
-  }
+  const ledgerWindow = await getSorobanLedgerWindow(url, deployment.contracts.announcer);
+  const latestLedger =
+    ledgerWindow.latest !== undefined ? ledgerWindow.latest : await getLatestLedger(url);
 
-  const ledgerWindow = await getSorobanLedgerWindow(url, announcerContract);
-  const latestLedger = ledgerWindow.latest ?? (await getLatestLedger(url));
   let startLedger =
-    opts?.fromLedger ?? Math.max(ledgerWindow.oldest ?? 1, latestLedger ? latestLedger - 5000 : 1);
-  let toLedger = opts?.toLedger ?? latestLedger;
+    opts.fromLedger ?? defaultStartLedger(ledgerWindow.oldest, latestLedger ?? undefined);
+  let toLedger = opts.toLedger ?? latestLedger ?? undefined;
 
-  if (opts?.fromTimestamp) {
+  if (opts.fromTimestamp) {
     startLedger = await ledgerForTimestamp(deployment.horizonUrl, opts.fromTimestamp);
   }
-  if (opts?.toTimestamp) {
+
+  if (opts.toTimestamp) {
     toLedger = await ledgerForTimestamp(deployment.horizonUrl, opts.toTimestamp);
   }
 
-  if (!opts?.cursor && ledgerWindow.oldest !== undefined && startLedger < ledgerWindow.oldest) {
+  if (!opts.cursor && ledgerWindow.oldest !== undefined && startLedger < ledgerWindow.oldest) {
     throw new RetentionExceededError(startLedger, ledgerWindow.oldest);
   }
 
-  let cursor = opts?.cursor;
-  let nextCursor: string | undefined = cursor;
+  const announcements: Announcement[] = [];
   const seen = new Set<string>();
   const singleFilterGroup = filterGroups.length === 1;
+  let nextCursor = opts.cursor;
 
   for (const filters of filterGroups) {
+    let groupCursor = singleFilterGroup ? opts.cursor : undefined;
     let hasMore = true;
-    let groupCursor = singleFilterGroup ? cursor : undefined;
 
     while (hasMore) {
       const params: Record<string, unknown> = {
@@ -198,18 +222,13 @@ export async function fetchAnnouncements(
         params.startLedger = startLedger;
       }
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 2,
-          method: 'getEvents',
-          params,
-        }),
+      const data = await postJson(url, {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'getEvents',
+        params,
       });
 
-      const data = await res.json();
       if (data.error?.message) {
         const range = parseLedgerRange(data.error.message);
         if (range && !groupCursor && startLedger < range.oldest) {
@@ -218,7 +237,7 @@ export async function fetchAnnouncements(
         break;
       }
 
-      const events = data.result?.events ?? [];
+      const events = asEvents(data.result?.events);
 
       for (const event of events) {
         const ledger = eventLedger(event);
@@ -227,225 +246,106 @@ export async function fetchAnnouncements(
           continue;
         }
 
-        const dedupeKey = String(event.id ?? `${event.txHash}:${JSON.stringify(event.topic)}`);
-        if (seen.has(dedupeKey)) continue;
+        const dedupeKey = eventDedupeKey(event);
+        if (seen.has(dedupeKey)) {
+          continue;
+        }
         seen.add(dedupeKey);
 
-        const ann = parseAnnouncementEvent(event);
-        if (ann) all.push(ann);
+        const announcement = parseAnnouncementEvent(event);
+        if (announcement) {
+          announcements.push(announcement);
+        }
       }
 
       if (singleFilterGroup) {
-        nextCursor = data.result?.cursor ?? groupCursor;
+        nextCursor = typeof data.result?.cursor === 'string' ? data.result.cursor : groupCursor;
       }
 
       if (!hasMore || events.length < 1000) {
         hasMore = false;
       } else {
-        groupCursor = data.result?.cursor;
-        if (!groupCursor) hasMore = false;
-      }
-    }
-  }
-
-  return returnsCursor ? { announcements: all, nextCursor } : all;
-}
-
-/**
- * Streaming version of announcement fetching. Yields announcements page by page
- * from the Soroban RPC as they arrive, never holding more than one page in memory.
- *
- * Cancellation is automatic: breaking out of the `for-await` loop stops the stream.
- *
- * @param chain The chain identifier (default: "stellar").
- * @param sorobanUrl Optional override for the Soroban RPC URL.
- */
-export async function* fetchAnnouncementsStream(
-  chain: string = 'stellar',
-  sorobanUrl?: string,
-): AsyncGenerator<Announcement> {
-  const deployment = getDeployment(chain);
-  const url = sorobanUrl || deployment.sorobanUrl;
-  const announcerContract = deployment.contracts.announcer;
-
-  // ------------------------------------------------------------------
-  // Resolve window boundaries via a probe request
-  // ------------------------------------------------------------------
-  const probeRes = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 0,
-      method: 'getEvents',
-      params: {
-        startLedger: 1,
-        filters: [{ type: 'contract', contractIds: [announcerContract] }],
-        pagination: { limit: 1 },
-      },
-    }),
-  });
-
-  const probeData = await probeRes.json();
-  let windowStart = 1;
-  let windowEnd = Number.MAX_SAFE_INTEGER;
-
-  if (probeData.error?.message) {
-    const match = probeData.error.message.match(/range:\s*(\d+)\s*-\s*(\d+)/);
-    if (match) {
-      const oldest = parseInt(match[1], 10);
-      const latest = parseInt(match[2], 10);
-      windowStart = Math.max(oldest, latest - 5000);
-      windowEnd = latest;
-    } else {
-      return [];
-    }
-  }
-
-  // ------------------------------------------------------------------
-  // Cache integration
-  // ------------------------------------------------------------------
-  let fetchFromLedger = windowStart;
-  let resumeCursor: string | undefined;
-  let cached: Announcement[] = [];
-
-  if (!bypassCache) {
-    const lastSeen = await cache.getLastSeen(network);
-    if (lastSeen) {
-      // Only fetch the delta.
-      fetchFromLedger = lastSeen.ledger + 1;
-      resumeCursor = lastSeen.cursor;
-      const hit = await cache.get(network, windowStart, lastSeen.ledger);
-      cached = hit ?? [];
-  let startLedger = 1;
-
-  if (probeData.error?.message) {
-    const range = parseLedgerRange(probeData.error.message);
-    if (range) {
-      startLedger = Math.max(range.oldest, range.latest - 5000);
-    } else {
-      return;
-    }
-  }
-
-  // Nothing new to fetch.
-  if (fetchFromLedger > windowEnd) return cached;
-
-  // ------------------------------------------------------------------
-  // Fetch delta from RPC
-  // ------------------------------------------------------------------
-  const { announcements: fresh, lastLedger, lastCursor } = await fetchRange(
-    url,
-    announcerContract,
-    fetchFromLedger,
-    resumeCursor,
-  );
-
-  if (!bypassCache && fresh.length > 0 && lastLedger !== undefined && lastCursor) {
-    await cache.put(network, fresh);
-    await cache.setLastSeen(network, lastLedger, lastCursor);
-  }
-
-  return [...cached, ...fresh];
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-interface FetchRangeResult {
-  announcements: Announcement[];
-  lastLedger: number | undefined;
-  lastCursor: string | undefined;
-}
-
-async function fetchRange(
-  url: string,
-  announcerContract: string,
-  startLedger: number,
-  resumeCursor?: string,
-): Promise<FetchRangeResult> {
-  const all: Announcement[] = [];
-  let cursor = resumeCursor;
-  let hasMore = true;
-  let lastLedger: number | undefined;
-  let lastCursor: string | undefined;
-
-  while (hasMore) {
-    const params: Record<string, unknown> = {
-      filters: [{ type: 'contract', contractIds: [announcerContract] }],
-      pagination: cursor ? { limit: 1000, cursor } : { limit: 1000 },
-    };
-
-    if (!cursor) {
-      params.startLedger = startLedger;
-    }
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'getEvents', params }),
-    });
-
-    const data = await res.json();
-    const events: Record<string, unknown>[] = data.result?.events ?? [];
-
-    for (const event of events) {
-      const ann = parseAnnouncementEvent(event);
-      if (ann) {
-        all.push(ann);
-        if (ann.ledger !== undefined && (lastLedger === undefined || ann.ledger > lastLedger)) {
-          lastLedger = ann.ledger;
+        groupCursor = typeof data.result?.cursor === 'string' ? data.result.cursor : undefined;
+        if (!groupCursor) {
+          hasMore = false;
         }
       }
-      if (ann) yield ann;
-    }
-
-    if (events.length < 1000) {
-      hasMore = false;
-    } else {
-      cursor = data.result?.cursor as string | undefined;
-      if (!cursor) hasMore = false;
-      else lastCursor = cursor;
     }
   }
+
+  return { announcements, nextCursor };
 }
 
-  return { announcements: all, lastLedger, lastCursor };
-async function getSorobanLedgerWindow(
-  sorobanUrl: string,
-  announcerContract: string,
-): Promise<{ oldest?: number; latest?: number }> {
-  const probeRes = await fetch(sorobanUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 0,
-      method: 'getEvents',
-      params: {
-        startLedger: 1,
-        filters: [{ type: 'contract', contractIds: [announcerContract] }],
-        pagination: { limit: 1 },
-      },
-    }),
-  });
+async function collectAnnouncements(source: AsyncIterable<Announcement>): Promise<Announcement[]> {
+  const announcements: Announcement[] = [];
+  for await (const announcement of source) {
+    announcements.push(announcement);
+  }
+  return announcements;
+}
 
-  const probeData = await probeRes.json();
-  if (probeData.error?.message) {
-    return parseLedgerRange(probeData.error.message) ?? {};
+function isFetchOptions(value: unknown): value is FetchAnnouncementsOptions {
+  return typeof value === 'object' && value !== null;
+}
+
+function normalizeFetchOptions(
+  sorobanUrlOrOpts?: string | FetchAnnouncementsOptions,
+  maybeOpts?: FetchAnnouncementsOptions,
+): FetchAnnouncementsOptions {
+  if (isFetchOptions(maybeOpts)) {
+    return maybeOpts;
+  }
+  if (isFetchOptions(sorobanUrlOrOpts)) {
+    return sorobanUrlOrOpts;
   }
   return {};
 }
 
-async function getLatestLedger(sorobanUrl: string): Promise<number | undefined> {
-  const res = await fetch(sorobanUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getLatestLedger' }),
+function validateFetchOptions(opts: FetchAnnouncementsOptions): void {
+  if (opts.fromLedger !== undefined && opts.fromTimestamp !== undefined) {
+    throw new Error('fromLedger and fromTimestamp are mutually exclusive');
+  }
+  if (opts.toLedger !== undefined && opts.toTimestamp !== undefined) {
+    throw new Error('toLedger and toTimestamp are mutually exclusive');
+  }
+}
+
+function defaultStartLedger(oldest?: number, latest?: number): number {
+  if (latest === undefined) {
+    return oldest ?? 1;
+  }
+  return Math.max(oldest ?? 1, latest - 5000);
+}
+
+async function getSorobanLedgerWindow(
+  sorobanUrl: string,
+  announcerContract: string,
+): Promise<{ oldest?: number; latest?: number }> {
+  const probeData = await postJson(sorobanUrl, {
+    jsonrpc: '2.0',
+    id: 0,
+    method: 'getEvents',
+    params: {
+      startLedger: 1,
+      filters: [{ type: 'contract', contractIds: [announcerContract] }],
+      pagination: { limit: 1 },
+    },
   });
-  const data = await res.json();
-  return data.result?.sequence;
+
+  if (probeData.error?.message) {
+    return parseLedgerRange(probeData.error.message) ?? {};
+  }
+
+  return {};
+}
+
+async function getLatestLedger(sorobanUrl: string): Promise<number | undefined> {
+  const data = await postJson(sorobanUrl, {
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'getLatestLedger',
+  });
+  return typeof data.result?.sequence === 'number' ? data.result.sequence : undefined;
 }
 
 async function ledgerForTimestamp(horizonUrl: string, timestamp: Date): Promise<number> {
@@ -480,9 +380,11 @@ async function horizonLedger(
       : `/ledgers/${encodeURIComponent(sequence)}`;
   const res = await fetch(`${horizonUrl}${path}`);
   const data = await res.json();
+
   if (sequence === 'latest') {
     return data._embedded.records[0];
   }
+
   return data;
 }
 
@@ -512,7 +414,10 @@ function buildFilterGroups(
 
 function parseLedgerRange(message: string): { oldest: number; latest: number } | undefined {
   const match = message.match(/range:\s*(\d+)\s*-\s*(\d+)/);
-  if (!match) return undefined;
+  if (!match) {
+    return undefined;
+  }
+
   return {
     oldest: parseInt(match[1], 10),
     latest: parseInt(match[2], 10),
@@ -522,32 +427,11 @@ function parseLedgerRange(message: string): { oldest: number; latest: number } |
 /** @internal Exported for unit tests. */
 export function parseAnnouncementEvent(event: Record<string, unknown>): Announcement | null {
   try {
-    const topics = event.topic as string[] | undefined;
-    if (!topics || topics.length < 3) return null;
+    const topics = Array.isArray(event.topic) ? event.topic : undefined;
+    if (!topics || topics.length < 3) {
+      return null;
+    }
 
-    const schemeIdScVal = xdr.ScVal.fromXDR(topics[1], 'base64');
-    const stealthScVal = xdr.ScVal.fromXDR(topics[2], 'base64');
-    const stealthAddress = Address.fromScAddress(stealthScVal.address()).toString();
-
-    const valueScVal = xdr.ScVal.fromXDR(event.value as string, 'base64');
-    const valueVec = valueScVal.vec();
-    if (!valueVec || valueVec.length < 3) return null;
-
-    const caller = Address.fromScAddress(valueVec[0].address()).toString();
-    const ephPubKeyBytes = valueVec[1].bytes();
-    const viewTagBytes = valueVec[2].bytes();
-    if (!ephPubKeyBytes || !viewTagBytes) return null;
-
-    const ledger = typeof event.ledger === 'number' ? event.ledger : typeof event.ledger === 'string' ? parseInt(event.ledger, 10) : undefined;
-
-    return {
-      schemeId: schemeIdScVal.u32(),
-      stealthAddress,
-      caller,
-      ephemeralPubKey: bytesToHex(new Uint8Array(ephPubKeyBytes)),
-      metadata: bytesToHex(new Uint8Array(viewTagBytes)),
-      ledger,
-    };
     if (topics.length === 3) {
       return parseV1AnnouncementEvent(event, topics);
     }
@@ -564,21 +448,26 @@ export function parseAnnouncementEvent(event: Record<string, unknown>): Announce
 
 function parseV1AnnouncementEvent(
   event: Record<string, unknown>,
-  topics: string[],
+  topics: unknown[],
 ): Announcement | null {
-  const schemeIdScVal = xdr.ScVal.fromXDR(topics[1], 'base64');
-  const stealthScVal = xdr.ScVal.fromXDR(topics[2], 'base64');
+  const schemeIdScVal = xdr.ScVal.fromXDR(String(topics[1]), 'base64');
+  const stealthScVal = xdr.ScVal.fromXDR(String(topics[2]), 'base64');
   const stealthAddress = Address.fromScAddress(stealthScVal.address()).toString();
 
-  const valueScVal = xdr.ScVal.fromXDR(event.value as string, 'base64');
+  const valueScVal = xdr.ScVal.fromXDR(String(event.value), 'base64');
   const valueVec = valueScVal.vec();
-  if (!valueVec || valueVec.length < 3) return null;
+  if (!valueVec || valueVec.length < 3) {
+    return null;
+  }
 
   const caller = Address.fromScAddress(valueVec[0].address()).toString();
   const ephPubKeyBytes = valueVec[1].bytes();
   const metadataBytes = valueVec[2].bytes();
-  if (!ephPubKeyBytes || !metadataBytes) return null;
+  if (!ephPubKeyBytes || !metadataBytes) {
+    return null;
+  }
 
+  const ledger = eventLedger(event);
   return {
     schemeId: schemeIdScVal.u32(),
     stealthAddress,
@@ -586,24 +475,29 @@ function parseV1AnnouncementEvent(
     ephemeralPubKey: bytesToHex(new Uint8Array(ephPubKeyBytes)),
     metadata: bytesToHex(new Uint8Array(metadataBytes)),
     viewTagBucket: undefined,
+    ...(ledger === undefined ? {} : { ledger }),
   };
 }
 
 function parseV2AnnouncementEvent(
   event: Record<string, unknown>,
-  topics: string[],
+  topics: unknown[],
 ): Announcement | null {
-  const schemeIdScVal = xdr.ScVal.fromXDR(topics[1], 'base64');
-  const bucketScVal = xdr.ScVal.fromXDR(topics[2], 'base64');
+  const schemeIdScVal = xdr.ScVal.fromXDR(String(topics[1]), 'base64');
+  const bucketScVal = xdr.ScVal.fromXDR(String(topics[2]), 'base64');
 
-  const valueScVal = xdr.ScVal.fromXDR(event.value as string, 'base64');
+  const valueScVal = xdr.ScVal.fromXDR(String(event.value), 'base64');
   const valueVec = valueScVal.vec();
-  if (!valueVec || valueVec.length < 3) return null;
+  if (!valueVec || valueVec.length < 3) {
+    return null;
+  }
 
   const stealthAddress = Address.fromScAddress(valueVec[0].address()).toString();
   const ephPubKeyBytes = valueVec[1].bytes();
   const metadataBytes = valueVec[2].bytes();
-  if (!ephPubKeyBytes || !metadataBytes) return null;
+  if (!ephPubKeyBytes || !metadataBytes) {
+    return null;
+  }
 
   const caller =
     typeof event.contractId === 'string'
@@ -612,6 +506,7 @@ function parseV2AnnouncementEvent(
         ? event.contract_id
         : '';
 
+  const ledger = eventLedger(event);
   return {
     schemeId: schemeIdScVal.u32(),
     stealthAddress,
@@ -619,10 +514,45 @@ function parseV2AnnouncementEvent(
     ephemeralPubKey: bytesToHex(new Uint8Array(ephPubKeyBytes)),
     metadata: bytesToHex(new Uint8Array(metadataBytes)),
     viewTagBucket: bucketScVal.u32(),
+    ...(ledger === undefined ? {} : { ledger }),
   };
 }
 
+function eventDedupeKey(event: Record<string, unknown>): string {
+  if (typeof event.id === 'string' || typeof event.id === 'number') {
+    return String(event.id);
+  }
+  if (typeof event.txHash === 'string') {
+    return `${event.txHash}:${JSON.stringify(event.topic ?? null)}`;
+  }
+  return JSON.stringify(event);
+}
+
 function eventLedger(event: Record<string, unknown>): number | undefined {
-  const ledger = event.ledger;
-  return typeof ledger === 'number' ? ledger : undefined;
+  if (typeof event.ledger === 'number') {
+    return event.ledger;
+  }
+  if (typeof event.ledger === 'string') {
+    const parsed = parseInt(event.ledger, 10);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+  return undefined;
+}
+
+function asEvents(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(
+    (event): event is Record<string, unknown> => typeof event === 'object' && event !== null,
+  );
+}
+
+async function postJson(url: string, body: Record<string, unknown>): Promise<any> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
 }
