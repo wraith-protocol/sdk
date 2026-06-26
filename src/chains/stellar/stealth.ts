@@ -146,28 +146,3 @@ export function computeViewTag(sharedSecret: Uint8Array): number {
   input.set(sharedSecret, LEGACY_VIEW_TAG_PREFIX.length);
   return sha256(input)[0];
 }
-
-/**
- * Computes the optimized public-announcement view tag used by current Stellar
- * announcements.
- *
- * This tag depends only on the public ephemeral key and the recipient viewing
- * public key, so scanners can reject most unrelated announcements before doing
- * X25519 shared-secret derivation.
- *
- * @param ephemeralPubKey - 32-byte ed25519 ephemeral public key.
- * @param viewingPubKey - 32-byte ed25519 recipient viewing public key.
- * @returns Integer view tag in the range 0-255.
- */
-export function computeAnnouncementViewTag(
-  ephemeralPubKey: Uint8Array,
-  viewingPubKey: Uint8Array,
-): number {
-  const input = new Uint8Array(
-    VIEW_TAG_PREFIX.length + ephemeralPubKey.length + viewingPubKey.length,
-  );
-  input.set(VIEW_TAG_PREFIX);
-  input.set(ephemeralPubKey, VIEW_TAG_PREFIX.length);
-  input.set(viewingPubKey, VIEW_TAG_PREFIX.length + ephemeralPubKey.length);
-  return sha256(input)[0];
-}

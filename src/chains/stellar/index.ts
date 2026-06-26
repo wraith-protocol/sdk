@@ -82,3 +82,9 @@ export { buildStellarSwapAndStealth } from './swap';
 export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';
 export { decodeSorobanError, registerErrorRegistry } from './errors';
 export type { SorobanContractError, DecodedSorobanError, ErrorRegistry } from './errors';
+export {
+  prepareOfflineStellarTransaction,
+  signOfflineStellarTransaction,
+  submitOfflineStellarTransaction,
+} from './offline-sign';
+export type { OfflineSignParams, OfflineStellarEnvelope } from './offline-sign';
