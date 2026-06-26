@@ -19,9 +19,8 @@ export {
   checkStealthAddress,
   scanAnnouncements,
   scanAnnouncementsLegacySharedSecretTag,
+  scanAnnouncementsStream,
 } from './scan';
-export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
-export { checkStealthAddress, scanAnnouncements, scanAnnouncementsStream } from './scan';
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export { buildStealthPayment, buildStealthAnnouncement } from './builders';
 export type { BuildStealthPaymentOptions, BuildAnnouncementOptions } from './builders';
@@ -75,3 +74,12 @@ export type {
 } from './fee-estimation';
 export { buildStellarSwapAndStealth } from './swap';
 export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';
+export {
+  decodeSorobanError,
+  registerErrorRegistry,
+} from './errors';
+export type {
+  SorobanContractError,
+  DecodedSorobanError,
+  ErrorRegistry,
+} from './errors';

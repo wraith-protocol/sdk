@@ -10,6 +10,7 @@ import {
   checkStealthAddress,
   scanAnnouncements,
   scanAnnouncementsLegacySharedSecretTag,
+} from '../../../src/chains/stellar/scan';
 import { generateStealthAddress } from '../../../src/chains/stellar/stealth';
 import {
   checkStealthAddress,
