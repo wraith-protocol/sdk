@@ -1,18 +1,27 @@
 function btoaPolyfill(input: string): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-  let str = input;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   let output = '';
+  let i = 0;
 
-  for (let block = 0, charCode, idx = 0, map = chars; str.charAt(idx | 0) || ((map = '='), idx % 1); ) {
-    charCode = str.charCodeAt((idx += 3 / 4));
-    if (charCode > 0xff) {
-      throw new Error("Unable to encode character as binary data");
+  while (i < input.length) {
+    const b0 = input.charCodeAt(i++);
+    const b1 = i < input.length ? input.charCodeAt(i++) : 0;
+    const b2 = i < input.length ? input.charCodeAt(i++) : 0;
+
+    if (b0 > 0xff || b1 > 0xff || b2 > 0xff) {
+      throw new Error('Unable to encode character as binary data');
     }
+
+    const triplet = (b0 << 16) | (b1 << 8) | b2;
     output +=
-      map.charAt((block = (block << 8) | charCode) >> ((3.5 - (idx % 1)) * 8) & 0x3f);
+      chars[(triplet >> 18) & 0x3f] +
+      chars[(triplet >> 12) & 0x3f] +
+      chars[(triplet >> 6) & 0x3f] +
+      chars[triplet & 0x3f];
   }
 
-  return output;
+  const padLen = (3 - (input.length % 3)) % 3;
+  return output.slice(0, output.length - padLen) + '='.repeat(padLen);
 }
 
 function atobPolyfill(input: string): string {
@@ -21,7 +30,7 @@ function atobPolyfill(input: string): string {
   let output = '';
 
   if (str.length % 4 === 1) {
-    throw new Error("InvalidCharacterError: Incorrect base64 string length");
+    throw new Error('InvalidCharacterError: Incorrect base64 string length');
   }
 
   for (let bc = 0, bs = 0, buffer, idx = 0; (buffer = str.charAt(idx++)); ) {

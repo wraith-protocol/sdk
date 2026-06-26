@@ -28,6 +28,7 @@ The baseline numbers in `baseline.md` were measured on:
 ## Interpreting Results
 
 Each benchmark reports:
+
 - **hz**: Operations per second (higher is better)
 - **min**: Minimum execution time (ms)
 - **max**: Maximum execution time (ms)
@@ -35,6 +36,7 @@ Each benchmark reports:
 - **p99**: 99th percentile execution time (ms) — rare slow cases
 
 Example output:
+
 ```
 scanAnnouncements - 1,000 announcements
   hz          min        max        p50        p99
@@ -42,6 +44,7 @@ scanAnnouncements - 1,000 announcements
 ```
 
 This means:
+
 - We can scan 1,000 announcements **45.2 times per second**
 - Typical scan takes **22.3 ms**
 - 1 in 100 scans takes longer than **24.1 ms**
@@ -81,6 +84,7 @@ diff <(jq '.results[] | {name: .name, hz: .hz}' bench/results.json) \
 ### Regression Budget
 
 We use a **20% regression threshold** in CI. This means:
+
 - If a benchmark gets 20% slower, it will be flagged for review
 - Small regressions (< 20%) are acceptable and expected as features evolve
 - Threshold is tunable in `.github/workflows/benchmark.yml`
@@ -89,13 +93,13 @@ We use a **20% regression threshold** in CI. This means:
 
 Announcement scanning is the primary performance concern. We benchmark at multiple scales:
 
-| Scale | Purpose |
-|-------|---------|
-| 10 | Minimum useful scan (e.g., last block's transactions) |
-| 100 | Typical daily inbox |
-| 1,000 | Weekly backlog |
-| 10,000 | Monthly backlog |
-| 100,000 | Full network sync or stress test |
+| Scale   | Purpose                                               |
+| ------- | ----------------------------------------------------- |
+| 10      | Minimum useful scan (e.g., last block's transactions) |
+| 100     | Typical daily inbox                                   |
+| 1,000   | Weekly backlog                                        |
+| 10,000  | Monthly backlog                                       |
+| 100,000 | Full network sync or stress test                      |
 
 **Expected behavior**: Time should grow linearly with N. If time grows faster (quadratic), it suggests a fixable algorithm bottleneck.
 
@@ -104,11 +108,12 @@ Announcement scanning is the primary performance concern. We benchmark at multip
 ### Hot Path: `scanAnnouncements` Outer Loop
 
 The scanning function:
+
 1. Iterates through all N announcements (O(N))
 2. For each announcement, computes ECDH (Curve25519 scalar mult) — **expensive**
 3. Filters by view-tag first (eliminates ~99.6% of announcements) — **cheap**
 
-**Issue**: Even with view-tag filtering, ECDH is repeated 1,000+ times. 
+**Issue**: Even with view-tag filtering, ECDH is repeated 1,000+ times.
 
 **Optimization opportunity**: Batch ECDH operations or use a more cache-friendly implementation.
 
@@ -117,6 +122,7 @@ The scanning function:
 ### Secondary: Hash Function Composition
 
 Each announcement scan computes:
+
 - SHA-256("wraith:scalar:" || shared_secret) — called many times
 - Could benefit from streaming or pre-computed context
 
@@ -130,6 +136,7 @@ Each announcement scan computes:
 4. Run `pnpm bench` and add results to `baseline.md`
 
 Example:
+
 ```typescript
 bench('newFunction() on 1MB input', () => {
   const input = generateLargeInput(1024 * 1024);
@@ -140,6 +147,7 @@ bench('newFunction() on 1MB input', () => {
 ## CI Integration
 
 Every PR runs benchmarks and compares against main. If any benchmark regresses > 20%, a comment is posted to the PR with:
+
 - Which benchmarks regressed
 - By how much (%)
 - Link to the regression tracking issue

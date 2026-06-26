@@ -1,10 +1,16 @@
 import { describe, test, expect } from 'vitest';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
-import { generateStealthAddress } from '../../../src/chains/stellar/stealth';
+import {
+  generateStealthAddress,
+  computeAnnouncementViewTag,
+  computeSharedSecret,
+  computeViewTag,
+} from '../../../src/chains/stellar/stealth';
 import {
   checkStealthAddress,
   scanAnnouncements,
   scanAnnouncementsStream,
+  scanAnnouncementsLegacySharedSecretTag,
 } from '../../../src/chains/stellar/scan';
 import { SCHEME_ID } from '../../../src/chains/stellar/constants';
 import { bytesToHex } from '../../../src/chains/stellar/utils';

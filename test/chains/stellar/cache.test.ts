@@ -115,4 +115,3 @@ describe('MemoryCache', () => {
     expect(result).toHaveLength(1);
   });
 });
-

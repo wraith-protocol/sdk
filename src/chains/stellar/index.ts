@@ -9,7 +9,12 @@ export {
   META_ADDRESS_PREFIX,
 } from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
-export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
+export {
+  generateStealthAddress,
+  computeSharedSecret,
+  computeViewTag,
+  computeAnnouncementViewTag,
+} from './stealth';
 export { checkStealthAddress, scanAnnouncements, scanAnnouncementsStream } from './scan';
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export { buildStealthPayment, buildStealthAnnouncement } from './builders';
@@ -23,8 +28,6 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
-export { fetchAnnouncements } from './announcements';
-export type { FetchAnnouncementsOptions } from './announcements';
 export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
 export type { AnnouncementCache } from './cache';
 export {
@@ -66,3 +69,11 @@ export type {
 } from './fee-estimation';
 export { buildStellarSwapAndStealth } from './swap';
 export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';
+export { resolveStellarFederation, FederationResolver, FederationError } from './federation';
+export type {
+  FederationResult,
+  FederationMemoType,
+  FederationErrorCode,
+  FederationFetchFn,
+  FederationResolverOptions,
+} from './federation';

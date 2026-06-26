@@ -60,36 +60,7 @@ function getDefaultCache(): AnnouncementCache {
   return _defaultCache;
 }
 
-export interface FetchAnnouncementsOptions {
-  /** Override the Soroban RPC URL. */
-  sorobanUrl?: string;
-  /**
-   * Skip the cache and always fetch from RPC.
-   * Use after sending a payment to ensure the new announcement is visible.
-   */
-  bypassCache?: boolean;
-  /** Provide a custom cache implementation (e.g., for testing). */
-  cache?: AnnouncementCache;
-}
-
 /**
- * Fetches stealth address announcements from the Soroban RPC for the given
- * Stellar network, using an announcement cache to avoid redundant RPC traffic.
- *
- * On the first call the full available window is fetched. On subsequent calls
- * only the delta since the last seen ledger is fetched, and results are merged
- * with cached data before being returned.
- *
- * @param chain The chain identifier (default: `"stellar"`).
- * @param options Fetch options including cache bypass and custom cache.
- * @returns Array of all known announcements (cached + fresh).
- */
-export async function fetchAnnouncements(
-  chain: string = 'stellar',
-  options: FetchAnnouncementsOptions = {},
-): Promise<Announcement[]> {
-  const { sorobanUrl, bypassCache = false, cache = getDefaultCache() } = options;
-
  * Fetches Stellar stealth announcements from the configured Soroban RPC.
  *
  * Use this before {@link scanAnnouncements} when a recipient wants to discover
@@ -302,51 +273,41 @@ export async function* fetchAnnouncementsStream(
     }
   }
 
-  // ------------------------------------------------------------------
-  // Cache integration
-  // ------------------------------------------------------------------
-  let fetchFromLedger = windowStart;
-  let resumeCursor: string | undefined;
-  let cached: Announcement[] = [];
+  // Page through events, yielding each announcement as it arrives.
+  let cursor: string | undefined;
+  let hasMore = true;
 
-  if (!bypassCache) {
-    const lastSeen = await cache.getLastSeen(network);
-    if (lastSeen) {
-      // Only fetch the delta.
-      fetchFromLedger = lastSeen.ledger + 1;
-      resumeCursor = lastSeen.cursor;
-      const hit = await cache.get(network, windowStart, lastSeen.ledger);
-      cached = hit ?? [];
-  let startLedger = 1;
+  while (hasMore) {
+    const params: Record<string, unknown> = {
+      filters: [{ type: 'contract', contractIds: [announcerContract] }],
+      pagination: cursor ? { limit: 1000, cursor } : { limit: 1000 },
+    };
 
-  if (probeData.error?.message) {
-    const range = parseLedgerRange(probeData.error.message);
-    if (range) {
-      startLedger = Math.max(range.oldest, range.latest - 5000);
+    if (!cursor) {
+      params.startLedger = windowStart;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'getEvents', params }),
+    });
+
+    const data = await res.json();
+    const events: Record<string, unknown>[] = data.result?.events ?? [];
+
+    for (const event of events) {
+      const ann = parseAnnouncementEvent(event);
+      if (ann) yield ann;
+    }
+
+    if (events.length < 1000) {
+      hasMore = false;
     } else {
-      return;
+      cursor = data.result?.cursor as string | undefined;
+      if (!cursor) hasMore = false;
     }
   }
-
-  // Nothing new to fetch.
-  if (fetchFromLedger > windowEnd) return cached;
-
-  // ------------------------------------------------------------------
-  // Fetch delta from RPC
-  // ------------------------------------------------------------------
-  const { announcements: fresh, lastLedger, lastCursor } = await fetchRange(
-    url,
-    announcerContract,
-    fetchFromLedger,
-    resumeCursor,
-  );
-
-  if (!bypassCache && fresh.length > 0 && lastLedger !== undefined && lastCursor) {
-    await cache.put(network, fresh);
-    await cache.setLastSeen(network, lastLedger, lastCursor);
-  }
-
-  return [...cached, ...fresh];
 }
 
 // ---------------------------------------------------------------------------
@@ -398,7 +359,6 @@ async function fetchRange(
           lastLedger = ann.ledger;
         }
       }
-      if (ann) yield ann;
     }
 
     if (events.length < 1000) {
@@ -409,9 +369,9 @@ async function fetchRange(
       else lastCursor = cursor;
     }
   }
-}
 
   return { announcements: all, lastLedger, lastCursor };
+}
 async function getSorobanLedgerWindow(
   sorobanUrl: string,
   announcerContract: string,
@@ -523,31 +483,8 @@ function parseLedgerRange(message: string): { oldest: number; latest: number } |
 export function parseAnnouncementEvent(event: Record<string, unknown>): Announcement | null {
   try {
     const topics = event.topic as string[] | undefined;
-    if (!topics || topics.length < 3) return null;
+    if (!topics) return null;
 
-    const schemeIdScVal = xdr.ScVal.fromXDR(topics[1], 'base64');
-    const stealthScVal = xdr.ScVal.fromXDR(topics[2], 'base64');
-    const stealthAddress = Address.fromScAddress(stealthScVal.address()).toString();
-
-    const valueScVal = xdr.ScVal.fromXDR(event.value as string, 'base64');
-    const valueVec = valueScVal.vec();
-    if (!valueVec || valueVec.length < 3) return null;
-
-    const caller = Address.fromScAddress(valueVec[0].address()).toString();
-    const ephPubKeyBytes = valueVec[1].bytes();
-    const viewTagBytes = valueVec[2].bytes();
-    if (!ephPubKeyBytes || !viewTagBytes) return null;
-
-    const ledger = typeof event.ledger === 'number' ? event.ledger : typeof event.ledger === 'string' ? parseInt(event.ledger, 10) : undefined;
-
-    return {
-      schemeId: schemeIdScVal.u32(),
-      stealthAddress,
-      caller,
-      ephemeralPubKey: bytesToHex(new Uint8Array(ephPubKeyBytes)),
-      metadata: bytesToHex(new Uint8Array(viewTagBytes)),
-      ledger,
-    };
     if (topics.length === 3) {
       return parseV1AnnouncementEvent(event, topics);
     }

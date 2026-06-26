@@ -8,10 +8,10 @@
 
 Stellar has two fee components:
 
-| Component | Applies to | Source |
-|---|---|---|
-| **Inclusion fee** (base fee × op count) | All transactions | Horizon `/fee_stats` → recent ledger p50/p99 |
-| **Resource fee** | Soroban (smart contract) only | `simulateTransaction` RPC call |
+| Component                               | Applies to                    | Source                                       |
+| --------------------------------------- | ----------------------------- | -------------------------------------------- |
+| **Inclusion fee** (base fee × op count) | All transactions              | Horizon `/fee_stats` → recent ledger p50/p99 |
+| **Resource fee**                        | Soroban (smart contract) only | `simulateTransaction` RPC call               |
 
 The inclusion fee is set by network congestion — it can spike between the time you estimate and submit. The resource fee reflects ledger state at simulation time and may drift before submission.
 
@@ -38,25 +38,25 @@ All fee values are in **stroops** (1 XLM = 10,000,000 stroops).
 
 ### Parameters
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `operationCount` | `number` | ✅ | Number of operations in the transaction |
-| `sorobanResources` | `SorobanResources` | ❌ | Provide for Soroban invocations |
-| `sorobanResources.transactionXdr` | `string` | ✅ (Soroban) | Serialised transaction XDR to simulate |
-| `sorobanResources.simulationResult` | `SimulateTransactionResponse` | ❌ | Pre-fetched simulation (skips RPC call) |
-| `network` | `'mainnet' \| 'testnet'` | ❌ | Defaults to `'testnet'` |
-| `feeStats` | `Horizon.FeeStatsResponse` | ❌ | Pre-fetched fee stats (skips Horizon call) |
-| `feeBump` | `boolean` | ❌ | Set `true` when wrapping in a fee-bump envelope |
-| `rpcUrl` | `string` | ❌ | Custom Soroban RPC URL |
-| `horizonUrl` | `string` | ❌ | Custom Horizon URL |
+| Field                               | Type                          | Required     | Description                                     |
+| ----------------------------------- | ----------------------------- | ------------ | ----------------------------------------------- |
+| `operationCount`                    | `number`                      | ✅           | Number of operations in the transaction         |
+| `sorobanResources`                  | `SorobanResources`            | ❌           | Provide for Soroban invocations                 |
+| `sorobanResources.transactionXdr`   | `string`                      | ✅ (Soroban) | Serialised transaction XDR to simulate          |
+| `sorobanResources.simulationResult` | `SimulateTransactionResponse` | ❌           | Pre-fetched simulation (skips RPC call)         |
+| `network`                           | `'mainnet' \| 'testnet'`      | ❌           | Defaults to `'testnet'`                         |
+| `feeStats`                          | `Horizon.FeeStatsResponse`    | ❌           | Pre-fetched fee stats (skips Horizon call)      |
+| `feeBump`                           | `boolean`                     | ❌           | Set `true` when wrapping in a fee-bump envelope |
+| `rpcUrl`                            | `string`                      | ❌           | Custom Soroban RPC URL                          |
+| `horizonUrl`                        | `string`                      | ❌           | Custom Horizon URL                              |
 
 ### Return value
 
 ```ts
 interface FeeEstimate {
-  low: number;      // Protocol minimum — likely rejected under congestion
+  low: number; // Protocol minimum — likely rejected under congestion
   expected: number; // p50 fee rate — good for non-urgent transactions
-  high: number;     // p99 × 2× surge buffer — maximises inclusion probability
+  high: number; // p99 × 2× surge buffer — maximises inclusion probability
   breakdown: {
     networkBaseFee: number;
     operationCount: number;
@@ -64,7 +64,7 @@ interface FeeEstimate {
     p50Fee?: number;
     p99Fee?: number;
     sorobanResourceFee?: number; // Soroban only
-    sorobanPadding?: number;     // 25% padding on resource fee for "high" tier
+    sorobanPadding?: number; // 25% padding on resource fee for "high" tier
     uncertainty: string;
   };
 }
@@ -122,7 +122,7 @@ const tx = new TransactionBuilder(sourceAccount, {
   fee: '100',
   networkPassphrase: Networks.TESTNET,
 })
-  .addOperation(contract.call('send_stealth', /* args */))
+  .addOperation(contract.call('send_stealth' /* args */))
   .setTimeout(30)
   .build();
 
@@ -158,9 +158,9 @@ const estimate = await estimateStellarFee({
 
 ```ts
 const estimate = await estimateStellarFee({
-  operationCount: 2,   // ops in the INNER transaction
+  operationCount: 2, // ops in the INNER transaction
   network: 'mainnet',
-  feeBump: true,       // adds 1 for the outer envelope
+  feeBump: true, // adds 1 for the outer envelope
 });
 
 // breakdown.operationCount === 3
@@ -187,9 +187,9 @@ async function getFeeOptions(txXdr: string) {
   const toXlm = (stroops: number) => (stroops / 10_000_000).toFixed(7);
 
   return [
-    { label: 'Slow',     fee: estimate.low,      display: toXlm(estimate.low) },
-    { label: 'Normal',   fee: estimate.expected,  display: toXlm(estimate.expected) },
-    { label: 'Priority', fee: estimate.high,      display: toXlm(estimate.high) },
+    { label: 'Slow', fee: estimate.low, display: toXlm(estimate.low) },
+    { label: 'Normal', fee: estimate.expected, display: toXlm(estimate.expected) },
+    { label: 'Priority', fee: estimate.high, display: toXlm(estimate.high) },
   ];
 }
 ```
