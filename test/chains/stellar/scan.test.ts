@@ -1,5 +1,15 @@
 import { describe, test, expect } from 'vitest';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
+import {
+  computeAnnouncementViewTag,
+  computeSharedSecret,
+  computeViewTag,
+  generateStealthAddress,
+} from '../../../src/chains/stellar/stealth';
+import {
+  checkStealthAddress,
+  scanAnnouncements,
+  scanAnnouncementsLegacySharedSecretTag,
 import { generateStealthAddress } from '../../../src/chains/stellar/stealth';
 import {
   checkStealthAddress,

@@ -12,9 +12,15 @@ export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-addre
 export {
   generateStealthAddress,
   computeSharedSecret,
-  computeViewTag,
   computeAnnouncementViewTag,
+  computeViewTag,
 } from './stealth';
+export {
+  checkStealthAddress,
+  scanAnnouncements,
+  scanAnnouncementsLegacySharedSecretTag,
+} from './scan';
+export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
 export { checkStealthAddress, scanAnnouncements, scanAnnouncementsStream } from './scan';
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export { buildStealthPayment, buildStealthAnnouncement } from './builders';

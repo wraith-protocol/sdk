@@ -17,8 +17,47 @@
  * - All values are in stroops (1 XLM = 10,000,000 stroops).
  */
 
-import type { Horizon, rpc } from '@stellar/stellar-sdk';
+import type { rpc } from '@stellar/stellar-sdk';
 import type { Network } from './types';
+
+/** Shape of the Horizon /fee_stats response (locally defined, SDK types are unstable). */
+export interface HorizonFeeStatsResponse {
+  last_ledger: string;
+  last_ledger_base_fee: string;
+  ledger_capacity_usage: string;
+  fee_charged: {
+    max?: string;
+    min?: string;
+    mode?: string;
+    p10?: string;
+    p20?: string;
+    p30?: string;
+    p40?: string;
+    p50?: string;
+    p60?: string;
+    p70?: string;
+    p80?: string;
+    p90?: string;
+    p95?: string;
+    p99?: string;
+  };
+  max_fee: {
+    max?: string;
+    min?: string;
+    mode?: string;
+    p10?: string;
+    p20?: string;
+    p30?: string;
+    p40?: string;
+    p50?: string;
+    p60?: string;
+    p70?: string;
+    p80?: string;
+    p90?: string;
+    p95?: string;
+    p99?: string;
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,7 +91,7 @@ export interface EstimateFeeParams {
    * Pre-fetched fee stats from Horizon (/fee_stats).
    * If omitted, the helper fetches them itself.
    */
-  feeStats?: Horizon.HorizonApi.FeeStatsResponse;
+  feeStats?: HorizonFeeStatsResponse;
   /**
    * Set to true when the transaction will be wrapped in a fee-bump envelope.
    * Adds one extra base-fee unit for the outer transaction (CAP-0015).
@@ -143,12 +182,12 @@ async function fetchFeeStats(
   if (!res.ok) {
     throw new Error(`Horizon /fee_stats request failed: ${res.status} ${res.statusText}`);
   }
-  const data = (await res.json()) as Horizon.HorizonApi.FeeStatsResponse;
+  const data = (await res.json()) as HorizonFeeStatsResponse;
   return parseFeeStats(data);
 }
 
 /** Parse a Horizon FeeStatsResponse into the numbers we need. */
-export function parseFeeStats(data: Horizon.HorizonApi.FeeStatsResponse): {
+export function parseFeeStats(data: HorizonFeeStatsResponse): {
   baseFee: number;
   p50: number;
   p99: number;

@@ -4,7 +4,10 @@ import { deriveStealthKeys } from '../../../../src/chains/stellar/keys';
 import { generateStealthAddress } from '../../../../src/chains/stellar/stealth';
 import { scanAnnouncements, checkStealthAddress } from '../../../../src/chains/stellar/scan';
 import { deriveStealthPrivateScalar } from '../../../../src/chains/stellar/spend';
-import { encodeStealthMetaAddress, decodeStealthMetaAddress } from '../../../../src/chains/stellar/meta-address';
+import {
+  encodeStealthMetaAddress,
+  decodeStealthMetaAddress,
+} from '../../../../src/chains/stellar/meta-address';
 import { signWithScalar } from '../../../../src/chains/stellar/scalar';
 import { fetchAnnouncements } from '../../../../src/chains/stellar/announcements';
 import { bytesToHex } from '../../../../src/chains/stellar/utils';
@@ -103,19 +106,39 @@ describe('Stellar Stealth Benchmarks', () => {
     });
 
     bench('scanAnnouncements - 100 announcements', () => {
-      scanAnnouncements(announcements100, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
+      scanAnnouncements(
+        announcements100,
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+      );
     });
 
     bench('scanAnnouncements - 1,000 announcements', () => {
-      scanAnnouncements(announcements1000, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
+      scanAnnouncements(
+        announcements1000,
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+      );
     });
 
     bench('scanAnnouncements - 10,000 announcements', () => {
-      scanAnnouncements(announcements10000, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
+      scanAnnouncements(
+        announcements10000,
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+      );
     });
 
     bench('scanAnnouncements - 100,000 announcements', () => {
-      scanAnnouncements(announcements100000, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
+      scanAnnouncements(
+        announcements100000,
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+      );
     });
   });
 

@@ -59,6 +59,18 @@ export class RetentionExceededError extends Error {
 }
 
 /**
+ * Fetches stealth address announcements from the Soroban RPC for the given
+ * Stellar network, using an announcement cache to avoid redundant RPC traffic.
+ *
+ * On the first call the full available window is fetched. On subsequent calls
+ * only the delta since the last seen ledger is fetched, and results are merged
+ * with cached data before being returned.
+ *
+ * @param chain The chain identifier (default: `"stellar"`).
+ * @param options Fetch options including cache bypass and custom cache.
+ * @returns Array of all known announcements (cached + fresh).
+ */
+/**
  * Fetches Stellar stealth announcements from the configured Soroban RPC.
  *
  * The legacy overloads return a plain array for backward compatibility. Passing
@@ -284,39 +296,67 @@ async function collectAnnouncements(source: AsyncIterable<Announcement>): Promis
   return announcements;
 }
 
-function isFetchOptions(value: unknown): value is FetchAnnouncementsOptions {
-  return typeof value === 'object' && value !== null;
-}
-
-function normalizeFetchOptions(
-  sorobanUrlOrOpts?: string | FetchAnnouncementsOptions,
-  maybeOpts?: FetchAnnouncementsOptions,
-): FetchAnnouncementsOptions {
-  if (isFetchOptions(maybeOpts)) {
-    return maybeOpts;
-  }
-  if (isFetchOptions(sorobanUrlOrOpts)) {
-    return sorobanUrlOrOpts;
-  }
-  return {};
-}
-
-function validateFetchOptions(opts: FetchAnnouncementsOptions): void {
-  if (opts.fromLedger !== undefined && opts.fromTimestamp !== undefined) {
-    throw new Error('fromLedger and fromTimestamp are mutually exclusive');
-  }
-  if (opts.toLedger !== undefined && opts.toTimestamp !== undefined) {
-    throw new Error('toLedger and toTimestamp are mutually exclusive');
+  // ------------------------------------------------------------------
+  // Cache integration
+  // ------------------------------------------------------------------
+  let fetchFromLedger = windowStart;
+  let resumeCursor: string | undefined;
+  // ------------------------------------------------------------------
+  // Fetch delta from RPC
+  // ------------------------------------------------------------------
+  for await (const ann of fetchRange(url, announcerContract, fetchFromLedger, resumeCursor)) {
+    yield ann;
   }
 }
 
-function defaultStartLedger(oldest?: number, latest?: number): number {
-  if (latest === undefined) {
-    return oldest ?? 1;
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+async function* fetchRange(
+  url: string,
+  announcerContract: string,
+  startLedger: number,
+  resumeCursor?: string,
+): AsyncGenerator<Announcement> {
+  let cursor = resumeCursor;
+  let hasMore = true;
+
+  while (hasMore) {
+    const params: Record<string, unknown> = {
+      filters: [{ type: 'contract', contractIds: [announcerContract] }],
+      pagination: cursor ? { limit: 1000, cursor } : { limit: 1000 },
+    };
+
+    if (!cursor) {
+      params.startLedger = startLedger;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'getEvents', params }),
+    });
+
+    const data = await res.json();
+    const events: Record<string, unknown>[] = data.result?.events ?? [];
+
+    for (const event of events) {
+      const ann = parseAnnouncementEvent(event);
+      if (ann) {
+        yield ann;
+      }
+    }
+
+    if (events.length < 1000) {
+      hasMore = false;
+    } else {
+      cursor = data.result?.cursor as string | undefined;
+      if (!cursor) hasMore = false;
+    }
   }
   return Math.max(oldest ?? 1, latest - 5000);
 }
-
 async function getSorobanLedgerWindow(
   sorobanUrl: string,
   announcerContract: string,
@@ -427,10 +467,8 @@ function parseLedgerRange(message: string): { oldest: number; latest: number } |
 /** @internal Exported for unit tests. */
 export function parseAnnouncementEvent(event: Record<string, unknown>): Announcement | null {
   try {
-    const topics = Array.isArray(event.topic) ? event.topic : undefined;
-    if (!topics || topics.length < 3) {
-      return null;
-    }
+    const topics = event.topic as string[] | undefined;
+    if (!topics || topics.length < 3) return null;
 
     if (topics.length === 3) {
       return parseV1AnnouncementEvent(event, topics);

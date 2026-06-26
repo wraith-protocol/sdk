@@ -9,6 +9,13 @@ import { hexToBytes } from './utils';
  * Streaming announcement scanner. Pulls announcements from `source` in windows of
  * `opts.window` (default 64), scans each window, and yields matches immediately.
  *
+ * Uses the cheap public view-tag prefilter before the X25519 shared secret:
+ *   1. Derive the viewing public key once from the viewing seed
+ *   2. View tag quick filter from R_ephemeral || viewing_pubkey
+ *   3. Compute shared secret: S = ECDH(viewing_key, R_ephemeral) only for tag hits
+ *   4. Compute hash_scalar = SHA-256("wraith:scalar:" || S) mod L
+ *   5. Expected stealth pubkey = K_spend + hash_scalar * G
+ *   6. Compare with announced stealth address
  * Peak memory is O(window) — never accumulates the full announcement set.
  * Cancellation is clean: breaking out of the `for-await` loop triggers the `finally`
  * block which calls `.return()` on the source iterator, stopping upstream I/O.

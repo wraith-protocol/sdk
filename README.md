@@ -16,6 +16,10 @@ pnpm add @wraith-protocol/sdk
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the SDK semver policy, deprecation rules, release checklist, PR conventions, and the rubric for adding a new chain module.
 
+## Upgrading
+
+See [MIGRATING.md](./MIGRATING.md) for breaking changes and migration steps when upgrading to a new major version.
+
 ## Entry Points
 
 | Import                                | Purpose                                              |
