@@ -29,7 +29,7 @@ See [MIGRATING.md](./MIGRATING.md) for breaking changes and migration steps when
 | `@wraith-protocol/sdk/chains/stellar` | Stellar stealth address crypto (ed25519)             |
 | `@wraith-protocol/sdk/chains/solana`  | Solana stealth address crypto (ed25519)              |
 | `@wraith-protocol/sdk/chains/ckb`     | CKB (Nervos) stealth address crypto (secp256k1)      |
-| `@wraith-protocol/sdk/vault`          | Browser-only passphrase vault for short-lived keys    |
+| `@wraith-protocol/sdk/vault`          | Browser-only passphrase vault for short-lived keys   |
 
 > React Native support is documented in `docs/guides/react-native-setup.mdx` and the companion example at `examples/react-native-stellar`.
 

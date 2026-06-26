@@ -244,7 +244,11 @@ describe('fetchAnnouncementsStream', () => {
   test('yields announcements from a single page', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    fetchSpy = mockFetchSequence([makeProbeSuccess(), { result: { sequence: 100 } }, makeEventsPage(3)]);
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(3),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
     const results = await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
@@ -255,7 +259,12 @@ describe('fetchAnnouncementsStream', () => {
   test('follows cursor across multiple pages', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    fetchSpy = mockFetchSequence([makeProbeSuccess(), { result: { sequence: 100 } }, makeEventsPage(1000, 'cursor-abc', 0), makeEventsPage(5, undefined, 1000)]);
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(1000, 'cursor-abc', 0),
+      makeEventsPage(5, undefined, 1000),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
     const results = await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
@@ -282,7 +291,11 @@ describe('fetchAnnouncementsStream', () => {
   test('returns empty stream on unrecoverable probe error', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    fetchSpy = mockFetchSequence([makeProbeUnknownError(), { result: { sequence: 100 } }, emptyEvents()]);
+    fetchSpy = mockFetchSequence([
+      makeProbeUnknownError(),
+      { result: { sequence: 100 } },
+      emptyEvents(),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
     const results = await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
@@ -293,7 +306,11 @@ describe('fetchAnnouncementsStream', () => {
   test('stops when page has fewer than 1000 events and no cursor', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    fetchSpy = mockFetchSequence([makeProbeSuccess(), { result: { sequence: 100 } }, makeEventsPage(500)]);
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(500),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
     await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
@@ -304,17 +321,27 @@ describe('fetchAnnouncementsStream', () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
     const customUrl = 'https://custom-rpc.example.com';
-    fetchSpy = mockFetchSequence([makeProbeSuccess(), { result: { sequence: 100 } }, makeEventsPage(1)]);
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(1),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
-    await collectStream(fetchAnnouncementsStream('stellar', { sorobanUrl: customUrl, includeV2: false }));
+    await collectStream(
+      fetchAnnouncementsStream('stellar', { sorobanUrl: customUrl, includeV2: false }),
+    );
     expect(fetchSpy.mock.calls[0][0]).toBe(customUrl);
   });
 
   test('cancellation: stops after yielding first item', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    fetchSpy = mockFetchSequence([makeProbeSuccess(), { result: { sequence: 100 } }, makeEventsPage(1000, 'cursor-next')]);
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(1000, 'cursor-next'),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
     const results: Announcement[] = [];

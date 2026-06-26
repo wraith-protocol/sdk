@@ -39,8 +39,10 @@ describe('KeyVault', () => {
   let documentTarget: ReturnType<typeof createEventTarget> & Record<string, any>;
 
   beforeEach(() => {
-    windowTarget = createEventTarget() as ReturnType<typeof createEventTarget> & Record<string, any>;
-    documentTarget = createEventTarget() as ReturnType<typeof createEventTarget> & Record<string, any>;
+    windowTarget = createEventTarget() as ReturnType<typeof createEventTarget> &
+      Record<string, any>;
+    documentTarget = createEventTarget() as ReturnType<typeof createEventTarget> &
+      Record<string, any>;
     documentTarget.visibilityState = 'visible';
 
     globalThis.indexedDB = new IDBFactory();

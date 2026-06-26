@@ -155,7 +155,11 @@ function toBytes(input: string): Uint8Array {
   return new TextEncoder().encode(input);
 }
 
-async function deriveAesKey(passphrase: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
+async function deriveAesKey(
+  passphrase: string,
+  salt: Uint8Array,
+  iterations: number,
+): Promise<CryptoKey> {
   const passphraseKey = await crypto.subtle.importKey(
     'raw',
     toBytes(passphrase) as BufferSource,
@@ -178,7 +182,10 @@ async function deriveAesKey(passphrase: string, salt: Uint8Array, iterations: nu
   );
 }
 
-async function encryptJson(key: CryptoKey, payload: unknown): Promise<{ iv: string; ciphertext: string }> {
+async function encryptJson(
+  key: CryptoKey,
+  payload: unknown,
+): Promise<{ iv: string; ciphertext: string }> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const plaintext = toBytes(JSON.stringify(encodeValue(payload)));
   const ciphertext = await crypto.subtle.encrypt(
@@ -230,7 +237,9 @@ export class KeyVault {
     try {
       await decryptJson<unknown>(key, resolvedMeta.checkIv, resolvedMeta.checkCiphertext);
     } catch {
-      throw new Error('Unable to unlock KeyVault. The passphrase is incorrect or the vault is corrupt.');
+      throw new Error(
+        'Unable to unlock KeyVault. The passphrase is incorrect or the vault is corrupt.',
+      );
     }
 
     this.cryptoKey = key;
