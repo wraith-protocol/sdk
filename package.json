@@ -26,6 +26,11 @@
       "import": "./dist/compat/react-native.js",
       "require": "./dist/compat/react-native.cjs"
     },
+    "./vault": {
+      "types": "./dist/vault/index.d.ts",
+      "import": "./dist/vault/index.js",
+      "require": "./dist/vault/index.cjs"
+    },
     "./chains/solana": {
       "types": "./dist/chains/solana/index.d.ts",
       "import": "./dist/chains/solana/index.js",

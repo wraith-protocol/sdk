@@ -1,6 +1,6 @@
 # @wraith-protocol/sdk
 
-The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, five entry points — an agent client for the managed TEE platform and stealth address cryptography for EVM, Stellar, Solana, and CKB chains.
+The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, six entry points — an agent client for the managed TEE platform, stealth address cryptography for EVM, Stellar, Solana, and CKB chains, and a browser-only vault for short-lived derived keys.
 
 ## Installation
 
@@ -25,8 +25,35 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for the SDK semver policy, deprecation 
 | `@wraith-protocol/sdk/chains/stellar` | Stellar stealth address crypto (ed25519)             |
 | `@wraith-protocol/sdk/chains/solana`  | Solana stealth address crypto (ed25519)              |
 | `@wraith-protocol/sdk/chains/ckb`     | CKB (Nervos) stealth address crypto (secp256k1)      |
+| `@wraith-protocol/sdk/vault`          | Browser-only passphrase vault for short-lived keys    |
 
 > React Native support is documented in `docs/guides/react-native-setup.mdx` and the companion example at `examples/react-native-stellar`.
+
+## Browser Vault
+
+`KeyVault` is for browser-only apps that need to hold derived stealth keys briefly between scans and spends.
+
+```ts
+import { KeyVault } from '@wraith-protocol/sdk/vault';
+
+const vault = new KeyVault({
+  idleTimeoutMs: 2 * 60 * 1000,
+  lockOnBlur: true,
+});
+
+await vault.unlock(passphrase);
+await vault.put('alice', derivedStealthKeys);
+const keys = await vault.get<typeof derivedStealthKeys>('alice');
+```
+
+Threat model:
+
+- protects against casual local persistence leaks such as `localStorage`
+- does not replace hardware wallets
+- does not protect against a compromised browser, malicious extension, or XSS
+- does not protect against an attacker who can observe the unlocked page context
+
+For demos, keep vault use opt-in behind a user-controlled toggle so browser-only state stays explicit.
 
 ## Agent Client
 
