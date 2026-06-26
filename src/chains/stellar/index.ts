@@ -20,11 +20,19 @@ export {
   scanAnnouncements,
   scanAnnouncementsLegacySharedSecretTag,
 } from './scan';
-export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
-export { checkStealthAddress, scanAnnouncements, scanAnnouncementsStream } from './scan';
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
-export { buildStealthPayment, buildStealthAnnouncement } from './builders';
-export type { BuildStealthPaymentOptions, BuildAnnouncementOptions } from './builders';
+export {
+  buildStealthPayment,
+  buildStealthAnnouncement,
+  prepareStealthAccountForAsset,
+  buildWithdrawCustomAsset,
+} from './builders';
+export type {
+  BuildStealthPaymentOptions,
+  BuildAnnouncementOptions,
+  AssetReceivabilityResult,
+  BuildWithdrawCustomAssetOptions,
+} from './builders';
 export {
   seedToScalar,
   hashToScalar,
