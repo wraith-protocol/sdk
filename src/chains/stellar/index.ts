@@ -20,6 +20,7 @@ export {
   scanAnnouncements,
   scanAnnouncementsLegacySharedSecretTag,
 } from './scan';
+
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export {
   buildStealthPayment,
@@ -42,15 +43,17 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
+
+export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
+export type { AnnouncementCache } from './cache';
+
 export {
-  fetchAnnouncements,
   fetchAnnouncementsStream,
   RetentionExceededError,
   parseAnnouncementEvent,
 } from './announcements';
-export type { FetchAnnouncementsOptions, FetchAnnouncementsResult } from './announcements';
-export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
-export type { AnnouncementCache } from './cache';
+export type { FetchAnnouncementsOptions } from './announcements';
+
 export {
   MAX_RPC_EVENT_FILTERS,
   encodeSymbolTopic,
@@ -74,12 +77,6 @@ export type {
   Announcement,
   MatchedAnnouncement,
 } from './types';
-export { estimateStellarFee, parseFeeStats } from './fee-estimation';
-export type {
-  EstimateFeeParams,
-  FeeEstimate,
-  FeeBreakdown,
-  SorobanResources,
-} from './fee-estimation';
+
 export { buildStellarSwapAndStealth } from './swap';
 export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
-  fetchAnnouncements,
+  fetchAnnouncementsStream,
   RetentionExceededError,
 } from '../../../src/chains/stellar/announcements';
 import type { Announcement } from '../../../src/chains/stellar/types';
@@ -102,10 +102,11 @@ function makeProbeUnknownError() {
   return { error: { message: 'some unknown error' } };
 }
 
-function makeEventsPage(count: number, cursor?: string) {
+function makeEventsPage(count: number, cursor?: string, startIdx = 0) {
   const events = Array.from({ length: count }, (_, i) => ({
-    topic: [`topic0_${i}`, `topic1_${i}`, `topic2_${i}`],
-    value: `value_${i}`,
+    id: `event-${startIdx + i}`,
+    topic: [`topic0_${startIdx + i}`, `topic1_${startIdx + i}`, `topic2_${startIdx + i}`],
+    value: `value_${startIdx + i}`,
   }));
   return { result: { events, cursor } };
 }
@@ -140,12 +141,14 @@ describe('fetchAnnouncements Stellar ranges', () => {
       };
     });
 
-    const result = await fetchAnnouncements('stellar', { fromLedger: 150, toLedger: 175 });
+    const result = await collectStream(
+      fetchAnnouncementsStream('stellar', { fromLedger: 150, toLedger: 175 }),
+    );
     const scan = methodCalls('getEvents')[1].body.params;
 
     expect(scan.startLedger).toBe(150);
     expect(scan.pagination).toEqual({ limit: 1000 });
-    expect(result).toEqual({ announcements: [], nextCursor: 'range-cursor' });
+    expect(result).toEqual([]);
     expect(methodCalls('getEvents')).toHaveLength(2);
   });
 
@@ -155,7 +158,9 @@ describe('fetchAnnouncements Stellar ranges', () => {
       return emptyEvents('resume-cursor');
     });
 
-    await fetchAnnouncements('stellar', { fromLedger: 150, cursor: 'previous-cursor' });
+    await collectStream(
+      fetchAnnouncementsStream('stellar', { fromLedger: 150, cursor: 'previous-cursor' }),
+    );
     const scan = methodCalls('getEvents')[1].body.params;
 
     expect(scan.startLedger).toBeUndefined();
@@ -178,10 +183,12 @@ describe('fetchAnnouncements Stellar ranges', () => {
       };
     });
 
-    await fetchAnnouncements('stellar', {
-      fromTimestamp: new Date('2026-01-01T00:04:00Z'),
-      toTimestamp: new Date('2026-01-01T00:07:00Z'),
-    });
+    await collectStream(
+      fetchAnnouncementsStream('stellar', {
+        fromTimestamp: new Date('2026-01-01T00:04:00Z'),
+        toTimestamp: new Date('2026-01-01T00:07:00Z'),
+      }),
+    );
 
     const scan = methodCalls('getEvents')[1].body.params;
     expect(scan.startLedger).toBe(4);
@@ -193,7 +200,12 @@ describe('fetchAnnouncements Stellar ranges', () => {
       return emptyEvents();
     });
 
-    await expect(fetchAnnouncements('stellar', { fromLedger: 99 })).rejects.toMatchObject({
+    await expect(
+      (async () => {
+        for await (const _ of fetchAnnouncementsStream('stellar', { fromLedger: 99 })) {
+        }
+      })(),
+    ).rejects.toMatchObject({
       name: 'RetentionExceededError',
       requestedLedger: 99,
       oldestAvailableLedger: 100,
@@ -202,10 +214,13 @@ describe('fetchAnnouncements Stellar ranges', () => {
 
   test('rejects ambiguous ledger and timestamp lower bounds', async () => {
     await expect(
-      fetchAnnouncements('stellar', {
-        fromLedger: 10,
-        fromTimestamp: new Date('2026-01-01T00:00:00Z'),
-      }),
+      (async () => {
+        for await (const _ of fetchAnnouncementsStream('stellar', {
+          fromLedger: 10,
+          fromTimestamp: new Date('2026-01-01T00:00:00Z'),
+        })) {
+        }
+      })(),
     ).rejects.toThrow('fromLedger and fromTimestamp are mutually exclusive');
   });
 });
@@ -229,10 +244,14 @@ describe('fetchAnnouncementsStream', () => {
   test('yields announcements from a single page', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    fetchSpy = mockFetchSequence([makeProbeSuccess(), makeEventsPage(3)]);
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(3),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
-    const results = await collectStream(fetchAnnouncementsStream());
+    const results = await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
     expect(results.length).toBe(3);
     expect(results[0]).toMatchObject({ schemeId: 1 });
   });
@@ -242,16 +261,17 @@ describe('fetchAnnouncementsStream', () => {
 
     fetchSpy = mockFetchSequence([
       makeProbeSuccess(),
-      makeEventsPage(1000, 'cursor-abc'),
-      makeEventsPage(5),
+      { result: { sequence: 100 } },
+      makeEventsPage(1000, 'cursor-abc', 0),
+      makeEventsPage(5, undefined, 1000),
     ]);
     vi.stubGlobal('fetch', fetchSpy);
 
-    const results = await collectStream(fetchAnnouncementsStream());
+    const results = await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
     expect(results.length).toBe(1005);
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
 
-    const secondPageBody = JSON.parse(fetchSpy.mock.calls[2][1].body);
+    const secondPageBody = JSON.parse(fetchSpy.mock.calls[3][1].body);
     expect(secondPageBody.params.pagination.cursor).toBe('cursor-abc');
   });
 
@@ -261,7 +281,7 @@ describe('fetchAnnouncementsStream', () => {
     fetchSpy = mockFetchSequence([makeProbeRangeError(1000, 6500), makeEventsPage(2)]);
     vi.stubGlobal('fetch', fetchSpy);
 
-    const results = await collectStream(fetchAnnouncementsStream());
+    const results = await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
     expect(results.length).toBe(2);
 
     const pageBody = JSON.parse(fetchSpy.mock.calls[1][1].body);
@@ -271,69 +291,66 @@ describe('fetchAnnouncementsStream', () => {
   test('returns empty stream on unrecoverable probe error', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    fetchSpy = mockFetchSequence([makeProbeUnknownError()]);
+    fetchSpy = mockFetchSequence([
+      makeProbeUnknownError(),
+      { result: { sequence: 100 } },
+      emptyEvents(),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
-    const results = await collectStream(fetchAnnouncementsStream());
+    const results = await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
     expect(results).toHaveLength(0);
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
   test('stops when page has fewer than 1000 events and no cursor', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    fetchSpy = mockFetchSequence([makeProbeSuccess(), makeEventsPage(500)]);
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(500),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
-    await collectStream(fetchAnnouncementsStream());
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
   test('uses sorobanUrl override', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
     const customUrl = 'https://custom-rpc.example.com';
-    fetchSpy = mockFetchSequence([makeProbeSuccess(), makeEventsPage(1)]);
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(1),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
-    await collectStream(fetchAnnouncementsStream('stellar', customUrl));
+    await collectStream(
+      fetchAnnouncementsStream('stellar', { sorobanUrl: customUrl, includeV2: false }),
+    );
     expect(fetchSpy.mock.calls[0][0]).toBe(customUrl);
   });
 
   test('cancellation: stops after yielding first item', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    fetchSpy = mockFetchSequence([makeProbeSuccess(), makeEventsPage(1000, 'cursor-next')]);
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(1000, 'cursor-next'),
+    ]);
     vi.stubGlobal('fetch', fetchSpy);
 
     const results: Announcement[] = [];
-    for await (const ann of fetchAnnouncementsStream()) {
+    for await (const ann of fetchAnnouncementsStream('stellar', { includeV2: false })) {
       results.push(ann);
       break;
     }
 
     expect(results).toHaveLength(1);
-    expect(fetchSpy).toHaveBeenCalledTimes(2); // probe + first page only
-  });
-});
-
-// ---------------------------------------------------------------------------
-// fetchAnnouncements (simple array wrapper)
-// ---------------------------------------------------------------------------
-
-describe('fetchAnnouncements (wrapper)', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  test('returns all announcements as array', async () => {
-    const { fetchAnnouncements: fetchAll } =
-      await import('../../../src/chains/stellar/announcements');
-
-    vi.stubGlobal('fetch', mockFetchSequence([makeProbeSuccess(), makeEventsPage(7)]));
-
-    const results = await fetchAll();
-    expect(Array.isArray(results)).toBe(true);
-    expect(results.length).toBe(7);
+    expect(fetchSpy).toHaveBeenCalledTimes(3); // first page only
   });
 });
