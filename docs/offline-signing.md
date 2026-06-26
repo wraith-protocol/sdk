@@ -10,7 +10,7 @@ When a Stellar secret key has ever touched a network-connected machine, it has b
 - Supply-chain compromised npm packages that scan for secret strings
 - Disk persistence in unencrypted terminal history, editor swap files, or crashed-process core dumps
 
-Cold signing — also called *air-gapped* or *offline signing* — keeps the secret key on a machine that has never been and will never be connected to a network. The signing machine receives unsigned transaction envelopes (via USB drive, QR code, or serial cable), produces signatures, and returns the signed output. The secret never enters the online environment.
+Cold signing — also called _air-gapped_ or _offline signing_ — keeps the secret key on a machine that has never been and will never be connected to a network. The signing machine receives unsigned transaction envelopes (via USB drive, QR code, or serial cable), produces signatures, and returns the signed output. The secret never enters the online environment.
 
 For stealth payment workflows this matters especially because derived stealth keys still originate from a master wallet secret. If an attacker steals the master signature or the derived stealth scalar during generation, they can drain every stealth account associated with that wallet. Cold signing prevents that by keeping scalars off networked machines altogether.
 
@@ -18,11 +18,11 @@ For stealth payment workflows this matters especially because derived stealth ke
 
 The offline signing module provides three functions that split the lifecycle into separate concerns so signing can happen on a disconnected machine:
 
-| Environment | Function | Responsibility |
-|---|---|---|
-| **Online** (watcher) | `prepareOfflineStellarTransaction` | Build the unsigned envelope with operations, sequence, and fee |
-| **Air-gapped** (signer) | `signOfflineStellarTransaction` | Import the envelope, apply the signature, export the signed XDR |
-| **Online** (submitter) | `submitOfflineStellarTransaction` | POST the signed envelope to Horizon |
+| Environment             | Function                           | Responsibility                                                  |
+| ----------------------- | ---------------------------------- | --------------------------------------------------------------- |
+| **Online** (watcher)    | `prepareOfflineStellarTransaction` | Build the unsigned envelope with operations, sequence, and fee  |
+| **Air-gapped** (signer) | `signOfflineStellarTransaction`    | Import the envelope, apply the signature, export the signed XDR |
+| **Online** (submitter)  | `submitOfflineStellarTransaction`  | POST the signed envelope to Horizon                             |
 
 ## Step-by-Step Workflow
 
@@ -67,7 +67,9 @@ Transfer this object to the air-gapped machine — by JSON file on a USB stick, 
 import { signOfflineStellarTransaction } from '@wraith-protocol/sdk/chains/stellar';
 
 // Load the envelope from USB / serial / QR scan
-const envelope: OfflineStellarEnvelope = JSON.parse(fs.readFileSync('/mnt/usb/envelope.json', 'utf-8'));
+const envelope: OfflineStellarEnvelope = JSON.parse(
+  fs.readFileSync('/mnt/usb/envelope.json', 'utf-8'),
+);
 
 const signedXdr = signOfflineStellarTransaction(
   envelope,
@@ -100,7 +102,10 @@ Offline signing works with stealth-derived keys. The critical detail is that a s
 
 ```ts
 import { Keypair, Operation, Asset, TransactionBuilder } from '@stellar/stellar-sdk';
-import { prepareOfflineStellarTransaction, signOfflineStellarTransaction } from '@wraith-protocol/sdk/chains/stellar';
+import {
+  prepareOfflineStellarTransaction,
+  signOfflineStellarTransaction,
+} from '@wraith-protocol/sdk/chains/stellar';
 import { deriveStealthKeys } from '@wraith-protocol/sdk/chains/stellar';
 import { generateStealthAddress } from '@wraith-protocol/sdk/chains/stellar';
 import { deriveStealthPrivateScalar } from '@wraith-protocol/sdk/chains/stellar';

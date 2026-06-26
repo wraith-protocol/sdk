@@ -131,10 +131,7 @@ export function signOfflineStellarTransaction(
     throw new Error('Invalid envelope: transactionXdr and networkPassphrase are required');
   }
 
-  const tx = TransactionBuilder.fromXDR(
-    envelope.transactionXdr,
-    envelope.networkPassphrase,
-  );
+  const tx = TransactionBuilder.fromXDR(envelope.transactionXdr, envelope.networkPassphrase);
 
   if (typeof key === 'string') {
     const keypair = Keypair.fromSecret(key);
