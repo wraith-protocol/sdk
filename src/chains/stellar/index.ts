@@ -74,12 +74,5 @@ export type {
 } from './fee-estimation';
 export { buildStellarSwapAndStealth } from './swap';
 export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';
-export {
-  decodeSorobanError,
-  registerErrorRegistry,
-} from './errors';
-export type {
-  SorobanContractError,
-  DecodedSorobanError,
-  ErrorRegistry,
-} from './errors';
+export { decodeSorobanError, registerErrorRegistry } from './errors';
+export type { SorobanContractError, DecodedSorobanError, ErrorRegistry } from './errors';

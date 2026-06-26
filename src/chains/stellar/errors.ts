@@ -127,10 +127,7 @@ export function registerErrorRegistry(registry: ErrorRegistry): void {
  * // { code: 99, name: 'UnknownError', description: '...', isKnown: false }
  * ```
  */
-export function decodeSorobanError(
-  errorCode: number,
-  contractId?: string,
-): DecodedSorobanError {
+export function decodeSorobanError(errorCode: number, contractId?: string): DecodedSorobanError {
   // When contractId is provided, scope the lookup to that contract's registry
   if (contractId !== undefined) {
     const registry = _registries.get(contractId);
@@ -151,7 +148,8 @@ export function decodeSorobanError(
         code: errorCode,
         name: 'UnknownError',
         description: `Unknown error code ${errorCode} for contract "${registry.contractName}" (${registry.contractId}).`,
-        suggestedFix: 'Check the contract source code or open an issue on the Wraith Protocol repository.',
+        suggestedFix:
+          'Check the contract source code or open an issue on the Wraith Protocol repository.',
         contractId: registry.contractId,
         isKnown: false,
       };
@@ -161,7 +159,8 @@ export function decodeSorobanError(
       code: errorCode,
       name: 'UnknownError',
       description: `No error registry found for contract "${contractId}".`,
-      suggestedFix: 'Ensure the contract ID is correct. You can register custom registries with registerErrorRegistry().',
+      suggestedFix:
+        'Ensure the contract ID is correct. You can register custom registries with registerErrorRegistry().',
       contractId,
       isKnown: false,
     };
@@ -232,8 +231,7 @@ const SENDER_ERRORS: SorobanContractError[] = [
     code: 3,
     name: 'LengthMismatch',
     description: 'Array length mismatch in contract parameters.',
-    suggestedFix:
-      'Ensure all arrays provided to the contract have matching lengths.',
+    suggestedFix: 'Ensure all arrays provided to the contract have matching lengths.',
   },
 ];
 
@@ -241,8 +239,7 @@ const NAMES_ERRORS: SorobanContractError[] = [
   {
     code: 1,
     name: 'NameTaken',
-    description:
-      'The requested name is already registered to another account.',
+    description: 'The requested name is already registered to another account.',
     suggestedFix: 'Choose a different name that is not yet registered.',
   },
   {
@@ -261,22 +258,19 @@ const NAMES_ERRORS: SorobanContractError[] = [
     code: 4,
     name: 'InvalidNameCharacter',
     description: 'The name contains characters that are not allowed.',
-    suggestedFix:
-      'Use only alphanumeric characters and other allowed special characters.',
+    suggestedFix: 'Use only alphanumeric characters and other allowed special characters.',
   },
   {
     code: 5,
     name: 'InvalidMetaAddress',
-    description:
-      'The provided stealth meta-address is not valid for registration.',
+    description: 'The provided stealth meta-address is not valid for registration.',
     suggestedFix:
       'Provide a valid stealth meta-address encoded for the Stellar network using encodeStealthMetaAddress().',
   },
   {
     code: 6,
     name: 'NameNotFound',
-    description:
-      'The specified name was not found in the Wraith Names registry.',
+    description: 'The specified name was not found in the Wraith Names registry.',
     suggestedFix: 'Check that the name has been registered.',
   },
   {
