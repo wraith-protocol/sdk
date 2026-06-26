@@ -15,6 +15,12 @@ export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export { buildStealthPayment, buildStealthAnnouncement } from './builders';
 export type { BuildStealthPaymentOptions, BuildAnnouncementOptions } from './builders';
 export {
+  buildMultisigStealthWithdraw,
+  addStealthMultisigSigner,
+  isStealthMultisigReady,
+} from './multisig';
+export type { BuildMultisigStealthWithdrawOptions } from './multisig';
+export {
   seedToScalar,
   hashToScalar,
   deriveStealthPubKey,
@@ -57,10 +63,7 @@ export type {
   Announcement,
   MatchedAnnouncement,
 } from './types';
-export {
-  estimateStellarFee,
-  parseFeeStats,
-} from './fee-estimation';
+export { estimateStellarFee, parseFeeStats } from './fee-estimation';
 export type {
   EstimateFeeParams,
   FeeEstimate,

@@ -198,6 +198,66 @@ const signature = signStellarTransaction(
 );
 ```
 
+### Stellar Multisig Stealth Withdrawals
+
+Use the multisig helpers when a stealth source account is configured with
+Stellar native signer weights. The withdrawal transaction uses `accountMerge`,
+so all remaining native XLM is sent to the destination and the stealth account
+is closed after submission.
+
+```ts
+import {
+  addStealthMultisigSigner,
+  buildMultisigStealthWithdraw,
+  isStealthMultisigReady,
+} from '@wraith-protocol/sdk/chains/stellar';
+
+const signerPublicKeys = [
+  signer1.publicKey(),
+  signer2.publicKey(),
+  signer3.publicKey(),
+  signer4.publicKey(),
+  signer5.publicKey(),
+];
+
+const tx = await buildMultisigStealthWithdraw({
+  stealthAddress: matched[0].stealthAddress,
+  destination: treasury.publicKey(),
+  requiredWeight: 3,
+  signers: signerPublicKeys,
+  horizonUrl: 'https://horizon-futurenet.example',
+  networkPassphrase: process.env.FUTURENET_NETWORK_PASSPHRASE!,
+  timeout: 900,
+});
+
+addStealthMultisigSigner(tx, signer1);
+addStealthMultisigSigner(tx, signer3);
+console.log(isStealthMultisigReady(tx)); // false for this 3-of-5 setup
+
+addStealthMultisigSigner(tx, signer5);
+console.log(isStealthMultisigReady(tx)); // true
+```
+
+For a 3-of-5 account, configure each of the five signers with weight `1` and
+the account high threshold to `3`. Pass the five signer public keys to
+`buildMultisigStealthWithdraw`; the helper loads the account from Horizon and
+rejects signers that are not actually configured on-chain.
+
+The futurenet integration test is opt-in because `accountMerge` is destructive:
+
+```bash
+INTEGRATION=1 \
+FUTURENET_HORIZON_URL="..." \
+FUTURENET_NETWORK_PASSPHRASE="..." \
+FUTURENET_STEALTH_ACCOUNT="G..." \
+FUTURENET_DESTINATION="G..." \
+FUTURENET_SIGNER_SECRETS="S...,S...,S..." \
+pnpm exec vitest run test/chains/stellar/multisig.integration.test.ts
+```
+
+Set `FUTURENET_SUBMIT=1` only when you intentionally want the test to submit
+the destructive `accountMerge`.
+
 ### Stellar Incremental Scanning
 
 Use ledger or timestamp bounds to scan only new Soroban announcement events. Persist `nextCursor` after a successful run and pass it back on the next scan; the cursor resumes pagination and takes precedence over `fromLedger`.
