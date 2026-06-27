@@ -9,13 +9,8 @@ import {
 import {
   checkStealthAddress,
   scanAnnouncements,
-  scanAnnouncementsLegacySharedSecretTag,
-} from '../../../src/chains/stellar/scan';
-import { generateStealthAddress } from '../../../src/chains/stellar/stealth';
-import {
-  checkStealthAddress,
-  scanAnnouncements,
   scanAnnouncementsStream,
+  scanAnnouncementsLegacySharedSecretTag,
 } from '../../../src/chains/stellar/scan';
 import { SCHEME_ID } from '../../../src/chains/stellar/constants';
 import { bytesToHex } from '../../../src/chains/stellar/utils';
