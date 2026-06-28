@@ -2,6 +2,15 @@
 
 All notable changes to the Wraith Protocol SDK will be documented in this file.
 
+## Upcoming: 2.0.0
+
+### Changed
+
+- **Stellar Chain Module Cryptographic Audit Fixes**: Applied all findings from independent cryptographic audit (issue #55). Breaking changes:
+  - `scanAnnouncements()` now skips candidates with zero derived scalars (cryptographically required, probability ~1 in 2^255).
+  - View-tag computation optimized using ephemeralPubKey ⊕ viewingPubKey prefilter (1.5–2x faster, functionally identical).
+  - See [MIGRATING.md § Stellar Audit Fixes](./MIGRATING.md#stellar-cryptographic-audit-fixes-150) for details.
+
 ## [1.5.0] - 2026-05-31
 
 ### Added
@@ -25,7 +34,9 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
 ### Migration / Breaking Change Notice
 
 - **Runtime Non-Breaking**: This release is fully backwards-compatible at a runtime level for applications that catch errors as generic JS `Error` instances, since all custom exceptions extend the native `Error` class.
-- **Typing-Breaking for Brittle Matchers**: If your application catch blocks rely on exact substring matching against `error.message` (e.g. `if (e.message.includes('Expected 65-byte signature'))`), this change will break those assertions. You should migrate to use:
+- **Typing-Breaking for Brittle Matchers**: If your application catch blocks rely on exact substring matching against `error.message` (e.g. `if (e.message.includes('Expected 65-byte signature'))`), this change will break those assertions. See [MIGRATING.md § Error Handling](./MIGRATING.md#error-handling-from-message-matching-to-typed-exceptions-150) for detailed migration steps and code examples.
+
+  Quick example:
 
   ```typescript
   import { InvalidSignatureError } from '@wraith-protocol/sdk';
@@ -39,3 +50,5 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
     }
   }
   ```
+
+- **React Native**: New applications targeting React Native must call `installReactNativePolyfills()` at startup. See [MIGRATING.md § React Native](./MIGRATING.md#react-native-explicit-polyfill-installation-required-150) for integration instructions.

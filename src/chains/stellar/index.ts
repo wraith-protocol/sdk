@@ -9,11 +9,31 @@ export {
   META_ADDRESS_PREFIX,
 } from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
-export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
-export { checkStealthAddress, scanAnnouncements, scanAnnouncementsStream } from './scan';
+export {
+  generateStealthAddress,
+  computeSharedSecret,
+  computeAnnouncementViewTag,
+  computeViewTag,
+} from './stealth';
+export {
+  checkStealthAddress,
+  scanAnnouncements,
+  scanAnnouncementsLegacySharedSecretTag,
+} from './scan';
+
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
-export { buildStealthPayment, buildStealthAnnouncement } from './builders';
-export type { BuildStealthPaymentOptions, BuildAnnouncementOptions } from './builders';
+export {
+  buildStealthPayment,
+  buildStealthAnnouncement,
+  prepareStealthAccountForAsset,
+  buildWithdrawCustomAsset,
+} from './builders';
+export type {
+  BuildStealthPaymentOptions,
+  BuildAnnouncementOptions,
+  AssetReceivabilityResult,
+  BuildWithdrawCustomAssetOptions,
+} from './builders';
 export {
   seedToScalar,
   hashToScalar,
@@ -23,17 +43,17 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
-export { fetchAnnouncements } from './announcements';
-export type { FetchAnnouncementsOptions } from './announcements';
+
 export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
 export type { AnnouncementCache } from './cache';
+
 export {
-  fetchAnnouncements,
   fetchAnnouncementsStream,
   RetentionExceededError,
   parseAnnouncementEvent,
 } from './announcements';
-export type { FetchAnnouncementsOptions, FetchAnnouncementsResult } from './announcements';
+export type { FetchAnnouncementsOptions } from './announcements';
+
 export {
   MAX_RPC_EVENT_FILTERS,
   encodeSymbolTopic,
@@ -47,6 +67,8 @@ export {
 } from './event-filters';
 export type { SorobanEventFilter, SorobanTopicMatcher } from './event-filters';
 export { DEPLOYMENTS, getDeployment } from './deployments';
+export { StellarBatchBuilder, encodeAnnouncementData, decodeAnnouncementData } from './batch';
+export type { StealthPaymentConfig, BatchConfig, BuildResult } from './batch';
 export type { StellarChainDeployment } from './deployments';
 export type {
   HexString,
@@ -57,12 +79,6 @@ export type {
   Announcement,
   MatchedAnnouncement,
 } from './types';
-export { estimateStellarFee, parseFeeStats } from './fee-estimation';
-export type {
-  EstimateFeeParams,
-  FeeEstimate,
-  FeeBreakdown,
-  SorobanResources,
-} from './fee-estimation';
+
 export { buildStellarSwapAndStealth } from './swap';
 export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';

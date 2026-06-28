@@ -102,3 +102,158 @@ export interface MatchedAnnouncement extends Announcement {
   /** 32-byte stealth public key bytes used by the signing helpers. */
   stealthPubKeyBytes: Uint8Array;
 }
+
+/** Primitive Soroban types emitted in a contract spec. */
+export type ContractPrimitiveTypeName =
+  | 'val'
+  | 'bool'
+  | 'void'
+  | 'error'
+  | 'u32'
+  | 'i32'
+  | 'u64'
+  | 'i64'
+  | 'timepoint'
+  | 'duration'
+  | 'u128'
+  | 'i128'
+  | 'u256'
+  | 'i256'
+  | 'bytes'
+  | 'string'
+  | 'symbol'
+  | 'address';
+
+/** Normalized Soroban type reference returned by extractContractSpec(). */
+export type ContractTypeRef =
+  | { kind: 'primitive'; name: ContractPrimitiveTypeName }
+  | { kind: 'option'; valueType: ContractTypeRef }
+  | { kind: 'result'; okType: ContractTypeRef; errorType: ContractTypeRef }
+  | { kind: 'vec'; elementType: ContractTypeRef }
+  | { kind: 'map'; keyType: ContractTypeRef; valueType: ContractTypeRef }
+  | { kind: 'tuple'; valueTypes: ContractTypeRef[] }
+  | { kind: 'bytesN'; n: number }
+  | { kind: 'udt'; name: string };
+
+/** Named function argument in a normalized contract spec. */
+export interface ContractArgumentSpec {
+  /** Argument name as declared in the contract spec. */
+  name: string;
+  /** Optional Rust doc comment emitted into the spec. */
+  doc?: string;
+  /** Normalized Soroban argument type. */
+  type: ContractTypeRef;
+}
+
+/** One function exposed by a deployed Soroban contract. */
+export interface ContractFunctionSpec {
+  /** Contract function name. */
+  name: string;
+  /** Optional Rust doc comment emitted into the spec. */
+  doc?: string;
+  /** Ordered function inputs. */
+  inputs: ContractArgumentSpec[];
+  /** Ordered function outputs. Usually empty or length 1. */
+  outputs: ContractTypeRef[];
+}
+
+/** Field in a normalized Soroban struct type. */
+export interface ContractStructFieldSpec {
+  /** Field name. */
+  name: string;
+  /** Optional field documentation. */
+  doc?: string;
+  /** Field type. */
+  type: ContractTypeRef;
+}
+
+/** Case in a numeric Soroban enum or error enum. */
+export interface ContractEnumCaseSpec {
+  /** Case name. */
+  name: string;
+  /** Optional case documentation. */
+  doc?: string;
+  /** Numeric discriminant value. */
+  value: number;
+}
+
+/** Case in a Soroban union type. */
+export type ContractUnionCaseSpec =
+  | {
+      kind: 'void';
+      name: string;
+      doc?: string;
+    }
+  | {
+      kind: 'tuple';
+      name: string;
+      doc?: string;
+      valueTypes: ContractTypeRef[];
+    };
+
+/** User-defined type emitted in the Soroban contract spec. */
+export type ContractUserTypeSpec =
+  | {
+      kind: 'struct';
+      name: string;
+      doc?: string;
+      library?: string;
+      fields: ContractStructFieldSpec[];
+    }
+  | {
+      kind: 'union';
+      name: string;
+      doc?: string;
+      library?: string;
+      cases: ContractUnionCaseSpec[];
+    }
+  | {
+      kind: 'enum';
+      name: string;
+      doc?: string;
+      library?: string;
+      cases: ContractEnumCaseSpec[];
+    }
+  | {
+      kind: 'errorEnum';
+      name: string;
+      doc?: string;
+      library?: string;
+      cases: ContractEnumCaseSpec[];
+    };
+
+/** Optional settings for TypeScript generation from a normalized contract spec. */
+export interface GenerateContractTypesOptions {
+  /** Override the generated contract interface name. */
+  contractName?: string;
+}
+
+/** Options for dynamic Soroban contract spec extraction. */
+export interface ExtractContractSpecOptions {
+  /** Target Stellar network. Defaults to testnet. */
+  network?: Network;
+  /** Custom Soroban RPC URL. Overrides the default for the selected network. */
+  rpcUrl?: string;
+  /** Skip the module-level `(network, contractId, wasmHash)` cache. */
+  bypassCache?: boolean;
+  /** Also return generated TypeScript declarations. */
+  generateTypes?: boolean | GenerateContractTypesOptions;
+}
+
+/** Normalized on-chain contract spec extracted from a deployed Soroban contract. */
+export interface ExtractedContractSpec {
+  /** Contract identifier used for extraction. */
+  contractId: string;
+  /** Stellar network used to resolve the RPC URL. */
+  network: Network;
+  /** Effective Soroban RPC URL used for extraction. */
+  rpcUrl: string;
+  /** Current deployed Wasm hash for cache versioning. */
+  wasmHash: HexString;
+  /** Normalized function signatures. */
+  functions: ContractFunctionSpec[];
+  /** Normalized user-defined types. */
+  types: ContractUserTypeSpec[];
+  /** Generated TypeScript declarations when requested. */
+  typescript?: string;
+}

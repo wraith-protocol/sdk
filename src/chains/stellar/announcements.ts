@@ -1,6 +1,4 @@
 import type { Announcement, Network } from './types';
-import type { AnnouncementCache } from './cache';
-import { autoSelectCache } from './cache';
 import { bytesToHex } from './utils';
 import { getDeployment } from './deployments';
 import type { StellarChainDeployment } from './deployments';
@@ -32,11 +30,8 @@ export interface FetchAnnouncementsOptions {
   includeV1?: boolean;
   /** Fetch the v2 announcer when `announcerV2` is configured (default: `true`). */
   includeV2?: boolean;
-}
-
-export interface FetchAnnouncementsResult {
-  announcements: Announcement[];
-  nextCursor?: string;
+  /** Override the Soroban RPC URL. */
+  sorobanUrl?: string;
 }
 
 export class RetentionExceededError extends Error {
@@ -53,107 +48,30 @@ export class RetentionExceededError extends Error {
   }
 }
 
-/** Module-level default cache instance (auto-selects Memory or IndexedDB). */
-let _defaultCache: AnnouncementCache | null = null;
-function getDefaultCache(): AnnouncementCache {
-  if (!_defaultCache) _defaultCache = autoSelectCache();
-  return _defaultCache;
-}
-
-export interface FetchAnnouncementsOptions {
-  /** Override the Soroban RPC URL. */
-  sorobanUrl?: string;
-  /**
-   * Skip the cache and always fetch from RPC.
-   * Use after sending a payment to ensure the new announcement is visible.
-   */
-  bypassCache?: boolean;
-  /** Provide a custom cache implementation (e.g., for testing). */
-  cache?: AnnouncementCache;
-}
-
 /**
- * Fetches stealth address announcements from the Soroban RPC for the given
- * Stellar network, using an announcement cache to avoid redundant RPC traffic.
+ * Streaming version of announcement fetching. Yields announcements page by page
+ * from the Soroban RPC as they arrive, never holding more than one page in memory.
  *
- * On the first call the full available window is fetched. On subsequent calls
- * only the delta since the last seen ledger is fetched, and results are merged
- * with cached data before being returned.
+ * Cancellation is automatic: breaking out of the `for-await` loop stops the stream.
  *
- * @param chain The chain identifier (default: `"stellar"`).
- * @param options Fetch options including cache bypass and custom cache.
- * @returns Array of all known announcements (cached + fresh).
+ * @param chain The chain identifier (default: "stellar").
+ * @param sorobanUrlOrOpts Optional override for the Soroban RPC URL, or FetchAnnouncementsOptions.
+ * @param maybeOpts Optional FetchAnnouncementsOptions if URL was provided as second arg.
  */
-export async function fetchAnnouncements(
-  chain: string = 'stellar',
-  options: FetchAnnouncementsOptions = {},
-): Promise<Announcement[]> {
-  const { sorobanUrl, bypassCache = false, cache = getDefaultCache() } = options;
-
- * Fetches Stellar stealth announcements from the configured Soroban RPC.
- *
- * Use this before {@link scanAnnouncements} when a recipient wants to discover
- * incoming payments. The helper queries the configured announcer contract with
- * `getEvents`, handles pagination, and parses event XDR into SDK announcement
- * objects.
- *
- * During the v1 → v2 transition window this function reads from **both** announcer
- * deployments when configured. v2 queries use Soroban RPC topic filters; v1 always
- * downloads the full announcer stream. See `EVENT_FETCHING.md` for privacy trade-offs.
- *
- * @param chain - Deployment key from {@link DEPLOYMENTS}; defaults to `stellar`.
- * @param sorobanUrl - Optional Soroban RPC URL override.
- * @returns Parsed announcements from the selected announcer contract.
- * @throws {Error} If the deployment key is unknown or the RPC request fails before returning JSON.
- *
- * @example
- * ```ts
- * import { fetchAnnouncements, scanAnnouncements } from "@wraith-protocol/sdk/chains/stellar";
- *
- * const announcements = await fetchAnnouncements("stellar");
- * const matches = scanAnnouncements(
- *   announcements,
- *   keys.viewingKey,
- *   keys.spendingPubKey,
- *   keys.spendingScalar,
- * );
- * ```
- *
- * @see {@link getDeployment}
- *
- * @deprecated Prefer {@link fetchAnnouncementsStream} for memory-efficient streaming.
- */
-export async function fetchAnnouncements(
-  chain?: string,
-  sorobanUrl?: string,
-): Promise<Announcement[]>;
-export async function fetchAnnouncements(
-  chain: string,
-  opts: FetchAnnouncementsOptions,
-): Promise<FetchAnnouncementsResult>;
-export async function fetchAnnouncements(
-  chain: string,
-  sorobanUrl: string,
-  opts: FetchAnnouncementsOptions,
-): Promise<FetchAnnouncementsResult>;
-export async function fetchAnnouncements(
+export async function* fetchAnnouncementsStream(
   chain: string = 'stellar',
   sorobanUrlOrOpts?: string | FetchAnnouncementsOptions,
   maybeOpts?: FetchAnnouncementsOptions,
-): Promise<Announcement[] | FetchAnnouncementsResult> {
+): AsyncGenerator<Announcement> {
   const deployment = getDeployment(chain);
   const opts = typeof sorobanUrlOrOpts === 'object' ? sorobanUrlOrOpts : maybeOpts;
-  const returnsCursor = Boolean(opts);
-  const sorobanUrl = typeof sorobanUrlOrOpts === 'string' ? sorobanUrlOrOpts : undefined;
-  const url = sorobanUrl || deployment.sorobanUrl;
+  const sorobanUrl =
+    (typeof sorobanUrlOrOpts === 'string' ? sorobanUrlOrOpts : opts?.sorobanUrl) ||
+    deployment.sorobanUrl;
   const announcerContract = deployment.contracts.announcer;
-  const network = (chain === 'stellar' ? 'mainnet' : chain) as Network;
   const filterGroups = buildFilterGroups(deployment, opts);
-  const all: Announcement[] = [];
 
-  if (filterGroups.length === 0) {
-    return returnsCursor ? { announcements: [], nextCursor: undefined } : [];
-  }
+  if (filterGroups.length === 0) return;
 
   if (opts?.fromLedger !== undefined && opts.fromTimestamp !== undefined) {
     throw new Error('fromLedger and fromTimestamp are mutually exclusive');
@@ -162,8 +80,8 @@ export async function fetchAnnouncements(
     throw new Error('toLedger and toTimestamp are mutually exclusive');
   }
 
-  const ledgerWindow = await getSorobanLedgerWindow(url, announcerContract);
-  const latestLedger = ledgerWindow.latest ?? (await getLatestLedger(url));
+  const ledgerWindow = await getSorobanLedgerWindow(sorobanUrl, announcerContract);
+  const latestLedger = ledgerWindow.latest ?? (await getLatestLedger(sorobanUrl));
   let startLedger =
     opts?.fromLedger ?? Math.max(ledgerWindow.oldest ?? 1, latestLedger ? latestLedger - 5000 : 1);
   let toLedger = opts?.toLedger ?? latestLedger;
@@ -180,7 +98,6 @@ export async function fetchAnnouncements(
   }
 
   let cursor = opts?.cursor;
-  let nextCursor: string | undefined = cursor;
   const seen = new Set<string>();
   const singleFilterGroup = filterGroups.length === 1;
 
@@ -198,7 +115,7 @@ export async function fetchAnnouncements(
         params.startLedger = startLedger;
       }
 
-      const res = await fetch(url, {
+      const res = await fetch(sorobanUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -215,6 +132,8 @@ export async function fetchAnnouncements(
         if (range && !groupCursor && startLedger < range.oldest) {
           throw new RetentionExceededError(startLedger, range.oldest);
         }
+        // If we get a range error and we aren't exceeding retention, just break for this filter
+        // (This matches develop's original behavior where it breaks and moves to the next filter)
         break;
       }
 
@@ -232,11 +151,7 @@ export async function fetchAnnouncements(
         seen.add(dedupeKey);
 
         const ann = parseAnnouncementEvent(event);
-        if (ann) all.push(ann);
-      }
-
-      if (singleFilterGroup) {
-        nextCursor = data.result?.cursor ?? groupCursor;
+        if (ann) yield ann;
       }
 
       if (!hasMore || events.length < 1000) {
@@ -247,171 +162,8 @@ export async function fetchAnnouncements(
       }
     }
   }
-
-  return returnsCursor ? { announcements: all, nextCursor } : all;
 }
 
-/**
- * Streaming version of announcement fetching. Yields announcements page by page
- * from the Soroban RPC as they arrive, never holding more than one page in memory.
- *
- * Cancellation is automatic: breaking out of the `for-await` loop stops the stream.
- *
- * @param chain The chain identifier (default: "stellar").
- * @param sorobanUrl Optional override for the Soroban RPC URL.
- */
-export async function* fetchAnnouncementsStream(
-  chain: string = 'stellar',
-  sorobanUrl?: string,
-): AsyncGenerator<Announcement> {
-  const deployment = getDeployment(chain);
-  const url = sorobanUrl || deployment.sorobanUrl;
-  const announcerContract = deployment.contracts.announcer;
-
-  // ------------------------------------------------------------------
-  // Resolve window boundaries via a probe request
-  // ------------------------------------------------------------------
-  const probeRes = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 0,
-      method: 'getEvents',
-      params: {
-        startLedger: 1,
-        filters: [{ type: 'contract', contractIds: [announcerContract] }],
-        pagination: { limit: 1 },
-      },
-    }),
-  });
-
-  const probeData = await probeRes.json();
-  let windowStart = 1;
-  let windowEnd = Number.MAX_SAFE_INTEGER;
-
-  if (probeData.error?.message) {
-    const match = probeData.error.message.match(/range:\s*(\d+)\s*-\s*(\d+)/);
-    if (match) {
-      const oldest = parseInt(match[1], 10);
-      const latest = parseInt(match[2], 10);
-      windowStart = Math.max(oldest, latest - 5000);
-      windowEnd = latest;
-    } else {
-      return [];
-    }
-  }
-
-  // ------------------------------------------------------------------
-  // Cache integration
-  // ------------------------------------------------------------------
-  let fetchFromLedger = windowStart;
-  let resumeCursor: string | undefined;
-  let cached: Announcement[] = [];
-
-  if (!bypassCache) {
-    const lastSeen = await cache.getLastSeen(network);
-    if (lastSeen) {
-      // Only fetch the delta.
-      fetchFromLedger = lastSeen.ledger + 1;
-      resumeCursor = lastSeen.cursor;
-      const hit = await cache.get(network, windowStart, lastSeen.ledger);
-      cached = hit ?? [];
-  let startLedger = 1;
-
-  if (probeData.error?.message) {
-    const range = parseLedgerRange(probeData.error.message);
-    if (range) {
-      startLedger = Math.max(range.oldest, range.latest - 5000);
-    } else {
-      return;
-    }
-  }
-
-  // Nothing new to fetch.
-  if (fetchFromLedger > windowEnd) return cached;
-
-  // ------------------------------------------------------------------
-  // Fetch delta from RPC
-  // ------------------------------------------------------------------
-  const { announcements: fresh, lastLedger, lastCursor } = await fetchRange(
-    url,
-    announcerContract,
-    fetchFromLedger,
-    resumeCursor,
-  );
-
-  if (!bypassCache && fresh.length > 0 && lastLedger !== undefined && lastCursor) {
-    await cache.put(network, fresh);
-    await cache.setLastSeen(network, lastLedger, lastCursor);
-  }
-
-  return [...cached, ...fresh];
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-interface FetchRangeResult {
-  announcements: Announcement[];
-  lastLedger: number | undefined;
-  lastCursor: string | undefined;
-}
-
-async function fetchRange(
-  url: string,
-  announcerContract: string,
-  startLedger: number,
-  resumeCursor?: string,
-): Promise<FetchRangeResult> {
-  const all: Announcement[] = [];
-  let cursor = resumeCursor;
-  let hasMore = true;
-  let lastLedger: number | undefined;
-  let lastCursor: string | undefined;
-
-  while (hasMore) {
-    const params: Record<string, unknown> = {
-      filters: [{ type: 'contract', contractIds: [announcerContract] }],
-      pagination: cursor ? { limit: 1000, cursor } : { limit: 1000 },
-    };
-
-    if (!cursor) {
-      params.startLedger = startLedger;
-    }
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'getEvents', params }),
-    });
-
-    const data = await res.json();
-    const events: Record<string, unknown>[] = data.result?.events ?? [];
-
-    for (const event of events) {
-      const ann = parseAnnouncementEvent(event);
-      if (ann) {
-        all.push(ann);
-        if (ann.ledger !== undefined && (lastLedger === undefined || ann.ledger > lastLedger)) {
-          lastLedger = ann.ledger;
-        }
-      }
-      if (ann) yield ann;
-    }
-
-    if (events.length < 1000) {
-      hasMore = false;
-    } else {
-      cursor = data.result?.cursor as string | undefined;
-      if (!cursor) hasMore = false;
-      else lastCursor = cursor;
-    }
-  }
-}
-
-  return { announcements: all, lastLedger, lastCursor };
 async function getSorobanLedgerWindow(
   sorobanUrl: string,
   announcerContract: string,
@@ -525,29 +277,6 @@ export function parseAnnouncementEvent(event: Record<string, unknown>): Announce
     const topics = event.topic as string[] | undefined;
     if (!topics || topics.length < 3) return null;
 
-    const schemeIdScVal = xdr.ScVal.fromXDR(topics[1], 'base64');
-    const stealthScVal = xdr.ScVal.fromXDR(topics[2], 'base64');
-    const stealthAddress = Address.fromScAddress(stealthScVal.address()).toString();
-
-    const valueScVal = xdr.ScVal.fromXDR(event.value as string, 'base64');
-    const valueVec = valueScVal.vec();
-    if (!valueVec || valueVec.length < 3) return null;
-
-    const caller = Address.fromScAddress(valueVec[0].address()).toString();
-    const ephPubKeyBytes = valueVec[1].bytes();
-    const viewTagBytes = valueVec[2].bytes();
-    if (!ephPubKeyBytes || !viewTagBytes) return null;
-
-    const ledger = typeof event.ledger === 'number' ? event.ledger : typeof event.ledger === 'string' ? parseInt(event.ledger, 10) : undefined;
-
-    return {
-      schemeId: schemeIdScVal.u32(),
-      stealthAddress,
-      caller,
-      ephemeralPubKey: bytesToHex(new Uint8Array(ephPubKeyBytes)),
-      metadata: bytesToHex(new Uint8Array(viewTagBytes)),
-      ledger,
-    };
     if (topics.length === 3) {
       return parseV1AnnouncementEvent(event, topics);
     }

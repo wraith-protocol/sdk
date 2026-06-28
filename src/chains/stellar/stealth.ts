@@ -15,6 +15,13 @@ const LEGACY_VIEW_TAG_PREFIX = new TextEncoder().encode('wraith:tag:');
  * meta-address. The generated address is a normal `G...` Stellar account that
  * should be funded with `createAccount` before the announcement is published.
  *
+ * Uses proper ed25519 point addition (matching EVM's DKSAP):
+ *   1. Generate ephemeral ed25519 keypair (r, R)
+ *   2. ECDH: shared_secret = X25519(r, V_recipient)
+ *   3. hash_scalar = SHA-256("wraith:scalar:" || shared_secret) mod L
+ *   4. view_tag = SHA-256("wraith:stellar:view-tag:v2:" || R || V)[0]
+ *   5. P_stealth = K_spend + hash_scalar * G   (point addition)
+ *   6. stealth_address = Stellar encoding of P_stealth
  * @param spendingPubKey - Recipient's 32-byte ed25519 spending public key.
  * @param viewingPubKey - Recipient's 32-byte ed25519 viewing public key.
  * @param ephemeralSeed - Optional 32-byte seed for deterministic tests.
@@ -87,6 +94,34 @@ export function computeSharedSecret(privateKey: Uint8Array, publicKey: Uint8Arra
 }
 
 /**
+ * Computes the view tag from the public announcement tuple.
+ *
+ * view_tag = SHA-256("wraith:stellar:view-tag:v2:" || R_ephemeral || V_recipient)[0]
+ *
+ * The tag intentionally depends only on public data already present in the
+ * announcement/meta-address. Scanners can reject ~255/256 announcements with
+ * one SHA-256 instead of paying for X25519 first; only candidates that pass
+ * this public prefilter need the full shared-secret derivation.
+ */
+export function computeAnnouncementViewTag(
+  ephemeralPubKey: Uint8Array,
+  viewingPubKey: Uint8Array,
+): number {
+  const input = new Uint8Array(
+    VIEW_TAG_PREFIX.length + ephemeralPubKey.length + viewingPubKey.length,
+  );
+  input.set(VIEW_TAG_PREFIX);
+  input.set(ephemeralPubKey, VIEW_TAG_PREFIX.length);
+  input.set(viewingPubKey, VIEW_TAG_PREFIX.length + ephemeralPubKey.length);
+  return sha256(input)[0];
+}
+
+/**
+ * Computes the legacy view tag from a shared secret.
+ *
+ * @deprecated Stellar scanning now uses computeAnnouncementViewTag() so the
+ * view-tag filter runs before X25519. This function is kept for compatibility
+ * checks and benchmark comparisons with the pre-batching scan path.
  * Computes the one-byte view tag for a Stellar stealth announcement.
  *
  * View tags let scanners reject most unrelated announcements before doing a
