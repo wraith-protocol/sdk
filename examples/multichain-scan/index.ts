@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { deriveStealthKeys as stellarDerive } from '@wraith-protocol/sdk/chains/stellar';
-import { fetchAnnouncements as stellarFetch } from '@wraith-protocol/sdk/chains/stellar';
+import { fetchAnnouncementsStream as stellarFetch } from '@wraith-protocol/sdk/chains/stellar';
 import { scanAnnouncements as stellarScan } from '@wraith-protocol/sdk/chains/stellar';
 import { bytesToHex as stellarHex } from '@wraith-protocol/sdk/chains/stellar';
 
@@ -35,8 +35,11 @@ function hexToBytes(hex: string): Uint8Array {
 async function scanStellar(sigHex: string): Promise<ScanResult> {
   const sig = hexToBytes(sigHex);
   const keys = stellarDerive(sig);
-  const announcements = await stellarFetch('stellar');
-  const matches = stellarScan(
+  const announcements = [];
+  for await (const ann of stellarFetch('stellar')) {
+    announcements.push(ann);
+  }
+  const matches = await stellarScan(
     announcements,
     keys.viewingKey,
     keys.spendingPubKey,

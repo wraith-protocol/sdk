@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {
   deriveStealthKeys,
-  fetchAnnouncements,
+  fetchAnnouncementsStream,
   scanAnnouncements,
   bytesToHex,
   STEALTH_SIGNING_MESSAGE,
@@ -21,7 +21,9 @@ async function main() {
     console.error('Copy .env.example to .env and fill in the values.');
     process.exit(1);
   }
-  const secretKeyBytes = new Uint8Array(secretKeyHex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const secretKeyBytes = new Uint8Array(
+    secretKeyHex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)),
+  );
   const keys = deriveStealthKeys(secretKeyBytes);
   console.log('Viewing key:', bytesToHex(keys.viewingKey));
   console.log('Spending pub key:', bytesToHex(keys.spendingPubKey));
@@ -37,17 +39,17 @@ async function main() {
   console.log('Scanning announcements from:', fromTimestamp?.toISOString() ?? 'beginning of time');
   console.log('');
 
-  // 3. Fetch announcements from Soroban RPC
+  // 3. Collect announcements from the streaming API
   console.log('Fetching announcements...');
-  const { announcements, nextCursor } = await fetchAnnouncements('stellar', {
-    fromTimestamp,
-  });
+  const announcements = [];
+  for await (const ann of fetchAnnouncementsStream('stellar', { fromTimestamp })) {
+    announcements.push(ann);
+  }
   console.log(`Found ${announcements.length} total announcements`);
-  console.log(`Next scan cursor: ${nextCursor ?? 'none'}`);
   console.log('');
 
   // 4. Scan for payments addressed to us
-  const payments = scanAnnouncements(
+  const payments = await scanAnnouncements(
     announcements,
     keys.viewingKey,
     keys.spendingPubKey,
@@ -62,6 +64,9 @@ async function main() {
     console.log('Stealth address:', payment.stealthAddress);
     console.log('Stealth pub key:', bytesToHex(payment.stealthPubKeyBytes));
     console.log('Stealth private scalar:', payment.stealthPrivateScalar.toString());
+    if (payment.memo) {
+      console.log(`Memo [${payment.memo.type}]:`, payment.memo.value);
+    }
     console.log('');
   }
 
