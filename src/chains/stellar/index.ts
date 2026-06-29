@@ -82,3 +82,19 @@ export type {
 
 export { buildStellarSwapAndStealth } from './swap';
 export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';
+
+export {
+  resolveStellarFederation,
+  clearFederationCache,
+  setFederationDefaultTtl,
+  getFederationDefaultTtl,
+  FederationResolutionError,
+  DEFAULT_FEDERATION_TTL_MS,
+} from './federation';
+export type {
+  FederationResolution,
+  FederationMemo,
+  FederationMemoType,
+  FederationErrorCode,
+  ResolveFederationOptions,
+} from './federation';
