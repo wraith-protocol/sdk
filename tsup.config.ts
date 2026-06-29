@@ -7,6 +7,8 @@ export default defineConfig({
     'chains/stellar/index': 'src/chains/stellar/index.ts',
     'chains/solana/index': 'src/chains/solana/index.ts',
     'chains/ckb/index': 'src/chains/ckb/index.ts',
+    'compat/react-native': 'src/compat/react-native.ts',
+    'vault/index': 'src/vault/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,

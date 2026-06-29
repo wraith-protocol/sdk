@@ -2,5 +2,4 @@ reference/
 node_modules/
 dist/
 *.tsbuildinfo
-stats/
-*.stats.html
+package-lock.json

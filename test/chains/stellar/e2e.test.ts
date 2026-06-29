@@ -3,7 +3,10 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
 import { generateStealthAddress } from '../../../src/chains/stellar/stealth';
 import { scanAnnouncements } from '../../../src/chains/stellar/scan';
-import { deriveStealthPrivateScalar } from '../../../src/chains/stellar/spend';
+import {
+  deriveStealthPrivateScalar,
+  signStellarTransaction,
+} from '../../../src/chains/stellar/spend';
 import {
   encodeStealthMetaAddress,
   decodeStealthMetaAddress,
@@ -56,5 +59,18 @@ describe('e2e: full stealth payment flow on Stellar', () => {
       stealth.ephemeralPubKey,
     );
     expect(independentScalar).toBe(matched[0].stealthPrivateScalar);
+
+    // Sign a transaction hash with the stealth private scalar
+    const txHash = new Uint8Array(32).fill(0xdd);
+    const sig = signStellarTransaction(
+      txHash,
+      matched[0].stealthPrivateScalar,
+      matched[0].stealthPubKeyBytes,
+    );
+    expect(sig.length).toBe(64);
+
+    // Verify the signature with @noble/curves
+    const verified = ed25519.verify(sig, txHash, matched[0].stealthPubKeyBytes);
+    expect(verified).toBe(true);
   });
 });
