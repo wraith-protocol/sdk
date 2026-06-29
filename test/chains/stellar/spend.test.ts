@@ -12,9 +12,13 @@ const testSig = new Uint8Array(64).fill(0xaa);
 const fixedSeed = new Uint8Array(32).fill(0xcc);
 
 describe('deriveStealthPrivateScalar', () => {
-  test('returns a valid bigint scalar', () => {
+  test('returns a valid bigint scalar', async () => {
     const keys = deriveStealthKeys(testSig);
-    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedSeed);
+    const stealth = await generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+      fixedSeed,
+    );
 
     const scalar = deriveStealthPrivateScalar(
       keys.spendingScalar,
@@ -26,9 +30,13 @@ describe('deriveStealthPrivateScalar', () => {
     expect(scalar > 0n).toBe(true);
   });
 
-  test('derived scalar produces the stealth public key', () => {
+  test('derived scalar produces the stealth public key', async () => {
     const keys = deriveStealthKeys(testSig);
-    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedSeed);
+    const stealth = await generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+      fixedSeed,
+    );
 
     const scalar = deriveStealthPrivateScalar(
       keys.spendingScalar,
@@ -37,14 +45,18 @@ describe('deriveStealthPrivateScalar', () => {
     );
 
     const derivedPub = ed25519.ExtendedPoint.BASE.multiply(scalar).toRawBytes();
-    const derivedAddress = pubKeyToStellarAddress(derivedPub);
+    const derivedAddress = await pubKeyToStellarAddress(derivedPub);
 
     expect(derivedAddress).toBe(stealth.stealthAddress);
   });
 
-  test('deterministic', () => {
+  test('deterministic', async () => {
     const keys = deriveStealthKeys(testSig);
-    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, fixedSeed);
+    const stealth = await generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+      fixedSeed,
+    );
 
     const s1 = deriveStealthPrivateScalar(
       keys.spendingScalar,

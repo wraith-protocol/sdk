@@ -58,6 +58,19 @@
     "prepare": "husky",
     "test:fuzz": "FC_RUNS=100000 vitest run test/chains/stellar/properties.test.ts"
   },
+  "size-limit": [
+    {
+      "name": "Stellar ESM (import *)",
+      "path": "dist/chains/stellar/index.js",
+      "import": "*",
+      "limit": "20 KB"
+    },
+    {
+      "name": "Stellar CJS (require)",
+      "path": "dist/chains/stellar/index.cjs",
+      "limit": "20 KB"
+    }
+  ],
   "dependencies": {
     "@noble/curves": "^1.8.0",
     "@noble/hashes": "^1.7.0",
@@ -80,6 +93,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
+    "@size-limit/esbuild": "^11.0.0",
     "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",
     "fake-indexeddb": "^6.2.5",

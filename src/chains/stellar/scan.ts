@@ -109,12 +109,12 @@ export async function* scanAnnouncementsStream(
  *
  * @see {@link scanAnnouncements}
  */
-export function checkStealthAddress(
+export async function checkStealthAddress(
   ephemeralPubKey: Uint8Array,
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
   viewTag: number,
-): {
+): Promise<{
   isMatch: boolean;
   stealthAddress: string | null;
   hashScalar: bigint | null;
@@ -168,7 +168,7 @@ function deriveStealthAddressFromAnnouncement(
   const hScalar = hashToScalar(sharedSecret);
 
   const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar);
-  const stealthAddress = pubKeyToStellarAddress(stealthPubKeyBytes);
+  const stealthAddress = await pubKeyToStellarAddress(stealthPubKeyBytes);
 
   return { isMatch: true, stealthAddress, hashScalar: hScalar, stealthPubKeyBytes };
 }
@@ -206,12 +206,12 @@ function deriveStealthAddressFromAnnouncement(
  *
  * @see {@link deriveStealthPrivateScalar}
  */
-export function scanAnnouncements(
+export async function scanAnnouncements(
   announcements: Announcement[],
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
   spendingScalar: bigint,
-): MatchedAnnouncement[] {
+): Promise<MatchedAnnouncement[]> {
   const matched: MatchedAnnouncement[] = [];
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
 

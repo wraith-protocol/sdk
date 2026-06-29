@@ -1,3 +1,5 @@
+import type { StellarMemo } from './utils';
+
 /** Hex-encoded value with a `0x` prefix. */
 export type HexString = `0x${string}`;
 
@@ -85,6 +87,8 @@ export interface Announcement {
   ledger?: number;
   /** v2 RPC topic bucket (0–255); undefined for v1 announcements. */
   viewTagBucket?: number;
+  /** Memo attached to the transaction that carried this announcement, if any. */
+  memo?: StellarMemo;
 }
 
 /**
