@@ -1,5 +1,5 @@
 import type { Announcement, Network } from './types';
-import { bytesToHex } from './utils';
+import { bytesToHex, extractMemo } from './utils';
 import { getDeployment } from './deployments';
 import type { StellarChainDeployment } from './deployments';
 import {
@@ -277,15 +277,19 @@ export function parseAnnouncementEvent(event: Record<string, unknown>): Announce
     const topics = event.topic as string[] | undefined;
     if (!topics || topics.length < 3) return null;
 
+    let ann: Announcement | null = null;
     if (topics.length === 3) {
-      return parseV1AnnouncementEvent(event, topics);
+      ann = parseV1AnnouncementEvent(event, topics);
+    } else if (topics.length === 4) {
+      ann = parseV2AnnouncementEvent(event, topics);
     }
 
-    if (topics.length === 4) {
-      return parseV2AnnouncementEvent(event, topics);
+    if (ann) {
+      const memo = extractMemo(event as { memo_type?: string; memo?: string });
+      if (memo) ann = { ...ann, memo };
     }
 
-    return null;
+    return ann;
   } catch {
     return null;
   }

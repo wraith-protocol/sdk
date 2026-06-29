@@ -42,7 +42,8 @@ export {
   signWithScalar,
   L,
 } from './scalar';
-export { bytesToHex, hexToBytes } from './utils';
+export { bytesToHex, hexToBytes, extractMemo } from './utils';
+export type { StellarMemo } from './utils';
 
 export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
 export type { AnnouncementCache } from './cache';
