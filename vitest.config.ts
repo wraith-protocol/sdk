@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config';
+import { describe, it, expect } from "vitest";
 
 export default defineConfig({
   test: {
+    globals: true,
     exclude: ['**/node_modules/**', '**/reference/**'],
     testTimeout: 60000,
     exclude: ['**/node_modules/**', '**/reference/**', '**/bench/**'],

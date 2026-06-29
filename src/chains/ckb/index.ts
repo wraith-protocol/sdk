@@ -1,3 +1,4 @@
+import type { StealthCell } from './types';
 export { deriveStealthKeys } from './keys';
 export { STEALTH_SIGNING_MESSAGE, SCHEME_ID, META_ADDRESS_PREFIX } from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
@@ -14,6 +15,10 @@ export type {
   StealthKeys,
   StealthMetaAddress,
   GeneratedStealthAddress,
-  StealthCell,
   MatchedStealthCell,
 } from './types';
+export function scanAnnouncements(
+  announcements: StealthCell[],
+): StealthCell[] {
+  return announcements;
+}

@@ -64,7 +64,7 @@ export async function* scanAnnouncementsStream(
           result.hashScalar !== null &&
           result.stealthPubKeyBytes !== null
         ) {
-          const stealthPrivateScalar = (spendingScalar + result.hashScalar) % L;
+          const stealthPrivateScalar = ((spendingScalar % L) + result.hashScalar)  % L;
           yield {
             ...ann,
             stealthPrivateScalar,
@@ -239,7 +239,7 @@ export async function scanAnnouncements(
       result.hashScalar !== null &&
       result.stealthPubKeyBytes !== null
     ) {
-      const stealthPrivateScalar = (spendingScalar + result.hashScalar) % L;
+      const stealthPrivateScalar =((spendingScalar % L) + result.hashScalar) % L ;
       if (stealthPrivateScalar <= 0n) continue;
 
       matched.push({
@@ -288,19 +288,20 @@ export function scanAnnouncementsLegacySharedSecretTag(
     const computedTag = computeViewTag(sharedSecret);
     if (computedTag !== viewTag) continue;
 
-    const hScalar = hashToScalar(sharedSecret);
-    const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar);
-    const stealthAddress = pubKeyToStellarAddress(stealthPubKeyBytes);
+   const hScalar = hashToScalar(sharedSecret);
+const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar);
+const stealthAddress = pubKeyToStellarAddress(stealthPubKeyBytes);
 
-    if (stealthAddress === ann.stealthAddress) {
-      const stealthPrivateScalar = (spendingScalar + hScalar) % L;
+if (stealthAddress === ann.stealthAddress) {
+  const stealthPrivateScalar = ((spendingScalar % L) + hScalar) % L;
+  if (stealthPrivateScalar <= 0n) continue;
 
-      matched.push({
-        ...ann,
-        stealthPrivateScalar,
-        stealthPubKeyBytes,
-      });
-    }
+  matched.push({
+    ...ann,
+    stealthPrivateScalar,
+    stealthPubKeyBytes,
+  });
+}
   }
 
   return matched;

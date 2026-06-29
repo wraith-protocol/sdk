@@ -14,9 +14,15 @@ importers:
       '@noble/hashes':
         specifier: ^1.7.0
         version: 1.8.0
+      '@wraith-protocol/sdk':
+        specifier: ^1.4.5
+        version: 1.4.5(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@stellar/stellar-sdk@13.3.0)(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
       pnpm:
         specifier: ^10.34.4
         version: 10.34.4
+      rg:
+        specifier: ^0.0.2
+        version: 0.0.2
       viem:
         specifier: ^2.23.0
         version: 2.53.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
@@ -2366,6 +2372,17 @@ packages:
 
   '@vitest/utils@3.2.6':
     resolution: {integrity: sha512-lI23nIs4bnT3T8NIoh+vFaz5s2/DdP0Jgt2jxwgWljvwn82cLJtyi/If+fjFyoLMGIOz0U/fKvWE0d4jsNQEfg==}
+
+  '@wraith-protocol/sdk@1.4.5':
+    resolution: {integrity: sha512-qJc+kpx6Stt6mGZYkr+XTi8tRVqfJy74cVSPzcqVVg8HxXiNbSl4X5XLaYzRWGuMDrkpbe7vQNJvfq5XrNntvQ==}
+    peerDependencies:
+      '@solana/web3.js': ^1.95.0
+      '@stellar/stellar-sdk': ^13.1.0
+    peerDependenciesMeta:
+      '@solana/web3.js':
+        optional: true
+      '@stellar/stellar-sdk':
+        optional: true
 
   '@wraith-protocol/sdk@file:':
     resolution: {directory: '', type: directory}
@@ -5209,6 +5226,10 @@ packages:
   reusify@1.1.0:
     resolution: {integrity: sha512-g6QUff04oZpHs0eG5p83rFLhHeV00ug/Yf9nZM6fLeUrPguBTkTQOdpAWWspMh55TZfVQDPaN3NQJfbVRAxdIw==}
     engines: {iojs: '>=1.0.0', node: '>=0.10.0'}
+
+  rg@0.0.2:
+    resolution: {integrity: sha512-mDR+iODuzY3LJj6dMxwhYmylHAnh050edYRsSRcCR+jZx7Pacz+VVAwqGTOFAV+058N53504CglWitWZ16/yQg==}
+    hasBin: true
 
   rimraf@2.6.3:
     resolution: {integrity: sha512-mwqeW5XsA2qAejG46gYdENaxXjx9onRNCfn7L0duuP4hCuTIi/QO7PDK07KJfp1d+izWPrzEJDcSqBa0OZQriA==}
@@ -8844,11 +8865,27 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
+  '@wraith-protocol/sdk@1.4.5(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@stellar/stellar-sdk@13.3.0)(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)':
+    dependencies:
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
+      viem: 2.53.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
+    optionalDependencies:
+      '@solana/web3.js': 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
+      '@stellar/stellar-sdk': 13.3.0
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
+      - zod
+
   '@wraith-protocol/sdk@file:(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@stellar/stellar-sdk@13.3.0)(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)':
     dependencies:
       '@noble/curves': 1.9.7
       '@noble/hashes': 1.8.0
+      '@wraith-protocol/sdk': 1.4.5(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@stellar/stellar-sdk@13.3.0)(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
       pnpm: 10.34.4
+      rg: 0.0.2
       viem: 2.53.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
     optionalDependencies:
       '@solana/web3.js': 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
@@ -12130,6 +12167,8 @@ snapshots:
       signal-exit: 3.0.7
 
   reusify@1.1.0: {}
+
+  rg@0.0.2: {}
 
   rimraf@2.6.3:
     dependencies:
