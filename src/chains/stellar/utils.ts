@@ -1,5 +1,11 @@
 import { InvalidMetaAddressError } from '../../errors';
 
+/** Parsed memo from a Stellar transaction. */
+export interface StellarMemo {
+  type: 'text' | 'id' | 'hash' | 'return';
+  value: string;
+}
+
 /**
  * Converts bytes to a lowercase hex string without a `0x` prefix.
  *
@@ -54,4 +60,57 @@ export function hexToBytes(hex: string): Uint8Array {
     bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
   }
   return bytes;
+}
+
+/**
+ * Extracts the memo from a Stellar transaction object (e.g. a Horizon record).
+ *
+ * Handles all four memo types: text, id, hash, and return. Hash and return
+ * memos are returned as lowercase hex strings.
+ *
+ * @param transaction - Any object with `memo_type` and `memo` fields (Horizon format).
+ * @returns A `{ type, value }` pair, or `null` for `MemoNone` / missing memos.
+ *
+ * @example
+ * ```ts
+ * import { extractMemo } from "@wraith-protocol/sdk/chains/stellar";
+ *
+ * const memo = extractMemo(tx);
+ * if (memo) {
+ *   console.log(memo.type, memo.value); // e.g. "text" "invoice 1234"
+ * }
+ * ```
+ */
+export function extractMemo(transaction: {
+  memo_type?: string;
+  memo?: string;
+}): StellarMemo | null {
+  const { memo_type, memo } = transaction;
+
+  if (!memo_type || memo_type === 'none' || !memo) return null;
+
+  switch (memo_type) {
+    case 'text':
+      return { type: 'text', value: memo };
+    case 'id':
+      return { type: 'id', value: memo };
+    case 'hash':
+      return { type: 'hash', value: memoBufferToHex(memo) };
+    case 'return':
+      return { type: 'return', value: memoBufferToHex(memo) };
+    default:
+      return null;
+  }
+}
+
+/** Normalise a memo value that may arrive as a base64 string or hex. */
+function memoBufferToHex(value: string): string {
+  // Horizon encodes hash/return memos as base64
+  try {
+    const bytes = Buffer.from(value, 'base64');
+    if (bytes.length > 0) return bytesToHex(bytes);
+  } catch {
+    // fall through
+  }
+  return value.toLowerCase();
 }

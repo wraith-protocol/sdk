@@ -9,6 +9,13 @@ import { hexToBytes } from './utils';
  * Streaming announcement scanner. Pulls announcements from `source` in windows of
  * `opts.window` (default 64), scans each window, and yields matches immediately.
  *
+ * Uses the cheap public view-tag prefilter before the X25519 shared secret:
+ *   1. Derive the viewing public key once from the viewing seed
+ *   2. View tag quick filter from R_ephemeral || viewing_pubkey
+ *   3. Compute shared secret: S = ECDH(viewing_key, R_ephemeral) only for tag hits
+ *   4. Compute hash_scalar = SHA-256("wraith:scalar:" || S) mod L
+ *   5. Expected stealth pubkey = K_spend + hash_scalar * G
+ *   6. Compare with announced stealth address
  * Peak memory is O(window) — never accumulates the full announcement set.
  * Cancellation is clean: breaking out of the `for-await` loop triggers the `finally`
  * block which calls `.return()` on the source iterator, stopping upstream I/O.
@@ -57,7 +64,7 @@ export async function* scanAnnouncementsStream(
           result.hashScalar !== null &&
           result.stealthPubKeyBytes !== null
         ) {
-          const stealthPrivateScalar = (spendingScalar + result.hashScalar) % L;
+          const stealthPrivateScalar = ((spendingScalar % L) + result.hashScalar)  % L;
           yield {
             ...ann,
             stealthPrivateScalar,
@@ -102,12 +109,12 @@ export async function* scanAnnouncementsStream(
  *
  * @see {@link scanAnnouncements}
  */
-export function checkStealthAddress(
+export async function checkStealthAddress(
   ephemeralPubKey: Uint8Array,
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
   viewTag: number,
-): {
+): Promise<{
   isMatch: boolean;
   stealthAddress: string | null;
   hashScalar: bigint | null;
@@ -161,7 +168,7 @@ function deriveStealthAddressFromAnnouncement(
   const hScalar = hashToScalar(sharedSecret);
 
   const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar);
-  const stealthAddress = pubKeyToStellarAddress(stealthPubKeyBytes);
+  const stealthAddress = await pubKeyToStellarAddress(stealthPubKeyBytes);
 
   return { isMatch: true, stealthAddress, hashScalar: hScalar, stealthPubKeyBytes };
 }
@@ -199,12 +206,12 @@ function deriveStealthAddressFromAnnouncement(
  *
  * @see {@link deriveStealthPrivateScalar}
  */
-export function scanAnnouncements(
+export async function scanAnnouncements(
   announcements: Announcement[],
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
   spendingScalar: bigint,
-): MatchedAnnouncement[] {
+): Promise<MatchedAnnouncement[]> {
   const matched: MatchedAnnouncement[] = [];
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
 
@@ -232,7 +239,7 @@ export function scanAnnouncements(
       result.hashScalar !== null &&
       result.stealthPubKeyBytes !== null
     ) {
-      const stealthPrivateScalar = (spendingScalar + result.hashScalar) % L;
+      const stealthPrivateScalar =((spendingScalar % L) + result.hashScalar) % L ;
       if (stealthPrivateScalar <= 0n) continue;
 
       matched.push({
@@ -281,19 +288,20 @@ export function scanAnnouncementsLegacySharedSecretTag(
     const computedTag = computeViewTag(sharedSecret);
     if (computedTag !== viewTag) continue;
 
-    const hScalar = hashToScalar(sharedSecret);
-    const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar);
-    const stealthAddress = pubKeyToStellarAddress(stealthPubKeyBytes);
+   const hScalar = hashToScalar(sharedSecret);
+const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar);
+const stealthAddress = pubKeyToStellarAddress(stealthPubKeyBytes);
 
-    if (stealthAddress === ann.stealthAddress) {
-      const stealthPrivateScalar = (spendingScalar + hScalar) % L;
+if (stealthAddress === ann.stealthAddress) {
+  const stealthPrivateScalar = ((spendingScalar % L) + hScalar) % L;
+  if (stealthPrivateScalar <= 0n) continue;
 
-      matched.push({
-        ...ann,
-        stealthPrivateScalar,
-        stealthPubKeyBytes,
-      });
-    }
+  matched.push({
+    ...ann,
+    stealthPrivateScalar,
+    stealthPubKeyBytes,
+  });
+}
   }
 
   return matched;

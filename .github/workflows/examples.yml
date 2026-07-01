@@ -1,0 +1,52 @@
+name: Examples CI
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  examples:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        example:
+          - stellar-cli-send
+          - stellar-cli-scan
+          - stellar-react-receive
+          - stellar-spectre-agent
+          - multichain-scan
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build SDK
+        run: pnpm build
+
+      - name: Install example (${{ matrix.example }})
+        working-directory: examples/${{ matrix.example }}
+        run: npm install
+
+      - name: Type-check example (${{ matrix.example }})
+        working-directory: examples/${{ matrix.example }}
+        run: npx tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution bundler --isolatedModules --esModuleInterop --skipLibCheck index.ts
+        continue-on-error: false
+
+      - name: Build example (${{ matrix.example }})
+        if: hashFiles(format('examples/{0}/package.json', matrix.example)) != ''
+        working-directory: examples/${{ matrix.example }}
+        run: |
+          if grep -q '"build"' package.json; then
+            npm run build
+          fi

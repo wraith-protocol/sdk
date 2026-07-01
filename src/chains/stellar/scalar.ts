@@ -13,7 +13,9 @@ import { sha256 } from '@noble/hashes/sha256';
 export const L = BigInt(
   '7237005577332262213973186563042994240857116359379907606001950938285454250989',
 );
-
+function modL(x: bigint): bigint {
+  return ((x % L) + L) % L;
+}
 /**
  * Derives a clamped ed25519 scalar from a 32-byte seed.
  *
@@ -57,7 +59,7 @@ export function seedToScalar(seed: Uint8Array): bigint {
  *
  * @example
  * ```ts
- * const scalar = bytesToScalar(new Uint8Array(32));
+ *const scalar = hashToScalar(hash); // already safe (new Uint8Array(32));
  * ```
  *
  * @see {@link scalarToBytes}
@@ -219,12 +221,12 @@ export function pubKeyToStellarAddress(pubKeyBytes: Uint8Array): string {
 export function hashToScalar(sharedSecret: Uint8Array): bigint {
   const prefix = new TextEncoder().encode('wraith:scalar:');
   const input = new Uint8Array(prefix.length + sharedSecret.length);
+
   input.set(prefix);
   input.set(sharedSecret, prefix.length);
 
   const hash = sha256(input);
-  const raw = bytesToScalar(hash);
-  return raw % L;
+  return modL(bytesToScalar(hash));
 }
 
 /**
@@ -253,7 +255,8 @@ export function signWithScalar(
   scalar: bigint,
   publicKey: Uint8Array,
 ): Uint8Array {
-  if (scalar <= 0n || scalar >= L) {
+scalar = scalar % L;
+  scalar = modL(scalar); {
     throw new Error('Scalar must be in range (0, L)');
   }
   const scalarBytes = scalarToBytes(scalar);
@@ -281,5 +284,6 @@ export function signWithScalar(
   const sig = new Uint8Array(64);
   sig.set(encodedR);
   sig.set(encodedS, 32);
+  console.log('SCALAR:', scalar, scalar >= L);
   return sig;
 }

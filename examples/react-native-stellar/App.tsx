@@ -15,7 +15,11 @@ function bytesToHex(bytes: Uint8Array): string {
 
 const sampleSignature = new Uint8Array(Array.from({ length: 64 }, (_, i) => i + 1));
 
-const announcementsFixture = (stealthAddress: string, ephemeralPubKey: Uint8Array, viewTag: number) => [
+const announcementsFixture = (
+  stealthAddress: string,
+  ephemeralPubKey: Uint8Array,
+  viewTag: number,
+) => [
   {
     schemeId: 1,
     stealthAddress,
@@ -28,9 +32,22 @@ const announcementsFixture = (stealthAddress: string, ephemeralPubKey: Uint8Arra
 export default function App() {
   const { keys, stealth, matches } = useMemo(() => {
     const keys = deriveStealthKeys(sampleSignature);
-    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, new Uint8Array(32).fill(0x42));
-    const announcements = announcementsFixture(stealth.stealthAddress, stealth.ephemeralPubKey, stealth.viewTag);
-    const matches = scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
+    const stealth = generateStealthAddress(
+      keys.spendingPubKey,
+      keys.viewingPubKey,
+      new Uint8Array(32).fill(0x42),
+    );
+    const announcements = announcementsFixture(
+      stealth.stealthAddress,
+      stealth.ephemeralPubKey,
+      stealth.viewTag,
+    );
+    const matches = scanAnnouncements(
+      announcements,
+      keys.viewingKey,
+      keys.spendingPubKey,
+      keys.spendingScalar,
+    );
     return { keys, stealth, matches };
   }, []);
 
@@ -51,7 +68,9 @@ export default function App() {
         <View style={styles.card}>
           <Text style={styles.heading}>Scan Result</Text>
           <Text style={styles.value}>Matches found: {matches.length}</Text>
-          <Text style={styles.value}>{matches.length > 0 ? matches[0].stealthAddress : 'none'}</Text>
+          <Text style={styles.value}>
+            {matches.length > 0 ? matches[0].stealthAddress : 'none'}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>

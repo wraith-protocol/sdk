@@ -1,6 +1,6 @@
 # @wraith-protocol/sdk
 
-The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, five entry points — an agent client for the managed TEE platform and stealth address cryptography for EVM, Stellar, Solana, and CKB chains.
+The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, six entry points — an agent client for the managed TEE platform, stealth address cryptography for EVM, Stellar, Solana, and CKB chains, and a browser-only vault for short-lived derived keys.
 
 ## Installation
 
@@ -16,6 +16,10 @@ pnpm add @wraith-protocol/sdk
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the SDK semver policy, deprecation rules, release checklist, PR conventions, and the rubric for adding a new chain module.
 
+## Upgrading
+
+See [MIGRATING.md](./MIGRATING.md) for breaking changes and migration steps when upgrading to a new major version.
+
 ## Entry Points
 
 | Import                                | Purpose                                              |
@@ -25,8 +29,35 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for the SDK semver policy, deprecation 
 | `@wraith-protocol/sdk/chains/stellar` | Stellar stealth address crypto (ed25519)             |
 | `@wraith-protocol/sdk/chains/solana`  | Solana stealth address crypto (ed25519)              |
 | `@wraith-protocol/sdk/chains/ckb`     | CKB (Nervos) stealth address crypto (secp256k1)      |
+| `@wraith-protocol/sdk/vault`          | Browser-only passphrase vault for short-lived keys   |
 
 > React Native support is documented in `docs/guides/react-native-setup.mdx` and the companion example at `examples/react-native-stellar`.
+
+## Browser Vault
+
+`KeyVault` is for browser-only apps that need to hold derived stealth keys briefly between scans and spends.
+
+```ts
+import { KeyVault } from '@wraith-protocol/sdk/vault';
+
+const vault = new KeyVault({
+  idleTimeoutMs: 2 * 60 * 1000,
+  lockOnBlur: true,
+});
+
+await vault.unlock(passphrase);
+await vault.put('alice', derivedStealthKeys);
+const keys = await vault.get<typeof derivedStealthKeys>('alice');
+```
+
+Threat model:
+
+- protects against casual local persistence leaks such as `localStorage`
+- does not replace hardware wallets
+- does not protect against a compromised browser, malicious extension, or XSS
+- does not protect against an attacker who can observe the unlocked page context
+
+For demos, keep vault use opt-in behind a user-controlled toggle so browser-only state stays explicit.
 
 ## Agent Client
 
@@ -197,6 +228,66 @@ const signature = signStellarTransaction(
   matched[0].stealthPubKeyBytes,
 );
 ```
+
+### Stellar Multisig Stealth Withdrawals
+
+Use the multisig helpers when a stealth source account is configured with
+Stellar native signer weights. The withdrawal transaction uses `accountMerge`,
+so all remaining native XLM is sent to the destination and the stealth account
+is closed after submission.
+
+```ts
+import {
+  addStealthMultisigSigner,
+  buildMultisigStealthWithdraw,
+  isStealthMultisigReady,
+} from '@wraith-protocol/sdk/chains/stellar';
+
+const signerPublicKeys = [
+  signer1.publicKey(),
+  signer2.publicKey(),
+  signer3.publicKey(),
+  signer4.publicKey(),
+  signer5.publicKey(),
+];
+
+const tx = await buildMultisigStealthWithdraw({
+  stealthAddress: matched[0].stealthAddress,
+  destination: treasury.publicKey(),
+  requiredWeight: 3,
+  signers: signerPublicKeys,
+  horizonUrl: 'https://horizon-futurenet.example',
+  networkPassphrase: process.env.FUTURENET_NETWORK_PASSPHRASE!,
+  timeout: 900,
+});
+
+addStealthMultisigSigner(tx, signer1);
+addStealthMultisigSigner(tx, signer3);
+console.log(isStealthMultisigReady(tx)); // false for this 3-of-5 setup
+
+addStealthMultisigSigner(tx, signer5);
+console.log(isStealthMultisigReady(tx)); // true
+```
+
+For a 3-of-5 account, configure each of the five signers with weight `1` and
+the account high threshold to `3`. Pass the five signer public keys to
+`buildMultisigStealthWithdraw`; the helper loads the account from Horizon and
+rejects signers that are not actually configured on-chain.
+
+The futurenet integration test is opt-in because `accountMerge` is destructive:
+
+```bash
+INTEGRATION=1 \
+FUTURENET_HORIZON_URL="..." \
+FUTURENET_NETWORK_PASSPHRASE="..." \
+FUTURENET_STEALTH_ACCOUNT="G..." \
+FUTURENET_DESTINATION="G..." \
+FUTURENET_SIGNER_SECRETS="S...,S...,S..." \
+pnpm exec vitest run test/chains/stellar/multisig.integration.test.ts
+```
+
+Set `FUTURENET_SUBMIT=1` only when you intentionally want the test to submit
+the destructive `accountMerge`.
 
 ### Stellar Incremental Scanning
 
