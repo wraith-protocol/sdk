@@ -3,7 +3,10 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
 import { generateStealthAddress } from '../../../src/chains/stellar/stealth';
 import { scanAnnouncements } from '../../../src/chains/stellar/scan';
-import { deriveStealthPrivateScalar } from '../../../src/chains/stellar/spend';
+import {
+  deriveStealthPrivateScalar,
+  signStellarTransaction,
+} from '../../../src/chains/stellar/spend';
 import {
   encodeStealthMetaAddress,
   decodeStealthMetaAddress,
@@ -16,7 +19,7 @@ const testSig = new Uint8Array(64).fill(0xaa);
 const fixedSeed = new Uint8Array(32).fill(0xcc);
 
 describe('e2e: full stealth payment flow on Stellar', () => {
-  test('derive → generate → scan → spend → verify', () => {
+  test('derive → generate → scan → spend → verify', async () => {
     const keys = deriveStealthKeys(testSig);
 
     const meta = encodeStealthMetaAddress(keys.spendingPubKey, keys.viewingPubKey);
@@ -24,7 +27,7 @@ describe('e2e: full stealth payment flow on Stellar', () => {
 
     const decoded = decodeStealthMetaAddress(meta);
 
-    const stealth = generateStealthAddress(
+    const stealth = await generateStealthAddress(
       decoded.spendingPubKey,
       decoded.viewingPubKey,
       fixedSeed,
@@ -39,7 +42,7 @@ describe('e2e: full stealth payment flow on Stellar', () => {
       metadata: stealth.viewTag.toString(16).padStart(2, '0'),
     };
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       [announcement],
       keys.viewingKey,
       keys.spendingPubKey,
@@ -56,5 +59,18 @@ describe('e2e: full stealth payment flow on Stellar', () => {
       stealth.ephemeralPubKey,
     );
     expect(independentScalar).toBe(matched[0].stealthPrivateScalar);
+
+    // Sign a transaction hash with the stealth private scalar
+    const txHash = new Uint8Array(32).fill(0xdd);
+    const sig = signStellarTransaction(
+      txHash,
+      matched[0].stealthPrivateScalar,
+      matched[0].stealthPubKeyBytes,
+    );
+    expect(sig.length).toBe(64);
+
+    // Verify the signature with @noble/curves
+    const verified = ed25519.verify(sig, txHash, matched[0].stealthPubKeyBytes);
+    expect(verified).toBe(true);
   });
 });

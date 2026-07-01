@@ -59,7 +59,7 @@ Port from `reference/horizen/packages/sdk/src/` into `src/chains/evm/`:
 | `keys.ts`         | `deriveStealthKeys(signature)` — split r/s, keccak256 each, validate scalars                 |
 | `stealth.ts`      | `generateStealthAddress(spendPub, viewPub)` — ECDH, point addition, keccak256 address        |
 | `scan.ts`         | `checkStealthAddress()`, `scanAnnouncements()` — view tag filter, address matching           |
-| `spend.ts`        | `deriveStealthPrivateKey(spendKey, ephPub, viewKey)` — `(m + s_h) mod n`                     |
+| `spend.ts`        | `deriveStealthPrivateKeyCredits(spendKey, ephPub, viewKey)` — `(m + s_h) mod n`              |
 | `meta-address.ts` | `encodeStealthMetaAddress()`, `decodeStealthMetaAddress()` — `st:eth:0x` format              |
 | `names.ts`        | `signNameRegistration()`, `signNameUpdate()`, `signNameRelease()`, `metaAddressToBytes()`    |
 | `index.ts`        | Re-exports everything                                                                        |

@@ -1,3 +1,4 @@
+import { InvalidSignatureError } from '../../../src/errors';
 import { describe, test, expect } from 'vitest';
 import { deriveStealthKeys } from '../../../src/chains/ckb/keys';
 import type { HexString } from '../../../src/chains/ckb/types';
@@ -29,6 +30,6 @@ describe('deriveStealthKeys', () => {
 
   test('rejects wrong signature length', () => {
     const short = ('0x' + 'aa'.repeat(64)) as HexString;
-    expect(() => deriveStealthKeys(short)).toThrow('Expected 65-byte signature');
+    expect(() => deriveStealthKeys(short)).toThrow(InvalidSignatureError);
   });
 });

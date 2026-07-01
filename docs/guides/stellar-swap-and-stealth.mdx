@@ -1,0 +1,262 @@
+---
+title: Stellar Swap & Stealth Payment
+---
+
+# Stellar Swap & Stealth Payment
+
+`buildStellarSwapAndStealth` builds a single atomic Stellar transaction that **swaps one asset for another via the Stellar AMM and delivers the output to a stealth address**, all in one envelope. Both legs succeed or fail together.
+
+---
+
+## When to use this
+
+Use `buildStellarSwapAndStealth` when the sender holds a different asset than the recipient expects. A common case: the sender pays in USDC but the recipient's stealth wallet wants XLM.
+
+Without this helper you would need two separate transactions — one to swap and one to send — with a race condition between them. This helper collapses them into a single atomic operation.
+
+---
+
+## Installation
+
+```bash
+npm install @wraith-protocol/sdk @stellar/stellar-sdk
+```
+
+---
+
+## API
+
+```ts
+import { buildStellarSwapAndStealth } from '@wraith-protocol/sdk/chains/stellar';
+
+const { transaction, stealthResult } = buildStellarSwapAndStealth(options);
+```
+
+### Parameters
+
+| Field               | Type      | Required | Description                                                            |
+| ------------------- | --------- | -------- | ---------------------------------------------------------------------- |
+| `sender`            | `string`  | ✅       | G... public key of the sender                                          |
+| `sequence`          | `string`  | ✅       | Current sequence number of the sender account                          |
+| `fromAsset`         | `Asset`   | ✅       | Asset the sender is spending                                           |
+| `toAsset`           | `Asset`   | ✅       | Asset the stealth address receives                                     |
+| `destAmount`        | `string`  | ✅       | Exact amount of `toAsset` the stealth address receives                 |
+| `sendMax`           | `string`  | ✅       | Maximum amount of `fromAsset` to spend (slippage ceiling)              |
+| `recipientMeta`     | `string`  | ✅       | Recipient's published stealth meta-address (`st:xlm:...`)              |
+| `announcerContract` | `string`  | ✅       | Wraith announcer contract address                                      |
+| `networkPassphrase` | `string`  | ✅       | Stellar network passphrase                                             |
+| `path`              | `Asset[]` | ❌       | Intermediate assets for the swap path. Omit to use any available path. |
+| `fee`               | `string`  | ❌       | Base fee in stroops. Defaults to `"100"`.                              |
+
+### Return value
+
+```ts
+interface SwapAndStealthResult {
+  transaction: Transaction; // unsigned, ready to sign and submit
+  stealthResult: {
+    stealthAddress: string; // one-time G... address for the recipient
+    ephemeralPubKey: Uint8Array; // 32-byte ephemeral key (published via announcement)
+    viewTag: number; // 1-byte view tag for fast scanning
+  };
+}
+```
+
+---
+
+## How it works
+
+The returned transaction contains two or three operations depending on `toAsset`:
+
+### Native XLM as `toAsset` — 2 operations
+
+```
+1. pathPaymentStrictReceive  fromAsset → XLM  →  stealthAddress
+2. invokeHostFunction        announce(stealthAddress, ephemeralPubKey, viewTag)
+```
+
+`pathPaymentStrictReceive` delivers XLM directly to the stealth address and creates the account atomically if it does not yet exist.
+
+### Non-native `toAsset` (e.g., USDC) — 3 operations
+
+```
+1. pathPaymentStrictReceive  XLM → USDC  →  sender
+2. createClaimableBalance    USDC  →  claimable by stealthAddress
+3. invokeHostFunction        announce(stealthAddress, ephemeralPubKey, viewTag)
+```
+
+Because a brand-new Stellar account has no trustlines, the token cannot be sent directly. The swap delivers to the sender, who then wraps the received amount in a `createClaimableBalance` that only the stealth address can claim. No trustline is needed to receive a claimable balance.
+
+---
+
+## Slippage protection
+
+`sendMax` is the maximum amount of `fromAsset` the sender will spend. If the AMM path requires more, Stellar rejects the transaction before any funds move.
+
+### Computing `sendMax` from a quoted price
+
+Query Horizon's `/paths/strict-receive` endpoint to get a quote, then add a slippage tolerance:
+
+```ts
+const horizonUrl = 'https://horizon-testnet.stellar.org';
+const USDC_ISSUER = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
+
+// Request a quote: how much USDC to receive exactly 100 XLM?
+const url =
+  `${horizonUrl}/paths/strict-receive` +
+  `?source_assets=USDC:${USDC_ISSUER}` +
+  `&destination_asset_type=native` +
+  `&destination_amount=100`;
+
+const { _embedded } = await fetch(url).then((r) => r.json());
+const bestPath = _embedded.records[0];
+const quotedSend = parseFloat(bestPath.source_amount); // e.g. 49.87
+
+// Apply 0.5% slippage tolerance
+const slippageBps = 50; // 0.5%
+const sendMax = (quotedSend * (1 + slippageBps / 10_000)).toFixed(7);
+// => "50.1197350"
+```
+
+Pass `sendMax` into the helper. If the price moves unfavourably by more than 0.5% between quote and submission, the transaction is rejected cleanly.
+
+---
+
+## Worked Example: USDC → XLM
+
+```ts
+import { Asset, Keypair, Networks } from '@stellar/stellar-sdk';
+import { buildStellarSwapAndStealth, getDeployment } from '@wraith-protocol/sdk/chains/stellar';
+
+const USDC_ISSUER = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
+const USDC = new Asset('USDC', USDC_ISSUER);
+
+const deployment = getDeployment('stellar');
+
+// 1. Fetch a quote from Horizon
+const url =
+  `${deployment.horizonUrl}/paths/strict-receive` +
+  `?source_assets=USDC:${USDC_ISSUER}` +
+  `&destination_asset_type=native` +
+  `&destination_amount=100`;
+
+const { _embedded } = await fetch(url).then((r) => r.json());
+const quotedSend = parseFloat(_embedded.records[0].source_amount);
+const sendMax = (quotedSend * 1.005).toFixed(7); // 0.5% slippage
+
+// 2. Load sender account
+import { Server } from '@stellar/stellar-sdk';
+const server = new Server(deployment.horizonUrl);
+const senderKp = Keypair.fromSecret('S...');
+const account = await server.loadAccount(senderKp.publicKey());
+
+// 3. Build the swap+stealth transaction
+const { transaction, stealthResult } = buildStellarSwapAndStealth({
+  sender: senderKp.publicKey(),
+  sequence: account.sequence,
+  fromAsset: USDC,
+  toAsset: Asset.native(),
+  destAmount: '100', // recipient gets exactly 100 XLM
+  sendMax, // slippage-protected spend ceiling
+  recipientMeta: 'st:xlm:...', // from the recipient's published profile
+  announcerContract: deployment.contracts.announcer,
+  networkPassphrase: Networks.TESTNET,
+});
+
+// 4. Sign and submit
+transaction.sign(senderKp);
+const result = await server.submitTransaction(transaction);
+console.log('Submitted:', result.hash);
+console.log('Stealth address:', stealthResult.stealthAddress);
+```
+
+---
+
+## Worked Example: XLM → USDC (non-native delivery)
+
+When the recipient wants USDC rather than XLM, the output is wrapped in a claimable balance so no trustline is required on the brand-new stealth account.
+
+```ts
+import { Asset, Keypair, Networks } from '@stellar/stellar-sdk';
+import { buildStellarSwapAndStealth, getDeployment } from '@wraith-protocol/sdk/chains/stellar';
+
+const USDC_ISSUER = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
+const USDC = new Asset('USDC', USDC_ISSUER);
+const deployment = getDeployment('stellar');
+
+const server = new Server(deployment.horizonUrl);
+const senderKp = Keypair.fromSecret('S...');
+const account = await server.loadAccount(senderKp.publicKey());
+
+const { transaction, stealthResult } = buildStellarSwapAndStealth({
+  sender: senderKp.publicKey(),
+  sequence: account.sequence,
+  fromAsset: Asset.native(), // sender spends XLM
+  toAsset: USDC, // stealth address claims USDC
+  destAmount: '50', // exactly 50 USDC
+  sendMax: '100', // spend at most 100 XLM
+  recipientMeta: 'st:xlm:...',
+  announcerContract: deployment.contracts.announcer,
+  networkPassphrase: Networks.TESTNET,
+});
+
+// Transaction has 3 ops: pathPayment + claimableBalance + announce
+console.log('Op count:', transaction.operations.length); // 3
+
+transaction.sign(senderKp);
+await server.submitTransaction(transaction);
+```
+
+The stealth address can claim the balance once it controls its private key (after the recipient scans announcements and derives the stealth scalar).
+
+---
+
+## Recipient: scanning and claiming
+
+The recipient scans announcements as usual with `scanAnnouncements` or `fetchAnnouncements`. The announcement operation in the transaction emits a Soroban event with the ephemeral key and view tag.
+
+For a non-native (claimable balance) payment, the recipient additionally calls `claimClaimableBalance` after deriving their stealth private key:
+
+```ts
+import { Operation, TransactionBuilder } from '@stellar/stellar-sdk';
+
+// After scanning and identifying the matching announcement:
+const claimTx = new TransactionBuilder(stealthAccount, { fee: '100', networkPassphrase })
+  .addOperation(Operation.claimClaimableBalance({ balanceID: '<balance-id-from-horizon>' }))
+  .setTimeout(30)
+  .build();
+
+// Sign with the derived stealth scalar
+import { signStellarTransaction } from '@wraith-protocol/sdk/chains/stellar';
+
+const sig = signStellarTransaction(
+  claimTx.hash(),
+  matched.stealthPrivateScalar,
+  matched.stealthPubKeyBytes,
+);
+claimTx.signatures.push({
+  hint: matched.stealthPubKeyBytes.slice(28),
+  signature: sig,
+});
+
+await server.submitTransaction(claimTx);
+```
+
+---
+
+## Running the tests
+
+```bash
+# Unit tests (no network)
+pnpm test test/chains/stellar/swap.test.ts
+
+# Integration tests (real testnet, requires network)
+INTEGRATION=1 pnpm exec vitest run test/chains/stellar/swap.integration.test.ts
+```
+
+---
+
+## Error handling
+
+- **Slippage exceeded** — Stellar returns `PATH_PAYMENT_OVER_SENDMAX` if the AMM path costs more than `sendMax`. Catch this and prompt the user to re-quote or increase tolerance.
+- **Invalid meta-address** — `buildStellarSwapAndStealth` calls `decodeStealthMetaAddress` internally and throws `InvalidMetaAddressError` for malformed input.
+- **Network passphrase mismatch** — Always use `Networks.TESTNET` or `Networks.PUBLIC` to avoid signing for the wrong network.
