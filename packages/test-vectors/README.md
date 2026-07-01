@@ -275,8 +275,8 @@ for v in vecs["scan_match"]:
 
 ## Cryptographic Notes
 
-| Chain   | Curve            | ECDH   | View-tag source                                           |
-| ------- | ---------------- | ------ | --------------------------------------------------------- |
+| Chain   | Curve            | ECDH    | View-tag source                                           |
+| ------- | ---------------- | ------- | --------------------------------------------------------- |
 | Stellar | ed25519 / X25519 | SHA-256 | `SHA-256("wraith:stellar:view-tag:v2:" \|\| R \|\| V)[0]` |
 
 Key derivation from a 64-byte ed25519 wallet signature:
