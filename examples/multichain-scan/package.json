@@ -1,0 +1,16 @@
+{
+  "name": "@wraith-protocol/example-multichain-scan",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "start": "npx tsx index.ts"
+  },
+  "dependencies": {
+    "@wraith-protocol/sdk": "file:../.."
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}

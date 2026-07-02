@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@wraith-protocol/sdk": ["../../src"],
+      "@wraith-protocol/sdk-svelte": ["../../packages/sdk-svelte/src"]
+    }
+  },
+  "include": ["src"]
+}

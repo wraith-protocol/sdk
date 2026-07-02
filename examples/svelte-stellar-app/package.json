@@ -1,0 +1,21 @@
+{
+  "name": "svelte-stellar-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "svelte": "^5.0.0",
+    "@wraith-protocol/sdk-svelte": "workspace:*",
+    "@wraith-protocol/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "vite": "^6.0.0",
+    "typescript": "^5.7.0"
+  }
+}

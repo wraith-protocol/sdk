@@ -1,3 +1,4 @@
+import { InvalidMetaAddressError } from '../../errors';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { keccak256, toHex, toBytes, encodePacked } from 'viem';
 import type { HexString } from './types';
@@ -79,7 +80,7 @@ export function signNameRelease(name: string, spendingKey: HexString): HexString
  */
 export function metaAddressToBytes(metaAddress: string): HexString {
   if (!metaAddress.startsWith('st:eth:0x')) {
-    throw new Error('Invalid meta-address format');
+    throw new InvalidMetaAddressError(metaAddress, 'Invalid meta-address format');
   }
   return `0x${metaAddress.slice('st:eth:0x'.length)}` as HexString;
 }

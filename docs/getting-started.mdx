@@ -1,0 +1,89 @@
+# Getting Started with `@wraith-protocol/sdk`
+
+Install the package:
+
+```bash
+npm install @wraith-protocol/sdk
+# or
+pnpm add @wraith-protocol/sdk
+```
+
+## Entry Points
+
+| Import path                           | Purpose                                         |
+| ------------------------------------- | ----------------------------------------------- |
+| `@wraith-protocol/sdk`                | Agent client (`Wraith`, `WraithAgent`, `Chain`) |
+| `@wraith-protocol/sdk/chains/evm`     | EVM stealth crypto (secp256k1)                  |
+| `@wraith-protocol/sdk/chains/stellar` | Stellar stealth crypto (ed25519)                |
+| `@wraith-protocol/sdk/chains/solana`  | Solana stealth crypto (ed25519)                 |
+| `@wraith-protocol/sdk/chains/ckb`     | CKB stealth crypto (secp256k1)                  |
+
+## CLI Quick Start (Stellar Send)
+
+```ts
+import {
+  deriveStealthKeys,
+  encodeStealthMetaAddress,
+  generateStealthAddress,
+} from '@wraith-protocol/sdk/chains/stellar';
+
+const keys = deriveStealthKeys(new Uint8Array(64));
+const metaAddress = encodeStealthMetaAddress(keys.spendingPubKey, keys.viewingPubKey);
+const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
+console.log('Meta-address:', metaAddress);
+console.log('Stealth address:', stealth.stealthAddress);
+```
+
+## React Quick Start (Receive)
+
+```tsx
+import { deriveStealthKeys, encodeStealthMetaAddress } from '@wraith-protocol/sdk/chains/stellar';
+
+const keys = deriveStealthKeys(hexToBytes(secretKey));
+const metaAddress = encodeStealthMetaAddress(keys.spendingPubKey, keys.viewingPubKey);
+// Share metaAddress with senders
+```
+
+## Agent Quick Start
+
+```ts
+import { Wraith, Chain } from '@wraith-protocol/sdk';
+
+const wraith = new Wraith({ apiKey: 'wraith_live_...' });
+const agent = await wraith.createAgent({
+  name: 'alice',
+  chain: Chain.Stellar,
+  wallet: 'G...',
+  signature: '0x...',
+});
+const res = await agent.chat('send 1 XLM to bob.wraith');
+console.log(res.response);
+```
+
+## Examples
+
+Five self-contained examples are available in the [`examples/`](https://github.com/wraith-protocol/sdk/tree/main/examples) folder:
+
+| Example                  | What it demonstrates                                         |
+| ------------------------ | ------------------------------------------------------------ |
+| `stellar-cli-send/`      | Derive keys, encode meta-address, generate stealth address   |
+| `stellar-cli-scan/`      | Fetch and scan on-chain announcements for incoming payments  |
+| `stellar-react-receive/` | Vite + React UI to derive keys and display your meta-address |
+| `stellar-spectre-agent/` | Create/chat with a Wraith managed agent on Stellar           |
+| `multichain-scan/`       | Parallel scan across Stellar, EVM, Solana, and CKB           |
+
+Each example has its own `package.json` and `.env.example`:
+
+```bash
+cd examples/stellar-cli-send
+npm install
+cp .env.example .env
+# edit .env
+npm start
+```
+
+## Next Steps
+
+- [Errors & Troubleshooting](./errors.md)
+- [Fee Estimation](./fee-estimation.md)
+- [Edge Runtime Support](./running-on-the-edge.md)

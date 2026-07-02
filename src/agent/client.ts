@@ -1,3 +1,4 @@
+import { RPCRequestError } from '../errors';
 import type {
   WraithConfig,
   AgentConfig,
@@ -24,7 +25,8 @@ export class Wraith {
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
+    const url = `${this.baseUrl}${path}`;
+    const res = await fetch(url, {
       method,
       headers: {
         'Content-Type': 'application/json',
@@ -38,12 +40,19 @@ export class Wraith {
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(error.message || `HTTP ${res.status}`);
+      throw new RPCRequestError(url, res.status, error.message || res.statusText);
     }
 
     return res.json();
   }
 
+  /**
+   * Creates a new stealth address AI agent.
+   *
+   * @param config Configuration for the agent name, chains, signature, and wallet.
+   * @returns A WraithAgent instance to control the new agent.
+   * @throws {RPCRequestError} If the server returns a non-2xx status code.
+   */
   async createAgent(config: AgentConfig): Promise<WraithAgent> {
     const info = await this.request<AgentInfo>('POST', '/agent/create', config);
     return new WraithAgent(this, info);
@@ -59,16 +68,36 @@ export class Wraith {
     });
   }
 
+  /**
+   * Retrieves a WraithAgent instance by their associated wallet address.
+   *
+   * @param walletAddress The base wallet address of the agent owner.
+   * @returns A WraithAgent instance.
+   * @throws {RPCRequestError} If the server returns a non-2xx status code.
+   */
   async getAgentByWallet(walletAddress: string): Promise<WraithAgent> {
     const info = await this.request<AgentInfo>('GET', `/agent/wallet/${walletAddress}`);
     return new WraithAgent(this, info);
   }
 
+  /**
+   * Retrieves a WraithAgent instance by their registered name (e.g. alice.wraith).
+   *
+   * @param name The agent name.
+   * @returns A WraithAgent instance.
+   * @throws {RPCRequestError} If the server returns a non-2xx status code.
+   */
   async getAgentByName(name: string): Promise<WraithAgent> {
     const info = await this.request<AgentInfo>('GET', `/agent/info/${name}`);
     return new WraithAgent(this, info);
   }
 
+  /**
+   * Lists all stealth address AI agents associated with the user's API key.
+   *
+   * @returns List of AgentInfo objects.
+   * @throws {RPCRequestError} If the server returns a non-2xx status code.
+   */
   async listAgents(): Promise<AgentInfo[]> {
     return this.request<AgentInfo[]>('GET', '/agents');
   }

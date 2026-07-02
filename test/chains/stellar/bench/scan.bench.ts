@@ -43,6 +43,12 @@ function makeAnnouncementFor(
   tagScheme: 'legacy-shared-secret' | 'public-announcement',
 ): Announcement {
   const stealth = generateStealthAddress(
+async function makeAnnouncementFor(
+  recipient: StealthKeys,
+  ephemeralSeed: Uint8Array,
+  tagScheme: 'legacy-shared-secret' | 'public-announcement',
+): Promise<Announcement> {
+  const stealth = await generateStealthAddress(
     recipient.spendingPubKey,
     recipient.viewingPubKey,
     ephemeralSeed,
@@ -79,6 +85,32 @@ const matchingAnnouncements = {
 function makeDataset(size: number, tagScheme: 'legacy' | 'optimized') {
   const foreignPool = pools[tagScheme];
   const matchingAnnouncement = matchingAnnouncements[tagScheme];
+let pools: { legacy: Announcement[]; optimized: Announcement[] } | undefined;
+let matchingAnnouncements: { legacy: Announcement; optimized: Announcement } | undefined;
+
+async function initFixtures() {
+  if (pools && matchingAnnouncements) return;
+  pools = {
+    legacy: await Promise.all(
+      Array.from({ length: POOL_SIZE }, (_, i) =>
+        makeAnnouncementFor(foreignKeys, seedFor(i), 'legacy-shared-secret'),
+      ),
+    ),
+    optimized: await Promise.all(
+      Array.from({ length: POOL_SIZE }, (_, i) =>
+        makeAnnouncementFor(foreignKeys, seedFor(i), 'public-announcement'),
+      ),
+    ),
+  };
+  matchingAnnouncements = {
+    legacy: await makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'legacy-shared-secret'),
+    optimized: await makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'public-announcement'),
+  };
+}
+
+function makeDataset(size: number, tagScheme: 'legacy' | 'optimized') {
+  const foreignPool = pools![tagScheme];
+  const matchingAnnouncement = matchingAnnouncements![tagScheme];
 
   return Array.from({ length: size }, (_, i) =>
     i === MATCH_INDEX ? matchingAnnouncement : foreignPool[i % foreignPool.length],
@@ -101,6 +133,28 @@ describe('Stellar scan benchmark fixtures', () => {
     expect(dataset).toBeDefined();
 
     const matched = scanAnnouncements(
+async function getDatasets(): Promise<
+  Map<number, { legacy: Announcement[]; optimized: Announcement[] }>
+> {
+  await initFixtures();
+  return new Map(
+    DATASET_SIZES.map((size) => [
+      size,
+      {
+        legacy: makeDataset(size, 'legacy'),
+        optimized: makeDataset(size, 'optimized'),
+      },
+    ]),
+  );
+}
+
+describe('Stellar scan benchmark fixtures', () => {
+  test('optimized scanner preserves correctness on the 10k synthetic dataset', async () => {
+    const datasets = await getDatasets();
+    const dataset = datasets.get(10_000)?.optimized;
+    expect(dataset).toBeDefined();
+
+    const matched = await scanAnnouncements(
       dataset!,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -109,6 +163,7 @@ describe('Stellar scan benchmark fixtures', () => {
 
     expect(matched).toHaveLength(1);
     expect(matched[0].stealthAddress).toBe(matchingAnnouncements.optimized.stealthAddress);
+    expect(matched[0].stealthAddress).toBe(matchingAnnouncements!.optimized.stealthAddress);
   });
 });
 
@@ -120,6 +175,12 @@ describe('Stellar scan announcement view-tag batching', () => {
       `before: shared-secret view tag (${size.toLocaleString()} announcements)`,
       () => {
         scanAnnouncementsLegacySharedSecretTag(
+    bench(
+      `before: shared-secret view tag (${size.toLocaleString()} announcements)`,
+      async () => {
+        const datasets = await getDatasets();
+        const dataset = datasets.get(size)!;
+        await scanAnnouncementsLegacySharedSecretTag(
           dataset.legacy,
           keys.viewingKey,
           keys.spendingPubKey,
@@ -133,6 +194,10 @@ describe('Stellar scan announcement view-tag batching', () => {
       `after: public view-tag prefilter (${size.toLocaleString()} announcements)`,
       () => {
         scanAnnouncements(
+      async () => {
+        const datasets = await getDatasets();
+        const dataset = datasets.get(size)!;
+        await scanAnnouncements(
           dataset.optimized,
           keys.viewingKey,
           keys.spendingPubKey,
