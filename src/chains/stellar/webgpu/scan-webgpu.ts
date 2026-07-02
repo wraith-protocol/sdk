@@ -15,7 +15,7 @@ import { hexToBytes } from '../utils';
 import { computeSharedSecret } from '../stealth';
 import { hashToScalar, deriveStealthPubKey, pubKeyToStellarAddress, L } from '../scalar';
 import { scanAnnouncements } from '../scan';
-import { SCHEME_ID } from '../constants';
+import { SCHEME_ID, SCHEME_ID_V2 } from '../constants';
 import { WebGPUStellarScanner, isWebGPUAvailable } from './scanner';
 import type { Announcement, MatchedAnnouncement } from '../types';
 
@@ -56,7 +56,7 @@ export async function scanAnnouncementsWebGPU(
   }> = [];
   for (let i = 0; i < announcements.length; i++) {
     const ann = announcements[i];
-    if (ann.schemeId !== SCHEME_ID) continue;
+    if (ann.schemeId !== SCHEME_ID && ann.schemeId !== SCHEME_ID_V2) continue;
     const metaBytes = hexToBytes(ann.metadata);
     if (metaBytes.length === 0) continue;
     const ephPubKey = hexToBytes(ann.ephemeralPubKey);

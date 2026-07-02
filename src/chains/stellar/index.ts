@@ -1,5 +1,13 @@
 export { deriveStealthKeys } from './keys';
-export { STEALTH_SIGNING_MESSAGE, SCHEME_ID, META_ADDRESS_PREFIX } from './constants';
+export {
+  STEALTH_SIGNING_MESSAGE,
+  SCHEME_ID,
+  SCHEME_ID_V1,
+  SCHEME_ID_V2,
+  ANNOUNCE_EVENT_SYMBOL,
+  VIEW_TAG_BUCKET_COUNT,
+  META_ADDRESS_PREFIX,
+} from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
 export {
   generateStealthAddress,
@@ -10,6 +18,7 @@ export {
 export {
   checkStealthAddress,
   scanAnnouncements,
+  scanAnnouncementsStream,
   scanAnnouncementsLegacySharedSecretTag,
 } from './scan';
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
