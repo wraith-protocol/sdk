@@ -1,6 +1,6 @@
 # @wraith-protocol/sdk
 
-The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, five entry points — an agent client for the managed TEE platform and stealth address cryptography for EVM, Stellar, Solana, and CKB chains.
+The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, six entry points — an agent client for the managed TEE platform, stealth address cryptography for EVM, Stellar, Solana, and CKB chains, and a browser-only vault for short-lived derived keys.
 
 ## Installation
 
@@ -12,6 +12,14 @@ pnpm add @wraith-protocol/sdk
 
 `@stellar/stellar-sdk` and `@solana/web3.js` are optional peer dependencies — only required if you import their respective chain modules.
 
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the SDK semver policy, deprecation rules, release checklist, PR conventions, and the rubric for adding a new chain module.
+
+## Upgrading
+
+See [MIGRATING.md](./MIGRATING.md) for breaking changes and migration steps when upgrading to a new major version.
+
 ## Entry Points
 
 | Import                                | Purpose                                              |
@@ -21,6 +29,35 @@ pnpm add @wraith-protocol/sdk
 | `@wraith-protocol/sdk/chains/stellar` | Stellar stealth address crypto (ed25519)             |
 | `@wraith-protocol/sdk/chains/solana`  | Solana stealth address crypto (ed25519)              |
 | `@wraith-protocol/sdk/chains/ckb`     | CKB (Nervos) stealth address crypto (secp256k1)      |
+| `@wraith-protocol/sdk/vault`          | Browser-only passphrase vault for short-lived keys   |
+
+> React Native support is documented in `docs/guides/react-native-setup.mdx` and the companion example at `examples/react-native-stellar`.
+
+## Browser Vault
+
+`KeyVault` is for browser-only apps that need to hold derived stealth keys briefly between scans and spends.
+
+```ts
+import { KeyVault } from '@wraith-protocol/sdk/vault';
+
+const vault = new KeyVault({
+  idleTimeoutMs: 2 * 60 * 1000,
+  lockOnBlur: true,
+});
+
+await vault.unlock(passphrase);
+await vault.put('alice', derivedStealthKeys);
+const keys = await vault.get<typeof derivedStealthKeys>('alice');
+```
+
+Threat model:
+
+- protects against casual local persistence leaks such as `localStorage`
+- does not replace hardware wallets
+- does not protect against a compromised browser, malicious extension, or XSS
+- does not protect against an attacker who can observe the unlocked page context
+
+For demos, keep vault use opt-in behind a user-controlled toggle so browser-only state stays explicit.
 
 ## Agent Client
 
@@ -158,6 +195,8 @@ import {
   signStellarTransaction,
   encodeStealthMetaAddress,
   decodeStealthMetaAddress,
+  fetchAnnouncements,
+  RetentionExceededError,
   SCHEME_ID,
   bytesToHex,
 } from '@wraith-protocol/sdk/chains/stellar';
@@ -188,6 +227,96 @@ const signature = signStellarTransaction(
   matched[0].stealthPrivateScalar,
   matched[0].stealthPubKeyBytes,
 );
+```
+
+### Stellar Multisig Stealth Withdrawals
+
+Use the multisig helpers when a stealth source account is configured with
+Stellar native signer weights. The withdrawal transaction uses `accountMerge`,
+so all remaining native XLM is sent to the destination and the stealth account
+is closed after submission.
+
+```ts
+import {
+  addStealthMultisigSigner,
+  buildMultisigStealthWithdraw,
+  isStealthMultisigReady,
+} from '@wraith-protocol/sdk/chains/stellar';
+
+const signerPublicKeys = [
+  signer1.publicKey(),
+  signer2.publicKey(),
+  signer3.publicKey(),
+  signer4.publicKey(),
+  signer5.publicKey(),
+];
+
+const tx = await buildMultisigStealthWithdraw({
+  stealthAddress: matched[0].stealthAddress,
+  destination: treasury.publicKey(),
+  requiredWeight: 3,
+  signers: signerPublicKeys,
+  horizonUrl: 'https://horizon-futurenet.example',
+  networkPassphrase: process.env.FUTURENET_NETWORK_PASSPHRASE!,
+  timeout: 900,
+});
+
+addStealthMultisigSigner(tx, signer1);
+addStealthMultisigSigner(tx, signer3);
+console.log(isStealthMultisigReady(tx)); // false for this 3-of-5 setup
+
+addStealthMultisigSigner(tx, signer5);
+console.log(isStealthMultisigReady(tx)); // true
+```
+
+For a 3-of-5 account, configure each of the five signers with weight `1` and
+the account high threshold to `3`. Pass the five signer public keys to
+`buildMultisigStealthWithdraw`; the helper loads the account from Horizon and
+rejects signers that are not actually configured on-chain.
+
+The futurenet integration test is opt-in because `accountMerge` is destructive:
+
+```bash
+INTEGRATION=1 \
+FUTURENET_HORIZON_URL="..." \
+FUTURENET_NETWORK_PASSPHRASE="..." \
+FUTURENET_STEALTH_ACCOUNT="G..." \
+FUTURENET_DESTINATION="G..." \
+FUTURENET_SIGNER_SECRETS="S...,S...,S..." \
+pnpm exec vitest run test/chains/stellar/multisig.integration.test.ts
+```
+
+Set `FUTURENET_SUBMIT=1` only when you intentionally want the test to submit
+the destructive `accountMerge`.
+
+### Stellar Incremental Scanning
+
+Use ledger or timestamp bounds to scan only new Soroban announcement events. Persist `nextCursor` after a successful run and pass it back on the next scan; the cursor resumes pagination and takes precedence over `fromLedger`.
+
+```ts
+let cursor = loadCursor();
+
+try {
+  const { announcements, nextCursor } = await fetchAnnouncements('stellar', {
+    cursor,
+    fromTimestamp: cursor ? undefined : new Date(Date.now() - 5 * 60 * 1000),
+  });
+
+  const matched = scanAnnouncements(
+    announcements,
+    keys.viewingKey,
+    keys.spendingPubKey,
+    keys.spendingScalar,
+  );
+
+  saveCursor(nextCursor);
+} catch (error) {
+  if (error instanceof RetentionExceededError) {
+    console.warn(`Restart from ledger ${error.oldestAvailableLedger}`);
+  } else {
+    throw error;
+  }
+}
 ```
 
 ## CKB (Nervos) Stealth Addresses
@@ -264,6 +393,31 @@ const { typeScript } = buildResolveName({ name: 'alice' });
 const metaAddress = metaAddressFromNameData(cellData);
 // => "st:ckb:..."
 ```
+
+## Property tests
+
+The Stellar scalar module is covered by [fast-check](https://fast-check.dev/) property tests in `test/chains/stellar/properties.test.ts`. These go beyond fixed unit tests by generating thousands of random inputs and asserting mathematical invariants:
+
+| Property                    | What it checks                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| Addition associativity      | `(a+b)+c == a+(b+c) mod L` for all scalars                                            |
+| Addition commutativity      | `a+b == b+a mod L`                                                                    |
+| Additive identity           | `a+0 == a mod L`                                                                      |
+| Reduction stability         | `bytesToScalar(scalarToBytes(a)) == a` round-trips losslessly                         |
+| `seedToScalar` determinism  | same seed → same scalar; distinct seeds → distinct scalars                            |
+| Stealth equation            | `(m + s_h)*G == m*G + s_h*G` — the homomorphism that makes stealth spending work      |
+| View-tag uniformity         | chi-square test over 10k inputs confirms `computeViewTag` output is uniform `[0,255]` |
+| `signWithScalar` round-trip | every `(scalar, message)` pair produces a verifiable ed25519 signature                |
+
+```bash
+# Standard run — 1 000 cases per property
+pnpm test
+
+# Thorough fuzz run — 100 000 cases per property
+pnpm test:fuzz
+```
+
+The nightly CI job (`slow-tests`) runs `pnpm test:fuzz` automatically at 02:00 UTC.
 
 ## Documentation
 

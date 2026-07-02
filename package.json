@@ -2,6 +2,9 @@
   "name": "@wraith-protocol/sdk",
   "version": "1.4.5",
   "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "react-native": "./dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -17,6 +20,16 @@
       "types": "./dist/chains/stellar/index.d.ts",
       "import": "./dist/chains/stellar/index.js",
       "require": "./dist/chains/stellar/index.cjs"
+    },
+    "./compat/react-native": {
+      "types": "./dist/compat/react-native.d.ts",
+      "import": "./dist/compat/react-native.js",
+      "require": "./dist/compat/react-native.cjs"
+    },
+    "./vault": {
+      "types": "./dist/vault/index.d.ts",
+      "import": "./dist/vault/index.js",
+      "require": "./dist/vault/index.cjs"
     },
     "./chains/solana": {
       "types": "./dist/chains/solana/index.d.ts",
@@ -35,20 +48,40 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
+    "docs": "typedoc",
     "test:watch": "vitest",
+    "bench": "vitest bench --run",
+    "bench:watch": "vitest bench",
     "clean": "rm -rf dist",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:fuzz": "FC_RUNS=100000 vitest run test/chains/stellar/properties.test.ts"
   },
+  "size-limit": [
+    {
+      "name": "Stellar ESM (import *)",
+      "path": "dist/chains/stellar/index.js",
+      "import": "*",
+      "limit": "20 KB"
+    },
+    {
+      "name": "Stellar CJS (require)",
+      "path": "dist/chains/stellar/index.cjs",
+      "limit": "20 KB"
+    }
+  ],
   "dependencies": {
     "@noble/curves": "^1.8.0",
     "@noble/hashes": "^1.7.0",
+    "@wraith-protocol/sdk": "^1.4.5",
+    "pnpm": "^10.34.4",
+    "rg": "^0.0.2",
     "viem": "^2.23.0"
   },
   "peerDependencies": {
-    "@stellar/stellar-sdk": "^13.1.0",
-    "@solana/web3.js": "^1.95.0"
+    "@solana/web3.js": "^1.95.0",
+    "@stellar/stellar-sdk": "^13.1.0"
   },
   "peerDependenciesMeta": {
     "@stellar/stellar-sdk": {
@@ -61,11 +94,16 @@
   "devDependencies": {
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
+    "@size-limit/esbuild": "^11.0.0",
     "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",
+    "fake-indexeddb": "^6.2.5",
+    "fast-check": "^4.8.0",
     "husky": "^9.1.0",
     "prettier": "^3.4.0",
+    "tinybench": "^2.9.0",
     "tsup": "^8.4.0",
+    "typedoc": "^0.28.19",
     "typescript": "^5.7.0",
     "vitest": "^3.1.0"
   }

@@ -1,0 +1,93 @@
+---
+title: React Native Setup
+---
+
+# React Native Setup for `@wraith-protocol/sdk`
+
+This guide explains how to use `@wraith-protocol/sdk/chains/stellar` in Expo React Native apps, including the minimal polyfills required for RN environments.
+
+## Why this is necessary
+
+React Native does not provide all browser or Node globals by default. The Stellar chain code in `@wraith-protocol/sdk` requires:
+
+- `crypto.getRandomValues` for ed25519 key generation via `@noble/curves`
+- `TextEncoder` / `TextDecoder` for deterministic hashing and serialization
+- `atob` / `btoa` for some Stellar SDK compatibility paths
+- `Buffer` if the app imports `@stellar/stellar-sdk` directly
+
+## What was fixed in the SDK
+
+The SDK now includes the following compatibility improvements:
+
+- `pubKeyToStellarAddress()` now uses a native StrKey encoder instead of `@stellar/stellar-sdk`, reducing runtime dependence on Node-style buffers.
+- A helper export is exposed from the package root:
+  - `installReactNativePolyfills()`
+- Root package metadata now includes `main`, `module`, and `react-native` fields to improve Metro resolution.
+
+## Recommended React Native setup
+
+### 1. Install runtime dependencies
+
+```bash
+pnpm add expo expo-crypto react-native-get-random-values buffer @stellar/stellar-sdk
+```
+
+### 2. Import polyfills before using the SDK
+
+In your app entry point (`App.tsx` or `index.ts`):
+
+```ts
+import 'react-native-get-random-values';
+import { Buffer } from 'buffer';
+
+if (globalThis.Buffer == null) {
+  (globalThis as any).Buffer = Buffer;
+}
+
+if (typeof globalThis.atob === 'undefined') {
+  globalThis.atob = (input: string) => {
+    return Buffer.from(input, 'base64').toString('binary');
+  };
+}
+
+if (typeof globalThis.btoa === 'undefined') {
+  globalThis.btoa = (input: string) => {
+    return Buffer.from(input, 'binary').toString('base64');
+  };
+}
+```
+
+Then import the SDK and optionally install the package helper after app polyfills are in place:
+
+```ts
+import { installReactNativePolyfills } from '@wraith-protocol/sdk';
+import {
+  deriveStealthKeys,
+  generateStealthAddress,
+  scanAnnouncements,
+} from '@wraith-protocol/sdk/chains/stellar';
+
+installReactNativePolyfills();
+```
+
+## Example application
+
+A full example is available at `examples/react-native-stellar` in this repository.
+
+It demonstrates:
+
+- deriving stealth keys from a 64-byte signature
+- generating a one-time Stellar stealth address
+- scanning a fixture announcement
+
+## Root cause breakdown
+
+- `crypto.getRandomValues` missing: belongs in app entry point / runtime polyfill package
+- `Buffer` missing: belongs in app entry point / runtime polyfill package
+- `atob` / `btoa` missing: belongs in app entry point / runtime polyfill package
+- `StrKey` runtime dependency on `@stellar/stellar-sdk`: fixed in SDK itself by adding a pure JS Stellar address encoder
+
+## Notes
+
+- New Expo SDK 51+ and Hermes 0.74+ include `TextEncoder` / `TextDecoder`, but the package also now includes a fallback polyfill helper for older RN engines.
+- This guide is intentionally minimal: the SDK itself is now cross-platform out of the box for Stellar core cryptography, with only standard RN polyfills required in the app.

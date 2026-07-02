@@ -1,3 +1,4 @@
+import { InvalidScalarError } from '../../errors';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { keccak256, toHex, toBytes, getAddress } from 'viem';
 import type { HexString, GeneratedStealthAddress } from './types';
@@ -35,7 +36,7 @@ export function generateStealthAddress(
   const n = secp256k1.CURVE.n;
   let secretScalar = BigInt(hashedSecret) % n;
   if (secretScalar === 0n) {
-    throw new Error('Hashed secret reduced to zero mod n');
+    throw new InvalidScalarError(secretScalar, 'Hashed secret reduced to zero mod n');
   }
 
   const K_spend = secp256k1.ProjectivePoint.fromHex(toBytes(spendingPubKey));
