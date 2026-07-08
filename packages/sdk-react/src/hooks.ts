@@ -10,6 +10,10 @@ import {
   type BuildStealthPaymentOptions,
 } from '@wraith-protocol/sdk/chains/stellar';
 import { Horizon } from '@stellar/stellar-sdk';
+import { getPlatform, setPlatform, type Platform } from './platform';
+
+export { getPlatform, setPlatform };
+export type { Platform };
 
 /** Hook to generate and manage stealth keys */
 export function useStellarStealthKeys() {

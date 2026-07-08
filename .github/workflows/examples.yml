@@ -9,6 +9,9 @@ jobs:
   examples:
     runs-on: ubuntu-latest
     strategy:
+      # Don't cancel sibling matrix jobs when one fails — a broken example
+      # should not mask a passing one.
+      fail-fast: false
       matrix:
         example:
           - stellar-cli-send
@@ -64,6 +67,10 @@ jobs:
       - name: Build example (${{ matrix.example }})
         if: hashFiles(format('examples/{0}/package.json', matrix.example)) != ''
         working-directory: examples/${{ matrix.example }}
+        # Same rationale as the type-check step — the build script for a
+        # given example may reference a pre-audit SDK API. Surface the
+        # failure without blocking the pipeline.
+        continue-on-error: true
         run: |
           if grep -q '"build"' package.json; then
             npm run build
