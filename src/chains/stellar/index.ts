@@ -1,4 +1,12 @@
-export { deriveStealthKeys } from './keys';
+export { deriveStealthKeys, deriveStealthKeysFromSigner } from './keys';
+export { FreighterStealthSigner, WebAuthnPasskeyStealthSigner } from './signer';
+export type {
+  StellarStealthSigner,
+  FreighterLikeWallet,
+  WebAuthnPRFAssertion,
+  WebAuthnCredentialsContainer,
+  WebAuthnPasskeyStealthSignerOptions,
+} from './signer';
 export {
   STEALTH_SIGNING_MESSAGE,
   SCHEME_ID,

@@ -2,13 +2,19 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { useStellarStealthKeys, useStellarBalance } from '../src/hooks';
-import { deriveStealthKeys } from '@wraith-protocol/sdk/chains/stellar';
+import {
+  deriveStealthKeys,
+  deriveStealthKeysFromSigner,
+} from '@wraith-protocol/sdk/chains/stellar';
 
 vi.mock('@wraith-protocol/sdk/chains/stellar', async () => {
   const original: any = await vi.importActual('@wraith-protocol/sdk/chains/stellar');
   return {
     ...original,
     deriveStealthKeys: vi.fn(() => ({ viewPrivateKey: 'vpk', spendPrivateKey: 'spk' })),
+    deriveStealthKeysFromSigner: vi.fn(() =>
+      Promise.resolve({ viewPrivateKey: 'vpk-signer', spendPrivateKey: 'spk-signer' }),
+    ),
     fetchAnnouncements: vi.fn(() => Promise.resolve({ announcements: [] })),
     buildStealthPayment: vi.fn(() => Promise.resolve({})),
     getDeployment: vi.fn(() => ({ rpcUrl: 'https://rpc', contracts: { names: 'foo' } })),
@@ -41,6 +47,21 @@ describe('useStellarStealthKeys', () => {
 
     expect(result.current.keys).toEqual({ viewPrivateKey: 'vpk', spendPrivateKey: 'spk' });
     expect(deriveStealthKeys).toHaveBeenCalled();
+  });
+
+  it('generates keys from a signer', async () => {
+    const { result } = renderHook(() => useStellarStealthKeys());
+    const signer = { signMessage: vi.fn(() => Promise.resolve(new Uint8Array(64))) };
+
+    await act(async () => {
+      await result.current.generateFromSigner(signer);
+    });
+
+    expect(result.current.keys).toEqual({
+      viewPrivateKey: 'vpk-signer',
+      spendPrivateKey: 'spk-signer',
+    });
+    expect(deriveStealthKeysFromSigner).toHaveBeenCalledWith(signer);
   });
 });
 

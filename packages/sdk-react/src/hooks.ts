@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   deriveStealthKeys,
+  deriveStealthKeysFromSigner,
   buildStealthPayment,
   getDeployment,
   type StealthKeys,
+  type StellarStealthSigner,
   type BuildStealthPaymentOptions,
 } from '@wraith-protocol/sdk/chains/stellar';
 import { Horizon } from '@stellar/stellar-sdk';
@@ -20,7 +22,13 @@ export function useStellarStealthKeys() {
     return derived;
   }, []);
 
-  return { keys, generate };
+  const generateFromSigner = useCallback(async (signer: StellarStealthSigner) => {
+    const derived = await deriveStealthKeysFromSigner(signer);
+    setKeys(derived);
+    return derived;
+  }, []);
+
+  return { keys, generate, generateFromSigner };
 }
 
 /** Hook to send stealth payments */
