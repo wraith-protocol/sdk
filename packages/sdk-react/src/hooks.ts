@@ -1,15 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   deriveStealthKeys,
-  fetchAnnouncements,
   buildStealthPayment,
   getDeployment,
   type StealthKeys,
-  type FetchAnnouncementsOptions,
-  type Announcement,
   type BuildStealthPaymentOptions,
 } from '@wraith-protocol/sdk/chains/stellar';
 import { Horizon } from '@stellar/stellar-sdk';
+
+export { useScanner } from './hooks/useScanner';
 
 /** Hook to generate and manage stealth keys */
 export function useStellarStealthKeys() {
@@ -22,30 +21,6 @@ export function useStellarStealthKeys() {
   }, []);
 
   return { keys, generate };
-}
-
-/** Hook to scan for announcements */
-export function useStellarAnnouncementScan() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [scanning, setScanning] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const scan = useCallback(async (options: FetchAnnouncementsOptions) => {
-    setScanning(true);
-    setError(null);
-    try {
-      const result = await fetchAnnouncements(options);
-      setAnnouncements(result.announcements);
-      return result.announcements;
-    } catch (err: any) {
-      setError(err);
-      throw err;
-    } finally {
-      setScanning(false);
-    }
-  }, []);
-
-  return { announcements, scanning, error, scan };
 }
 
 /** Hook to send stealth payments */

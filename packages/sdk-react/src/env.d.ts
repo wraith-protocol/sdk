@@ -1,6 +1,7 @@
 declare module '@wraith-protocol/sdk/chains/stellar' {
   export const deriveStealthKeys: any;
   export const fetchAnnouncements: any;
+  export const fetchAnnouncementsStream: any;
   export const buildStealthPayment: any;
   export const getDeployment: any;
   export type StealthKeys = any;
