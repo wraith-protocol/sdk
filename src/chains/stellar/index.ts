@@ -89,4 +89,11 @@ export type {
 } from './path-payment';
 export { encodeMemo, decodeMemo, extractMemoFromTransaction } from './memo';
 export type { MemoType, MemoValue, TypedMemo } from './memo';
+
+export {
+  getAssetMetadata,
+  getAssetBalance,
+  clearAssetMetadataCache,
+} from './asset';
+export type { AssetMetadata, GetAssetMetadataOptions, GetAssetBalanceOptions } from './asset';
 export { MemoValidationError, TEXT_MEMO_MAX_BYTES, HASH_MEMO_BYTES, ID_MEMO_MAX } from './memo';
