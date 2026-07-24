@@ -16,7 +16,7 @@ import type { Announcement, StealthKeys } from '../../../../src/chains/stellar/t
 
 const MATCH_INDEX = 997;
 const POOL_SIZE = 512;
-const DEFAULT_DATASET_SIZES = [10_000, 100_000, 1_000_000] as const;
+const DEFAULT_DATASET_SIZES = [10_000, 100_000] as const;
 const DATASET_SIZES = (
   process.env.STELLAR_SCAN_BENCH_SIZES?.split(',').map(Number) ?? [...DEFAULT_DATASET_SIZES]
 ).filter((size) => Number.isFinite(size) && size > 0);
@@ -43,12 +43,6 @@ function makeAnnouncementFor(
   tagScheme: 'legacy-shared-secret' | 'public-announcement',
 ): Announcement {
   const stealth = generateStealthAddress(
-async function makeAnnouncementFor(
-  recipient: StealthKeys,
-  ephemeralSeed: Uint8Array,
-  tagScheme: 'legacy-shared-secret' | 'public-announcement',
-): Promise<Announcement> {
-  const stealth = await generateStealthAddress(
     recipient.spendingPubKey,
     recipient.viewingPubKey,
     ephemeralSeed,
@@ -68,43 +62,23 @@ async function makeAnnouncementFor(
   };
 }
 
-const pools = {
-  legacy: Array.from({ length: POOL_SIZE }, (_, i) =>
-    makeAnnouncementFor(foreignKeys, seedFor(i), 'legacy-shared-secret'),
-  ),
-  optimized: Array.from({ length: POOL_SIZE }, (_, i) =>
-    makeAnnouncementFor(foreignKeys, seedFor(i), 'public-announcement'),
-  ),
-};
-
-const matchingAnnouncements = {
-  legacy: makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'legacy-shared-secret'),
-  optimized: makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'public-announcement'),
-};
-
-function makeDataset(size: number, tagScheme: 'legacy' | 'optimized') {
-  const foreignPool = pools[tagScheme];
-  const matchingAnnouncement = matchingAnnouncements[tagScheme];
 let pools: { legacy: Announcement[]; optimized: Announcement[] } | undefined;
 let matchingAnnouncements: { legacy: Announcement; optimized: Announcement } | undefined;
 
 async function initFixtures() {
   if (pools && matchingAnnouncements) return;
+
   pools = {
-    legacy: await Promise.all(
-      Array.from({ length: POOL_SIZE }, (_, i) =>
-        makeAnnouncementFor(foreignKeys, seedFor(i), 'legacy-shared-secret'),
-      ),
+    legacy: Array.from({ length: POOL_SIZE }, (_, i) =>
+      makeAnnouncementFor(foreignKeys, seedFor(i), 'legacy-shared-secret'),
     ),
-    optimized: await Promise.all(
-      Array.from({ length: POOL_SIZE }, (_, i) =>
-        makeAnnouncementFor(foreignKeys, seedFor(i), 'public-announcement'),
-      ),
+    optimized: Array.from({ length: POOL_SIZE }, (_, i) =>
+      makeAnnouncementFor(foreignKeys, seedFor(i), 'public-announcement'),
     ),
   };
   matchingAnnouncements = {
-    legacy: await makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'legacy-shared-secret'),
-    optimized: await makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'public-announcement'),
+    legacy: makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'legacy-shared-secret'),
+    optimized: makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'public-announcement'),
   };
 }
 
@@ -117,71 +91,32 @@ function makeDataset(size: number, tagScheme: 'legacy' | 'optimized') {
   );
 }
 
-const datasets = new Map(
-  DATASET_SIZES.map((size) => [
-    size,
-    {
-      legacy: makeDataset(size, 'legacy'),
-      optimized: makeDataset(size, 'optimized'),
-    },
-  ]),
-);
-
-describe('Stellar scan benchmark fixtures', () => {
-  test('optimized scanner preserves correctness on the 10k synthetic dataset', () => {
-    const dataset = datasets.get(10_000)?.optimized;
-    expect(dataset).toBeDefined();
-
-    const matched = scanAnnouncements(
-async function getDatasets(): Promise<
-  Map<number, { legacy: Announcement[]; optimized: Announcement[] }>
-> {
-  await initFixtures();
-  return new Map(
-    DATASET_SIZES.map((size) => [
-      size,
-      {
-        legacy: makeDataset(size, 'legacy'),
-        optimized: makeDataset(size, 'optimized'),
-      },
-    ]),
-  );
-}
-
 describe('Stellar scan benchmark fixtures', () => {
   test('optimized scanner preserves correctness on the 10k synthetic dataset', async () => {
-    const datasets = await getDatasets();
-    const dataset = datasets.get(10_000)?.optimized;
-    expect(dataset).toBeDefined();
+    await initFixtures();
+    const dataset = makeDataset(10_000, 'optimized');
 
-    const matched = await scanAnnouncements(
-      dataset!,
+    const matched = scanAnnouncements(
+      dataset,
       keys.viewingKey,
       keys.spendingPubKey,
       keys.spendingScalar,
     );
 
     expect(matched).toHaveLength(1);
-    expect(matched[0].stealthAddress).toBe(matchingAnnouncements.optimized.stealthAddress);
     expect(matched[0].stealthAddress).toBe(matchingAnnouncements!.optimized.stealthAddress);
   });
 });
 
 describe('Stellar scan announcement view-tag batching', () => {
   for (const size of DATASET_SIZES) {
-    const dataset = datasets.get(size)!;
-
-    bench(
-      `before: shared-secret view tag (${size.toLocaleString()} announcements)`,
-      () => {
-        scanAnnouncementsLegacySharedSecretTag(
     bench(
       `before: shared-secret view tag (${size.toLocaleString()} announcements)`,
       async () => {
-        const datasets = await getDatasets();
-        const dataset = datasets.get(size)!;
-        await scanAnnouncementsLegacySharedSecretTag(
-          dataset.legacy,
+        await initFixtures();
+        const dataset = makeDataset(size, 'legacy');
+        scanAnnouncementsLegacySharedSecretTag(
+          dataset,
           keys.viewingKey,
           keys.spendingPubKey,
           keys.spendingScalar,
@@ -192,13 +127,11 @@ describe('Stellar scan announcement view-tag batching', () => {
 
     bench(
       `after: public view-tag prefilter (${size.toLocaleString()} announcements)`,
-      () => {
-        scanAnnouncements(
       async () => {
-        const datasets = await getDatasets();
-        const dataset = datasets.get(size)!;
-        await scanAnnouncements(
-          dataset.optimized,
+        await initFixtures();
+        const dataset = makeDataset(size, 'optimized');
+        scanAnnouncements(
+          dataset,
           keys.viewingKey,
           keys.spendingPubKey,
           keys.spendingScalar,

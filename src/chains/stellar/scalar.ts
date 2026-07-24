@@ -120,8 +120,12 @@ export function scalarToBytes(scalar: bigint): Uint8Array {
  *
  * @see {@link pubKeyToStellarAddress}
  */
-export function deriveStealthPubKey(spendingPubKey: Uint8Array, hashScalar: bigint): Uint8Array {
-  const K_spend = ed25519.ExtendedPoint.fromHex(spendingPubKey);
+export function deriveStealthPubKey(
+  spendingPubKey: Uint8Array,
+  hashScalar: bigint,
+  spendingPoint?: ed25519.ExtendedPoint,
+): Uint8Array {
+  const K_spend = spendingPoint ?? ed25519.ExtendedPoint.fromHex(spendingPubKey);
   const hashPoint = ed25519.ExtendedPoint.BASE.multiply(hashScalar);
   const stealthPoint = K_spend.add(hashPoint);
   return stealthPoint.toRawBytes();

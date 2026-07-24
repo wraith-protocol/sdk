@@ -5,6 +5,46 @@ import { SCHEME_ID, SCHEME_ID_V2 } from './constants';
 import type { Announcement, MatchedAnnouncement } from './types';
 import { hexToBytes } from './utils';
 
+const HEX_TO_BYTE = (() => {
+  const table = new Uint8Array(256).fill(255);
+  const lower = '0123456789abcdef';
+  const upper = '0123456789ABCDEF';
+  for (let i = 0; i < 16; i++) {
+    table[lower.charCodeAt(i)] = i;
+    table[upper.charCodeAt(i)] = i;
+  }
+  return table;
+})();
+
+function readViewTag(metadata: string): number | null {
+  const clean = metadata.startsWith('0x') ? metadata.slice(2) : metadata;
+  if (clean.length < 2) return null;
+
+  const hi = HEX_TO_BYTE[clean.charCodeAt(0)];
+  const lo = HEX_TO_BYTE[clean.charCodeAt(1)];
+  if (hi === 255 || lo === 255) return null;
+
+  return (hi << 4) | lo;
+}
+
+function decodeHexToBuffer(hex: string, output: Uint8Array): Uint8Array | null {
+  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+  if ((clean.length & 1) !== 0) return null;
+
+  const byteCount = clean.length / 2;
+  if (byteCount > output.length) return null;
+
+  let outOffset = 0;
+  for (let i = 0; i < clean.length; i += 2) {
+    const hi = HEX_TO_BYTE[clean.charCodeAt(i)];
+    const lo = HEX_TO_BYTE[clean.charCodeAt(i + 1)];
+    if (hi === 255 || lo === 255) return null;
+    output[outOffset++] = (hi << 4) | lo;
+  }
+
+  return output.subarray(0, outOffset);
+}
+
 /**
  * Streaming announcement scanner. Pulls announcements from `source` in windows of
  * `opts.window` (default 64), scans each window, and yields matches immediately.
@@ -33,11 +73,20 @@ export async function* scanAnnouncementsStream(
 ): AsyncGenerator<MatchedAnnouncement> {
   const windowSize = Math.max(1, opts.window ?? 64);
   const iter = source[Symbol.asyncIterator]();
+  const viewingPubKey = ed25519.getPublicKey(viewingKey);
+  const ephemeralBuffer = new Uint8Array(32);
+  const batch: Announcement[] = [];
+  let spendingPoint: ed25519.ExtendedPoint | undefined;
 
   try {
+    try {
+      spendingPoint = ed25519.ExtendedPoint.fromHex(spendingPubKey);
+    } catch {
+      spendingPoint = undefined;
+    }
+
     while (true) {
-      // Prefetch up to windowSize announcements — bounds peak memory to O(window)
-      const batch: Announcement[] = [];
+      batch.length = 0;
       for (let i = 0; i < windowSize; i++) {
         const next = await iter.next();
         if (next.done) break;
@@ -49,14 +98,20 @@ export async function* scanAnnouncementsStream(
       for (const ann of batch) {
         if (ann.schemeId !== SCHEME_ID && ann.schemeId !== SCHEME_ID_V2) continue;
 
-        const metadataBytes = hexToBytes(ann.metadata);
-        if (metadataBytes.length === 0) continue;
-        const viewTag = metadataBytes[0];
+        const viewTag = readViewTag(ann.metadata);
+        if (viewTag === null) continue;
 
-        const ephPubKey = hexToBytes(ann.ephemeralPubKey);
-        if (ephPubKey.length !== 32) continue;
+        const ephPubKey = decodeHexToBuffer(ann.ephemeralPubKey, ephemeralBuffer);
+        if (!ephPubKey || ephPubKey.length !== 32 || !spendingPoint) continue;
 
-        const result = checkStealthAddress(ephPubKey, viewingKey, spendingPubKey, viewTag);
+        const result = checkStealthAddressWithViewingPubKey(
+          ephPubKey,
+          viewingKey,
+          viewingPubKey,
+          spendingPubKey,
+          viewTag,
+          spendingPoint,
+        );
 
         if (
           result.isMatch &&
@@ -121,12 +176,14 @@ export function checkStealthAddress(
   stealthPubKeyBytes: Uint8Array | null;
 } {
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
+  const spendingPoint = ed25519.ExtendedPoint.fromHex(spendingPubKey);
   return checkStealthAddressWithViewingPubKey(
     ephemeralPubKey,
     viewingKey,
     viewingPubKey,
     spendingPubKey,
     viewTag,
+    spendingPoint,
   );
 }
 
@@ -136,6 +193,7 @@ function checkStealthAddressWithViewingPubKey(
   viewingPubKey: Uint8Array,
   spendingPubKey: Uint8Array,
   viewTag: number,
+  spendingPoint?: ed25519.ExtendedPoint,
 ): {
   isMatch: boolean;
   stealthAddress: string | null;
@@ -148,7 +206,12 @@ function checkStealthAddressWithViewingPubKey(
   }
 
   try {
-    return deriveStealthAddressFromAnnouncement(ephemeralPubKey, viewingKey, spendingPubKey);
+    return deriveStealthAddressFromAnnouncement(
+      ephemeralPubKey,
+      viewingKey,
+      spendingPubKey,
+      spendingPoint,
+    );
   } catch {
     return { isMatch: false, stealthAddress: null, hashScalar: null, stealthPubKeyBytes: null };
   }
@@ -158,6 +221,7 @@ function deriveStealthAddressFromAnnouncement(
   ephemeralPubKey: Uint8Array,
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
+  spendingPoint?: ed25519.ExtendedPoint,
 ): {
   isMatch: boolean;
   stealthAddress: string | null;
@@ -167,7 +231,7 @@ function deriveStealthAddressFromAnnouncement(
   const sharedSecret = computeSharedSecret(viewingKey, ephemeralPubKey);
   const hScalar = hashToScalar(sharedSecret);
 
-  const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar);
+  const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar, spendingPoint);
   const stealthAddress = pubKeyToStellarAddress(stealthPubKeyBytes);
 
   return { isMatch: true, stealthAddress, hashScalar: hScalar, stealthPubKeyBytes };
@@ -214,16 +278,24 @@ export function scanAnnouncements(
 ): MatchedAnnouncement[] {
   const matched: MatchedAnnouncement[] = [];
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
+  const ephemeralBuffer = new Uint8Array(32);
+  let spendingPoint: ed25519.ExtendedPoint | undefined;
 
-  for (const ann of announcements) {
+  try {
+    spendingPoint = ed25519.ExtendedPoint.fromHex(spendingPubKey);
+  } catch {
+    spendingPoint = undefined;
+  }
+
+  for (let i = 0, len = announcements.length; i < len; i++) {
+    const ann = announcements[i];
     if (ann.schemeId !== SCHEME_ID && ann.schemeId !== SCHEME_ID_V2) continue;
 
-    const metadataBytes = hexToBytes(ann.metadata);
-    if (metadataBytes.length === 0) continue;
-    const viewTag = metadataBytes[0];
+    const viewTag = readViewTag(ann.metadata);
+    if (viewTag === null) continue;
 
-    const ephPubKey = hexToBytes(ann.ephemeralPubKey);
-    if (ephPubKey.length !== 32) continue;
+    const ephPubKey = decodeHexToBuffer(ann.ephemeralPubKey, ephemeralBuffer);
+    if (!ephPubKey || ephPubKey.length !== 32 || !spendingPoint) continue;
 
     const result = checkStealthAddressWithViewingPubKey(
       ephPubKey,
@@ -231,6 +303,7 @@ export function scanAnnouncements(
       viewingPubKey,
       spendingPubKey,
       viewTag,
+      spendingPoint,
     );
 
     if (
