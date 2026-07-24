@@ -57,7 +57,8 @@
     "format:check": "prettier --check .",
     "prepare": "husky",
     "test:fuzz": "FC_RUNS=100000 vitest run test/chains/stellar/properties.test.ts",
-    "test:leak": "vitest run test/leaks/scan-leak.test.ts"
+    "test:leak": "vitest run test/leaks/scan-leak.test.ts",
+    "api:check": "api-extractor run --config api-extractor.json && api-extractor run --config api-extractor-evm.json && api-extractor run --config api-extractor-stellar.json && api-extractor run --config api-extractor-solana.json && api-extractor run --config api-extractor-ckb.json && api-extractor run --config api-extractor-vault.json"
   },
   "size-limit": [
     {
@@ -95,6 +96,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
+    "@microsoft/api-extractor": "^7.58.12",
     "@size-limit/esbuild": "^11.0.0",
     "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",

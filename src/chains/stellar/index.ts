@@ -17,17 +17,16 @@ export {
   META_ADDRESS_PREFIX,
 } from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
-export {
-  generateStealthAddress,
-  computeSharedSecret,
-  computeAnnouncementViewTag,
-  computeViewTag,
-} from './stealth';
-export {
-  checkStealthAddress,
-  scanAnnouncements,
-  scanAnnouncementsLegacySharedSecretTag,
-} from './scan';
+export { generateStealthAddress } from './stealth';
+/**
+ * @internal
+ */
+export { computeSharedSecret, computeAnnouncementViewTag, computeViewTag } from './stealth';
+export { checkStealthAddress, scanAnnouncements } from './scan';
+/**
+ * @internal
+ */
+export { scanAnnouncementsLegacySharedSecretTag } from './scan';
 
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export {
@@ -36,12 +35,21 @@ export {
   prepareStealthAccountForAsset,
   buildWithdrawCustomAsset,
 } from './builders';
+export {
+  buildMultisigStealthWithdraw,
+  addStealthMultisigSigner,
+  isStealthMultisigReady,
+} from './multisig';
+export type { BuildMultisigStealthWithdrawOptions } from './multisig';
 export type {
   BuildStealthPaymentOptions,
   BuildAnnouncementOptions,
   AssetReceivabilityResult,
   BuildWithdrawCustomAssetOptions,
 } from './builders';
+/**
+ * @internal
+ */
 export {
   seedToScalar,
   hashToScalar,
@@ -51,15 +59,21 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
-export {
-  fetchAnnouncementsStream,
-  RetentionExceededError,
-  parseAnnouncementEvent,
-} from './announcements';
+/**
+ * @internal
+ */
+export { fetchAnnouncementsStream, parseAnnouncementEvent } from './announcements';
+export { RetentionExceededError } from './announcements';
 export type { FetchAnnouncementsOptions } from './announcements';
+/**
+ * @internal
+ */
 export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
 export type { AnnouncementCache } from './cache';
 
+/**
+ * @internal
+ */
 export {
   MAX_RPC_EVENT_FILTERS,
   encodeSymbolTopic,
@@ -72,7 +86,13 @@ export {
   buildV2BucketEventFilterBatches,
 } from './event-filters';
 export type { SorobanEventFilter, SorobanTopicMatcher } from './event-filters';
+/**
+ * @internal
+ */
 export { DEPLOYMENTS, getDeployment } from './deployments';
+/**
+ * @internal
+ */
 export { StellarBatchBuilder, encodeAnnouncementData, decodeAnnouncementData } from './batch';
 export type { StealthPaymentConfig, BatchConfig, BuildResult } from './batch';
 export {

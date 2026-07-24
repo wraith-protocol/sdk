@@ -22,7 +22,7 @@
   },
   "peerDependencies": {
     "@stellar/stellar-sdk": "^13.1.0",
-    "@wraith-protocol/sdk": "workspace:*",
+    "@wraith-protocol/sdk": ">=1.0.0 <2",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },

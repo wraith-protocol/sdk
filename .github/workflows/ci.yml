@@ -24,6 +24,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run format:check
       - run: pnpm build
+      - run: pnpm api:check
       - run: pnpm test
 
   differential:

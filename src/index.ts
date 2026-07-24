@@ -1,5 +1,8 @@
 export { Wraith, WraithAgent } from './agent/client';
 export { Chain } from './agent/types';
+/**
+ * @internal
+ */
 export { installReactNativePolyfills } from './compat';
 export { scanAll } from './scanner/unified';
 export type {
