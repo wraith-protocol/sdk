@@ -10,19 +10,19 @@ Use semantic versioning for every release:
 - **Minor** versions are for backward-compatible features, new chain support, and additive exports.
 - **Patch** versions are for backward-compatible fixes, documentation corrections, and internal-only changes.
 
-| Change                                    | Version bump   | Examples                                                                                                                                                                                           |
+| Change | Version bump | Examples |
 | ----------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| New chain module                          | Minor          | Adding `@wraith-protocol/sdk/chains/hedera` is minor because existing imports keep working. Adding `chains/stellar` helpers while preserving current Stellar exports is also minor.                |
-| New function exported from a chain module | Minor          | Exporting `validateMetaAddress()` from `chains/stellar` is minor. Exporting `buildAnnouncementMemo()` from `chains/evm` is minor.                                                                  |
-| Function signature changed                | Major          | Changing `scanAnnouncements(announcements, viewingKey, spendingPubKey, spendingKey)` to accept one options object is major. Changing `generateStealthAddress()` to return renamed fields is major. |
-| Function removed                          | Major          | Removing `deriveStealthPrivateKey()` from EVM is major. Removing `decodeStealthMetaAddress()` from any chain module is major.                                                                      |
-| Crypto behavior changed                   | Major          | Changing a domain-separation prefix is major. Changing the view-tag derivation scheme is major.                                                                                                    |
-| Type tightened                            | Major          | Changing `string` to `` `0x${string}` `` for an accepted user input is major. Changing `Uint8Array` input to a fixed-length branded type is major unless the previous type still works.            |
-| Type loosened                             | Minor          | Accepting `ReadonlyArray<Announcement>` where `Announcement[]` worked before is minor. Accepting `HexString                                                                                        | Uint8Array` is minor if existing callers still type-check. |
-| Bundler config or `exports` changed       | Major or patch | Removing a package subpath from `exports` is major. Adding a missing CommonJS condition for an existing subpath is patch if no import path changes.                                                |
-| Dependency major bumped                   | Major or minor | Bumping `@noble/curves` from 1 to 2 is major if it changes public types or runtime support. It can be minor if the SDK API and supported runtimes are unchanged.                                   |
-| Default network or RPC URL changed        | Major or minor | Changing a default from mainnet to testnet is major. Rotating to an equivalent healthy RPC endpoint is minor if behavior is unchanged.                                                             |
-| Bug fix that changes buggy behavior       | Patch or major | Fixing an invalid checksum calculation is patch if it makes documented behavior work. Changing accepted malformed meta-addresses to throw is major if users may rely on parsing them.              |
+| New chain module | Minor | Adding `@wraith-protocol/sdk/chains/hedera` is minor because existing imports keep working. Adding `chains/stellar` helpers while preserving current Stellar exports is also minor. |
+| New function exported from a chain module | Minor | Exporting `validateMetaAddress()` from `chains/stellar` is minor. Exporting `buildAnnouncementMemo()` from `chains/evm` is minor. |
+| Function signature changed | Major | Changing `scanAnnouncements(announcements, viewingKey, spendingPubKey, spendingKey)` to accept one options object is major. Changing `generateStealthAddress()` to return renamed fields is major. |
+| Function removed | Major | Removing `deriveStealthPrivateKey()` from EVM is major. Removing `decodeStealthMetaAddress()` from any chain module is major. |
+| Crypto behavior changed | Major | Changing a domain-separation prefix is major. Changing the view-tag derivation scheme is major. |
+| Type tightened | Major | Changing `string` to `` `0x${string}` `` for an accepted user input is major. Changing `Uint8Array` input to a fixed-length branded type is major unless the previous type still works. |
+| Type loosened | Minor | Accepting `ReadonlyArray<Announcement>` where `Announcement[]` worked before is minor. Accepting `HexString                                                                                        | Uint8Array` is minor if existing callers still type-check. |
+| Bundler config or `exports` changed | Major or patch | Removing a package subpath from `exports` is major. Adding a missing CommonJS condition for an existing subpath is patch if no import path changes. |
+| Dependency major bumped | Major or minor | Bumping `@noble/curves` from 1 to 2 is major if it changes public types or runtime support. It can be minor if the SDK API and supported runtimes are unchanged. |
+| Default network or RPC URL changed | Major or minor | Changing a default from mainnet to testnet is major. Rotating to an equivalent healthy RPC endpoint is minor if behavior is unchanged. |
+| Bug fix that changes buggy behavior | Patch or major | Fixing an invalid checksum calculation is patch if it makes documented behavior work. Changing accepted malformed meta-addresses to throw is major if users may rely on parsing them. |
 
 When a change is ambiguous, choose the larger bump and document why in the changelog.
 

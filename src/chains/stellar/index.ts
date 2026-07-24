@@ -90,3 +90,13 @@ export type {
 export { encodeMemo, decodeMemo, extractMemoFromTransaction } from './memo';
 export type { MemoType, MemoValue, TypedMemo } from './memo';
 export { MemoValidationError, TEXT_MEMO_MAX_BYTES, HASH_MEMO_BYTES, ID_MEMO_MAX } from './memo';
+export {
+  encodeMemoSchema,
+  decodeMemoSchema,
+  MemoKind,
+  MEMO_SCHEMA_VERSION,
+  SCHEMA_MEMO_BYTES,
+  SCHEMA_HEADER_BYTES,
+  SCHEMA_MAX_DATA_BYTES,
+} from './memo/schema';
+export type { MemoSchemaV1, DecodedMemoSchema } from './memo/schema';
