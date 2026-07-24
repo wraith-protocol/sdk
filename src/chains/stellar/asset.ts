@@ -1,5 +1,6 @@
 import type { Network } from './types';
 import { UnsupportedAssetError } from '../../errors';
+import { Account, Contract, TransactionBuilder, rpc } from '@stellar/stellar-sdk';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,19 +81,18 @@ async function callContractMethod<T>(
   args: unknown[],
   rpcUrl: string,
 ): Promise<T> {
-  const stellar = await import('@stellar/stellar-sdk');
-  const server = new stellar.rpc.Server(rpcUrl);
-  const contract = new stellar.Contract(contractId);
+  const server = new rpc.Server(rpcUrl);
+  const contract = new Contract(contractId);
 
   // Build the contract operation
   const operation = contract.call(method, ...(args as [any, ...any[]]));
 
   // Simulate to get the result without submitting
-  const sourceAccount = new stellar.Account(
+  const sourceAccount = new Account(
     'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
     '12345',
   );
-  const tx = new stellar.TransactionBuilder(sourceAccount, {
+  const tx = new TransactionBuilder(sourceAccount, {
     networkPassphrase: rpcUrl.includes('testnet')
       ? 'Test SDF Network ; September 2015'
       : 'Public Global Stellar Network ; September 2015',
@@ -106,9 +106,7 @@ async function callContractMethod<T>(
 
   // Type guard for error response
   if ('error' in simResult) {
-    throw new Error(
-      `SEP-41 contract call "${method}" failed: ${simResult.error}`,
-    );
+    throw new Error(`SEP-41 contract call "${method}" failed: ${simResult.error}`);
   }
 
   // Type guard for success response
@@ -134,7 +132,7 @@ async function callContractMethod<T>(
 
   if (method === BALANCE_METHOD) {
     // Decode i128 balance
-    const raw = (scv as any).i128?.lo?.toString() || '0';
+    const raw = (scv as any).i128?.lo?.()?.toString() || '0';
     return BigInt(raw) as T;
   }
 
@@ -239,12 +237,7 @@ export async function getAssetBalance(
     );
   }
 
-  const balance = await callContractMethod<bigint>(
-    contractId,
-    BALANCE_METHOD,
-    [address],
-    rpcUrl,
-  );
+  const balance = await callContractMethod<bigint>(contractId, BALANCE_METHOD, [address], rpcUrl);
 
   return balance;
 }
