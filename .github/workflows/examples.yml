@@ -19,6 +19,7 @@ jobs:
           - stellar-react-receive
           - stellar-spectre-agent
           - multichain-scan
+          - stellar-nextjs-app-router
     steps:
       - uses: actions/checkout@v4
 
@@ -37,9 +38,25 @@ jobs:
       - name: Build SDK
         run: pnpm build
 
+      - name: Build sdk-react (needed by stellar-nextjs-app-router)
+        if: matrix.example == 'stellar-nextjs-app-router'
+        run: pnpm --filter @wraith-protocol/sdk-react build
+
       - name: Install example (${{ matrix.example }})
         working-directory: examples/${{ matrix.example }}
-        run: npm install
+        # stellar-nextjs-app-router depends on @stellar/stellar-sdk directly
+        # (sdk-react's peer dep) alongside a `file:` link to the workspace
+        # root. That combination makes npm treat @stellar/stellar-sdk as
+        # needing a rebuild from source, and its own `prepare` script shells
+        # out to `yarn build:prod`, which isn't available here. Skip
+        # lifecycle scripts for this example — nothing it depends on needs
+        # one to function.
+        run: |
+          if [ "${{ matrix.example }}" = "stellar-nextjs-app-router" ]; then
+            npm install --ignore-scripts
+          else
+            npm install
+          fi
 
       - name: Type-check example (${{ matrix.example }})
         working-directory: examples/${{ matrix.example }}

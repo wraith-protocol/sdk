@@ -1,7 +1,9 @@
+'use client';
+
 import { useState, useCallback, useEffect } from 'react';
 import {
   deriveStealthKeys,
-  fetchAnnouncements,
+  fetchAnnouncementsStream,
   buildStealthPayment,
   getDeployment,
   type StealthKeys,
@@ -34,9 +36,12 @@ export function useStellarAnnouncementScan() {
     setScanning(true);
     setError(null);
     try {
-      const result = await fetchAnnouncements(options);
-      setAnnouncements(result.announcements);
-      return result.announcements;
+      const result: Announcement[] = [];
+      for await (const announcement of fetchAnnouncementsStream('stellar', options)) {
+        result.push(announcement);
+      }
+      setAnnouncements(result);
+      return result;
     } catch (err: any) {
       setError(err);
       throw err;
