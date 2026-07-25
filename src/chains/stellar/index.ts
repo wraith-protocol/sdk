@@ -67,6 +67,13 @@ export type { SorobanEventFilter, SorobanTopicMatcher } from './event-filters';
 export { DEPLOYMENTS, getDeployment } from './deployments';
 export { StellarBatchBuilder, encodeAnnouncementData, decodeAnnouncementData } from './batch';
 export type { StealthPaymentConfig, BatchConfig, BuildResult } from './batch';
+export {
+  buildBatchSendTx,
+  buildAnnouncementData,
+  STELLAR_MAX_OPERATIONS,
+  DEFAULT_BASE_FEE,
+  DEFAULT_BATCH_SENDER_THRESHOLD,
+} from './tx-builder';
 export type { StellarChainDeployment } from './deployments';
 export type {
   HexString,
@@ -76,6 +83,9 @@ export type {
   GeneratedStealthAddress,
   Announcement,
   MatchedAnnouncement,
+  StealthPayment,
+  BuildBatchSendTxParams,
+  BuildBatchSendTxResult,
 } from './types';
 
 export { buildStellarSwapAndStealth } from './swap';
