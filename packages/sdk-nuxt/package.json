@@ -1,0 +1,38 @@
+{
+  "name": "@wraith-protocol/sdk-nuxt",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/module.mjs",
+      "require": "./dist/module.cjs"
+    }
+  },
+  "main": "./dist/module.cjs",
+  "module": "./dist/module.mjs",
+  "types": "./dist/types.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "nuxt-module-build build",
+    "dev": "nuxt-module-build build --stub",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@nuxt/kit": "^3.13.0",
+    "@wraith-protocol/sdk": "workspace:*",
+    "@wraith-protocol/sdk-vue": "workspace:*"
+  },
+  "devDependencies": {
+    "@nuxt/module-builder": "^0.8.0",
+    "nuxt": "^3.13.0",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "nuxt": "^3.0.0"
+  }
+}

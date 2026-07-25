@@ -3,4 +3,5 @@ export { useStellarStealthKeys } from './composables/useStellarStealthKeys';
 export { useEvmStealthKeys } from './composables/useEvmStealthKeys';
 export { useSolanaStealthKeys } from './composables/useSolanaStealthKeys';
 export { useStealthMetaAddress } from './composables/useStealthMetaAddress';
+export { useScanner } from './composables/useScanner';
 export type { ChainType } from './composables/useStealthMetaAddress';
