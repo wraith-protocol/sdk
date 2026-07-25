@@ -17,7 +17,7 @@ const networkPassphrase = 'Test SDF Network ; September 2015';
 const { Account } = require('@stellar/stellar-sdk');
 const sourceAccount = new Account(
   'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-  '123456789'
+  '123456789',
 );
 
 describe('tx-builder: buildBatchSendTx', () => {
@@ -97,7 +97,7 @@ describe('tx-builder: buildBatchSendTx', () => {
         payments: [],
         sourceAccount,
         networkPassphrase,
-      })
+      }),
     ).toThrow('Payments array cannot be empty');
   });
 
@@ -112,11 +112,11 @@ describe('tx-builder: buildBatchSendTx', () => {
         payments,
         sourceAccount,
         networkPassphrase,
-      })
+      }),
     ).toThrow(
       new RegExp(
-        `Payment count \\(${STELLAR_MAX_OPERATIONS + 1}\\) exceeds maximum operations per transaction \\(${STELLAR_MAX_OPERATIONS}\\)`
-      )
+        `Payment count \\(${STELLAR_MAX_OPERATIONS + 1}\\) exceeds maximum operations per transaction \\(${STELLAR_MAX_OPERATIONS}\\)`,
+      ),
     );
   });
 
@@ -133,9 +133,11 @@ describe('tx-builder: buildBatchSendTx', () => {
         sourceAccount,
         networkPassphrase,
         maxOperations: customMax,
-      })
+      }),
     ).toThrow(
-      new RegExp(`Payment count \\(11\\) exceeds maximum operations per transaction \\(${customMax}\\)`)
+      new RegExp(
+        `Payment count \\(11\\) exceeds maximum operations per transaction \\(${customMax}\\)`,
+      ),
     );
   });
 
@@ -228,15 +230,18 @@ describe('tx-builder: buildBatchSendTx', () => {
         sourceAccount,
         networkPassphrase,
         memo: longMemo,
-      })
+      }),
     ).toThrow('Memo too long');
   });
 
   test('throws error when batchSenderContract is provided but not implemented', () => {
-    const payments: StealthPayment[] = Array.from({ length: DEFAULT_BATCH_SENDER_THRESHOLD }, () => ({
-      metaAddress,
-      amount: '1',
-    }));
+    const payments: StealthPayment[] = Array.from(
+      { length: DEFAULT_BATCH_SENDER_THRESHOLD },
+      () => ({
+        metaAddress,
+        amount: '1',
+      }),
+    );
 
     expect(() =>
       buildBatchSendTx({
@@ -244,15 +249,18 @@ describe('tx-builder: buildBatchSendTx', () => {
         sourceAccount,
         networkPassphrase,
         batchSenderContract: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-      })
+      }),
     ).toThrow('stealth-batch-sender contract integration not yet implemented');
   });
 
   test('does not use batch sender below threshold', () => {
-    const payments: StealthPayment[] = Array.from({ length: DEFAULT_BATCH_SENDER_THRESHOLD - 1 }, () => ({
-      metaAddress,
-      amount: '1',
-    }));
+    const payments: StealthPayment[] = Array.from(
+      { length: DEFAULT_BATCH_SENDER_THRESHOLD - 1 },
+      () => ({
+        metaAddress,
+        amount: '1',
+      }),
+    );
 
     const result = buildBatchSendTx({
       payments,

@@ -58,7 +58,7 @@ export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSend
 
   if (payments.length > maxOperations) {
     throw new Error(
-      `Payment count (${payments.length}) exceeds maximum operations per transaction (${maxOperations})`
+      `Payment count (${payments.length}) exceeds maximum operations per transaction (${maxOperations})`,
     );
   }
 
@@ -104,7 +104,7 @@ export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSend
     // would be added when the contract is deployed
     throw new Error(
       'stealth-batch-sender contract integration not yet implemented. ' +
-        'Please provide batchSenderContract only when the contract is deployed.'
+        'Please provide batchSenderContract only when the contract is deployed.',
     );
   } else {
     // Build individual payment operations
@@ -117,7 +117,7 @@ export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSend
           destination: stealth.stealthAddress,
           asset: Asset.native(),
           amount: payment.amount,
-        })
+        }),
       );
     }
   }
@@ -147,7 +147,13 @@ export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSend
 export function buildAnnouncementData(
   stealthAddresses: GeneratedStealthAddress[],
   caller: string,
-): Array<{ schemeId: number; stealthAddress: string; caller: string; ephemeralPubKey: string; metadata: string }> {
+): Array<{
+  schemeId: number;
+  stealthAddress: string;
+  caller: string;
+  ephemeralPubKey: string;
+  metadata: string;
+}> {
   return stealthAddresses.map((stealth) => ({
     schemeId: SCHEME_ID,
     stealthAddress: stealth.stealthAddress,
