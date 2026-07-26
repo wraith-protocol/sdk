@@ -25,10 +25,14 @@
     "@wraith-protocol/sdk": "workspace:*"
   },
   "peerDependencies": {
+    "@stellar/stellar-sdk": "^13.1.0",
     "@wraith-protocol/sdk": "workspace:*",
     "svelte": "^5.0.0"
   },
   "devDependencies": {
+    "@stellar/stellar-sdk": "^13.1.0",
+    "@testing-library/svelte": "^5.2.0",
+    "jsdom": "^25.0.0",
     "svelte": "^5.0.0",
     "tsup": "^8.4.0",
     "typescript": "^5.7.0",
