@@ -48,6 +48,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts'",
+    "test:bun": "bun test --preload test/setup.ts test/**/*.test.ts --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts'",
     "docs": "typedoc",
     "test:watch": "vitest",
     "bench": "vitest bench --run",
@@ -98,6 +99,8 @@
     "@size-limit/esbuild": "^11.0.0",
     "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",
+    "@vitest/expect": "^3.1.0",
+    "@webgpu/types": "^0.1.41",
     "fake-indexeddb": "^6.2.5",
     "fast-check": "^4.8.0",
     "husky": "^9.1.0",

@@ -26,6 +26,27 @@ jobs:
       - run: pnpm build
       - run: pnpm test
 
+  test-bun:
+    name: Test (Bun)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        bun-version: [latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ matrix.bun-version }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: bun test test/**/*.test.ts --preload test/setup.ts --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts'
+
   slow-tests:
     name: Property fuzz (nightly)
     runs-on: ubuntu-latest

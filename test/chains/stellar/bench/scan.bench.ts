@@ -12,6 +12,7 @@ import {
   scanAnnouncementsStreamSequential,
   scanAnnouncementsLegacySharedSecretTag,
 } from '../../../../src/chains/stellar/scan';
+import { scanAnnouncementsGPU, isWebGPUAvailable } from '../../../../src/chains/stellar/scanner/webgpu';
 import { SCHEME_ID } from '../../../../src/chains/stellar/constants';
 import { bytesToHex } from '../../../../src/chains/stellar/utils';
 import type { Announcement, StealthKeys } from '../../../../src/chains/stellar/types';
@@ -231,5 +232,69 @@ describe('Stellar streaming scan pipelining', () => {
       },
       BENCH_OPTIONS,
     );
+  }
+});
+
+describe('Stellar GPU vs CPU scanning', () => {
+  test('GPU and CPU scanners produce identical results', async () => {
+    const dataset = datasets.get(10_000)?.optimized;
+    expect(dataset).toBeDefined();
+
+    const cpuResult = scanAnnouncements(
+      dataset!,
+      keys.viewingKey,
+      keys.spendingPubKey,
+      keys.spendingScalar,
+    );
+
+    const gpuResult = await scanAnnouncementsGPU(
+      dataset!,
+      keys.viewingKey,
+      keys.spendingPubKey,
+      keys.spendingScalar,
+    );
+
+    // Both should find the same match
+    expect(cpuResult).toHaveLength(gpuResult.length);
+    if (cpuResult.length > 0) {
+      expect(cpuResult[0].stealthAddress).toBe(gpuResult[0].stealthAddress);
+      expect(cpuResult[0].stealthPrivateScalar).toBe(gpuResult[0].stealthPrivateScalar);
+    }
+  });
+
+  if (isWebGPUAvailable()) {
+    for (const size of DATASET_SIZES) {
+      const dataset = datasets.get(size)!.optimized;
+
+      bench(
+        `CPU scan (${size.toLocaleString()} announcements)`,
+        () => {
+          scanAnnouncements(
+            dataset,
+            keys.viewingKey,
+            keys.spendingPubKey,
+            keys.spendingScalar,
+          );
+        },
+        BENCH_OPTIONS,
+      );
+
+      bench(
+        `GPU scan (${size.toLocaleString()} announcements)`,
+        async () => {
+          await scanAnnouncementsGPU(
+            dataset,
+            keys.viewingKey,
+            keys.spendingPubKey,
+            keys.spendingScalar,
+          );
+        },
+        BENCH_OPTIONS,
+      );
+    }
+  } else {
+    test.skipIf(true)('GPU benchmarks require WebGPU support (Chrome/Edge with --enable-unsafe-webgpu)', () => {
+      // Placeholder for CI environments without GPU
+    });
   }
 });

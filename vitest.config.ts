@@ -15,6 +15,11 @@ export default defineConfig({
       'test/chains/solana/vectors.test.ts',
     ],
     testTimeout: 1200000, // 20 minutes for high-run nightly fuzz tests
+    // Bun runs tests when:
+    // - bunfig.toml exists (for test config)
+    // - files match test/**/*.test.ts pattern
+    // - setup.ts preloads compat layer
+    // See test/README.md for Vitest vs Bun scope
   },
   benchmark: {
     include: ['test/chains/**/bench/**/*.bench.ts'],
