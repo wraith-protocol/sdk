@@ -80,6 +80,7 @@ export type {
 
 export { buildStellarSwapAndStealth } from './swap';
 export type { BuildStellarSwapAndStealthOptions, SwapAndStealthResult } from './swap';
+
 export { buildPathStealthPayment, findStrictReceivePath } from './path-payment';
 export type {
   BuildPathStealthPaymentOptions,
@@ -96,3 +97,6 @@ export { MemoValidationError, TEXT_MEMO_MAX_BYTES, HASH_MEMO_BYTES, ID_MEMO_MAX 
 
 export { createHorizonClient } from './horizon';
 export type { RetryPolicy, HorizonClient, HorizonClientConfig } from './horizon';
+
+export { estimateFee, clearFeeCache } from './fee';
+export type { OperationKind, Urgency, FeeStats } from './fee';
