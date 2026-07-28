@@ -19,6 +19,7 @@ jobs:
           - stellar-react-receive
           - stellar-spectre-agent
           - multichain-scan
+          - stellar-chrome-extension
     steps:
       - uses: actions/checkout@v4
 

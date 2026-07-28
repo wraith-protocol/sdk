@@ -4,10 +4,12 @@ import { hashToScalar, deriveStealthPubKey, pubKeyToStellarAddress, L } from './
 import { SCHEME_ID, SCHEME_ID_V2 } from './constants';
 import type { Announcement, MatchedAnnouncement } from './types';
 import { hexToBytes } from './utils';
+import { pipeline } from './scanner/pipeline';
 
 /**
- * Streaming announcement scanner. Pulls announcements from `source` in windows of
- * `opts.window` (default 64), scans each window, and yields matches immediately.
+ * Streaming announcement scanner. Pipelines `source` through a bounded queue
+ * of size `opts.window` (default 64) so fetching stays ahead of decryption,
+ * and yields matches as soon as they're found.
  *
  * Uses the cheap public view-tag prefilter before the X25519 shared secret:
  *   1. Derive the viewing public key once from the viewing seed
@@ -16,13 +18,22 @@ import { hexToBytes } from './utils';
  *   4. Compute hash_scalar = SHA-256("wraith:scalar:" || S) mod L
  *   5. Expected stealth pubkey = K_spend + hash_scalar * G
  *   6. Compare with announced stealth address
- * Peak memory is O(window) — never accumulates the full announcement set.
+ *
+ * Unlike fetching all announcements up front and then scanning them, `source` is
+ * pulled continuously in the background (see {@link pipeline}) while each buffered
+ * announcement is scanned, so RPC round-trips for later pages overlap with the CPU
+ * cost of scanning earlier ones instead of running strictly one after the other.
+ * Peak memory is still O(window) — the queue never buffers more than `window`
+ * announcements ahead of the scan, so a fast source paired with a slow scan
+ * doesn't grow memory unbounded.
+ *
  * Cancellation is clean: breaking out of the `for-await` loop triggers the `finally`
- * block which calls `.return()` on the source iterator, stopping upstream I/O.
+ * block which stops the pipeline, which in turn calls `.return()` on the source
+ * iterator, stopping upstream I/O.
  *
  * @param source  Async iterable of announcements (e.g. from {@link fetchAnnouncementsStream}).
- * @param opts.window  Max announcements buffered at once. Smaller = less memory, larger = fewer
- *                     async round-trips to the source. Default: 64.
+ * @param opts.window  Max announcements buffered ahead of the scan. Smaller = less memory,
+ *                     larger = more overlap between fetching and scanning. Default: 64.
  */
 export async function* scanAnnouncementsStream(
   source: AsyncIterable<Announcement>,
@@ -32,11 +43,71 @@ export async function* scanAnnouncementsStream(
   opts: { window?: number } = {},
 ): AsyncGenerator<MatchedAnnouncement> {
   const windowSize = Math.max(1, opts.window ?? 64);
+  const viewingPubKey = ed25519.getPublicKey(viewingKey);
+  const piped = pipeline(source, windowSize);
+
+  try {
+    for await (const ann of piped) {
+      if (ann.schemeId !== SCHEME_ID && ann.schemeId !== SCHEME_ID_V2) continue;
+
+      const metadataBytes = hexToBytes(ann.metadata);
+      if (metadataBytes.length === 0) continue;
+      const viewTag = metadataBytes[0];
+
+      const ephPubKey = hexToBytes(ann.ephemeralPubKey);
+      if (ephPubKey.length !== 32) continue;
+
+      const result = checkStealthAddressWithViewingPubKey(
+        ephPubKey,
+        viewingKey,
+        viewingPubKey,
+        spendingPubKey,
+        viewTag,
+      );
+
+      if (
+        result.isMatch &&
+        result.stealthAddress === ann.stealthAddress &&
+        result.hashScalar !== null &&
+        result.stealthPubKeyBytes !== null
+      ) {
+        const stealthPrivateScalar = ((spendingScalar % L) + result.hashScalar) % L;
+        yield {
+          ...ann,
+          stealthPrivateScalar,
+          stealthPubKeyBytes: result.stealthPubKeyBytes,
+        };
+      }
+    }
+  } finally {
+    // Signal the pipeline (and transitively the source) to stop when consumer cancels early
+    await piped.return(undefined);
+  }
+}
+
+/**
+ * Pre-pipelining scanner retained for benchmarks.
+ *
+ * Matches the old streaming scan path: it prefetches up to `window` announcements
+ * strictly before scanning any of them, so no RPC fetch for the next window can
+ * start until the current window is fully scanned. {@link scanAnnouncementsStream}
+ * replaced this with a pipelined version that overlaps fetching with scanning.
+ *
+ * @see {@link scanAnnouncementsStream}
+ */
+export async function* scanAnnouncementsStreamSequential(
+  source: AsyncIterable<Announcement>,
+  viewingKey: Uint8Array,
+  spendingPubKey: Uint8Array,
+  spendingScalar: bigint,
+  opts: { window?: number } = {},
+): AsyncGenerator<MatchedAnnouncement> {
+  const windowSize = Math.max(1, opts.window ?? 64);
+  const viewingPubKey = ed25519.getPublicKey(viewingKey);
   const iter = source[Symbol.asyncIterator]();
 
   try {
     while (true) {
-      // Prefetch up to windowSize announcements — bounds peak memory to O(window)
       const batch: Announcement[] = [];
       for (let i = 0; i < windowSize; i++) {
         const next = await iter.next();
@@ -56,7 +127,13 @@ export async function* scanAnnouncementsStream(
         const ephPubKey = hexToBytes(ann.ephemeralPubKey);
         if (ephPubKey.length !== 32) continue;
 
-        const result = checkStealthAddress(ephPubKey, viewingKey, spendingPubKey, viewTag);
+        const result = checkStealthAddressWithViewingPubKey(
+          ephPubKey,
+          viewingKey,
+          viewingPubKey,
+          spendingPubKey,
+          viewTag,
+        );
 
         if (
           result.isMatch &&
@@ -76,7 +153,6 @@ export async function* scanAnnouncementsStream(
       if (batch.length < windowSize) break;
     }
   } finally {
-    // Signal upstream to stop I/O when consumer cancels early
     await iter.return?.();
   }
 }
