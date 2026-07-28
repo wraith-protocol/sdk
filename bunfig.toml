@@ -1,22 +1,14 @@
 # Bun configuration for test runner compatibility
-# This enables Bun to run tests alongside Vitest
 
 [test]
 # Enable Bun's test runner
 root = "test"
 
-# Test patterns
+# Preload compat layer for Vitest-like APIs
 preload = ["test/setup.ts"]
 
-# Bun's test runner uses native promises and async/await
-# Coverage is experimental in Bun (disabled for now)
-coverage = false
-
-# Timeout for tests (20 minutes, same as Vitest)
+# Test timeout (20 minutes, same as Vitest for nightly fuzz tests)
 timeout = 1200000
 
-# Test naming patterns (matches Vitest defaults)
+# Test file patterns
 testNamePattern = ".*"
-
-# Import @vitest/expect for assertion compatibility with Vitest
-import = ["@vitest/expect/setup"]

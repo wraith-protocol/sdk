@@ -48,7 +48,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts'",
-    "test:bun": "bun test --preload test/setup.ts test/**/*.test.ts --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts'",
+    "test:bun": "bun test test/**/*.test.ts --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts'",
     "docs": "typedoc",
     "test:watch": "vitest",
     "bench": "vitest bench --run",

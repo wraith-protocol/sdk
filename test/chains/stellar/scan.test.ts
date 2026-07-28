@@ -97,7 +97,7 @@ describe('scanAnnouncements', () => {
       },
     ];
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -109,7 +109,7 @@ describe('scanAnnouncements', () => {
     expect(matched[0].stealthPubKeyBytes).toBeInstanceOf(Uint8Array);
   });
 
-  test('accepts v2 scheme ID announcements', () => {
+  test('accepts v2 scheme ID announcements', async () => {
     const keys = deriveStealthKeys(testSig);
     const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
 
@@ -124,7 +124,7 @@ describe('scanAnnouncements', () => {
       },
     ];
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -133,7 +133,7 @@ describe('scanAnnouncements', () => {
     expect(matched).toHaveLength(1);
   });
 
-  test('skips wrong scheme ID', () => {
+  test('skips wrong scheme ID', async () => {
     const keys = deriveStealthKeys(testSig);
     const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
 
@@ -147,7 +147,7 @@ describe('scanAnnouncements', () => {
       },
     ];
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -156,7 +156,7 @@ describe('scanAnnouncements', () => {
     expect(matched).toHaveLength(0);
   });
 
-  test('skips invalid ephemeral keys even when the public view tag matches', () => {
+  test('skips invalid ephemeral keys even when the public view tag matches', async () => {
     const keys = deriveStealthKeys(testSig);
     const invalidEphemeralPubKey = new Uint8Array(32);
     const matchingPublicTag = computeAnnouncementViewTag(
@@ -174,106 +174,7 @@ describe('scanAnnouncements', () => {
       },
     ];
 
-    const matched = scanAnnouncements(
-      announcements,
-      keys.viewingKey,
-      keys.spendingPubKey,
-      keys.spendingScalar,
-    );
-
-    expect(matched).toHaveLength(0);
-  });
-
-  test('skips invalid ephemeral keys even when the public view tag matches', () => {
-    const keys = deriveStealthKeys(testSig);
-    const invalidEphemeralPubKey = new Uint8Array(32);
-    const matchingPublicTag = computeAnnouncementViewTag(
-      invalidEphemeralPubKey,
-      keys.viewingPubKey,
-    );
-
-    const announcements: Announcement[] = [
-      {
-        schemeId: SCHEME_ID,
-        stealthAddress: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-        caller: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-        ephemeralPubKey: bytesToHex(invalidEphemeralPubKey),
-        metadata: matchingPublicTag.toString(16).padStart(2, '0'),
-      },
-    ];
-
-    const matched = scanAnnouncements(
-      announcements,
-      keys.viewingKey,
-      keys.spendingPubKey,
-      keys.spendingScalar,
-    );
-
-    expect(matched).toHaveLength(0);
-  });
-
-  test('keeps legacy shared-secret view tags on the legacy scanner path', () => {
-    const keys = deriveStealthKeys(testSig);
-    let ephemeralSeed = new Uint8Array(32).fill(0x11);
-    let stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, ephemeralSeed);
-    let sharedSecret = computeSharedSecret(ephemeralSeed, keys.viewingPubKey);
-    let legacyTag = computeViewTag(sharedSecret);
-
-    // Use a deterministic seed whose legacy shared-secret tag differs from the
-    // optimized public-announcement tag so the migration boundary is explicit.
-    for (let i = 0; legacyTag === stealth.viewTag && i < 255; i++) {
-      ephemeralSeed = new Uint8Array(32).fill(0x12 + i);
-      stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey, ephemeralSeed);
-      sharedSecret = computeSharedSecret(ephemeralSeed, keys.viewingPubKey);
-      legacyTag = computeViewTag(sharedSecret);
-    }
-
-    expect(legacyTag).not.toBe(stealth.viewTag);
-
-    const announcements: Announcement[] = [
-      {
-        schemeId: SCHEME_ID,
-        stealthAddress: stealth.stealthAddress,
-        caller: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-        ephemeralPubKey: bytesToHex(stealth.ephemeralPubKey),
-        metadata: legacyTag.toString(16).padStart(2, '0'),
-      },
-    ];
-
-    expect(
-      scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar),
-    ).toHaveLength(0);
-
-    const legacyMatched = scanAnnouncementsLegacySharedSecretTag(
-      announcements,
-      keys.viewingKey,
-      keys.spendingPubKey,
-      keys.spendingScalar,
-    );
-
-    expect(legacyMatched).toHaveLength(1);
-    expect(legacyMatched[0].stealthAddress).toBe(stealth.stealthAddress);
-  });
-
-  test('filters mix of own and foreign announcements', () => {
-    const keys = deriveStealthKeys(testSig);
-    const invalidEphemeralPubKey = new Uint8Array(32);
-    const matchingPublicTag = computeAnnouncementViewTag(
-      invalidEphemeralPubKey,
-      keys.viewingPubKey,
-    );
-
-    const announcements: Announcement[] = [
-      {
-        schemeId: SCHEME_ID,
-        stealthAddress: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-        caller: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-        ephemeralPubKey: bytesToHex(invalidEphemeralPubKey),
-        metadata: matchingPublicTag.toString(16).padStart(2, '0'),
-      },
-    ];
-
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -312,10 +213,15 @@ describe('scanAnnouncements', () => {
     ];
 
     expect(
-      scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar),
+      await scanAnnouncements(
+        announcements,
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+      ),
     ).toHaveLength(0);
 
-    const legacyMatched = await scanAnnouncementsLegacySharedSecretTag(
+    const legacyMatched = scanAnnouncementsLegacySharedSecretTag(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -351,7 +257,7 @@ describe('scanAnnouncements', () => {
       },
     ];
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       announcements,
       keys.viewingKey,
       keys.spendingPubKey,

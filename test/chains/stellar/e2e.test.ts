@@ -42,7 +42,7 @@ describe('e2e: full stealth payment flow on Stellar', () => {
       metadata: stealth.viewTag.toString(16).padStart(2, '0'),
     };
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       [announcement],
       keys.viewingKey,
       keys.spendingPubKey,

@@ -99,11 +99,11 @@ const datasets = new Map(
 );
 
 describe('Stellar scan benchmark fixtures', () => {
-  test('optimized scanner preserves correctness on the 10k synthetic dataset', () => {
+  test('optimized scanner preserves correctness on the 10k synthetic dataset', async () => {
     const dataset = datasets.get(10_000)?.optimized;
     expect(dataset).toBeDefined();
 
-    const matched = scanAnnouncements(
+    const matched = await scanAnnouncements(
       dataset!,
       keys.viewingKey,
       keys.spendingPubKey,
@@ -134,8 +134,8 @@ describe('Stellar scan announcement view-tag batching', () => {
 
     bench(
       `after: public view-tag prefilter (${size.toLocaleString()} announcements)`,
-      () => {
-        scanAnnouncements(
+      async () => {
+        await scanAnnouncements(
           dataset.optimized,
           keys.viewingKey,
           keys.spendingPubKey,
@@ -268,8 +268,8 @@ describe('Stellar GPU vs CPU scanning', () => {
 
       bench(
         `CPU scan (${size.toLocaleString()} announcements)`,
-        () => {
-          scanAnnouncements(
+        async () => {
+          await scanAnnouncements(
             dataset,
             keys.viewingKey,
             keys.spendingPubKey,
