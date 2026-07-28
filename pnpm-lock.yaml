@@ -409,7 +409,7 @@ importers:
         version: 1.8.0
       '@stellar/stellar-sdk':
         specifier: ^13.1.0
-        version: 13.3.0
+        version: 13.3.0(debug@4.4.3(supports-color@8.1.1))
       '@wraith-protocol/sdk':
         specifier: workspace:*
         version: link:../..
@@ -1881,7 +1881,7 @@ packages:
 
   '@expo/bunyan@4.0.1':
     resolution: {integrity: sha512-+Lla7nYSiHZirgK+U/uYzsLv/X+HaJienbD5AKX1UQZHYfWaP+9uuQluRB4GrEVWF0GZ7vEVp/jzaOT9k/SQlg==}
-    engines: {'0': node >=0.10.0}
+    engines: {node: '>=0.10.0'}
 
   '@expo/cli@0.18.31':
     resolution: {integrity: sha512-v9llw9fT3Uv+TCM6Xllo54t672CuYtinEQZ2LPJ2EJsCwuTc4Cd2gXQaouuIVD21VoeGQnr5JtJuWbF97sBKzQ==}
