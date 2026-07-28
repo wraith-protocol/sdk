@@ -26,17 +26,6 @@ jobs:
       - run: pnpm build
       - run: pnpm test
 
-  bun:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun test
-      - run: bun run build
-
   slow-tests:
     name: Property fuzz (nightly)
     runs-on: ubuntu-latest

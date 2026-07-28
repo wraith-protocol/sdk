@@ -20,6 +20,7 @@ jobs:
           - stellar-spectre-agent
           - multichain-scan
           - stellar-nextjs-app-router
+          - stellar-chrome-extension
     steps:
       - uses: actions/checkout@v4
 
