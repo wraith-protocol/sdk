@@ -49,10 +49,11 @@ const mockFeeStats: FeeStats = {
 describe('estimateFee', () => {
   beforeEach(() => {
     clearFeeCache();
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     clearFeeCache();
   });
 
