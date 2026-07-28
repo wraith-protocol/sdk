@@ -48,6 +48,13 @@ export interface AnnouncementCache {
 export function assertViewTagBucket(bucket: number): void;
 
 // @public
+export interface AssetMetadata {
+  decimals: number;
+  name: string;
+  symbol: string;
+}
+
+// @public
 export interface AssetReceivabilityResult {
   hasTrustline: boolean;
   issuerAuthRequired: boolean;
@@ -228,6 +235,9 @@ export function checkStealthAddress(
 };
 
 // @public
+export function clearAssetMetadataCache(): void;
+
+// @public
 export function computeAnnouncementViewTag(
   ephemeralPubKey: Uint8Array,
   viewingPubKey: Uint8Array,
@@ -238,6 +248,9 @@ export function computeSharedSecret(privateKey: Uint8Array, publicKey: Uint8Arra
 
 // @public @deprecated
 export function computeViewTag(sharedSecret: Uint8Array): number;
+
+// @public (undocumented)
+export function createHorizonClient(config: HorizonClientConfig): HorizonClient;
 
 // @public
 export function decodeAnnouncementData(data: Uint8Array): {
@@ -338,6 +351,32 @@ export function generateStealthAddress(
 ): GeneratedStealthAddress;
 
 // @public
+export function getAssetBalance(
+  contractId: string,
+  address: string,
+  network?: Network,
+  opts?: GetAssetBalanceOptions,
+): Promise<bigint>;
+
+// @public
+export interface GetAssetBalanceOptions {
+  rpcUrl?: string;
+}
+
+// @public
+export function getAssetMetadata(
+  contractId: string,
+  network?: Network,
+  opts?: GetAssetMetadataOptions,
+): Promise<AssetMetadata>;
+
+// @public
+export interface GetAssetMetadataOptions {
+  bypassCache?: boolean;
+  rpcUrl?: string;
+}
+
+// @public
 export function getDeployment(chain: string): StellarChainDeployment;
 
 // @public
@@ -351,6 +390,30 @@ export type HexString = `0x${string}`;
 
 // @public
 export function hexToBytes(hex: string): Uint8Array;
+
+// @public (undocumented)
+export interface HorizonClient {
+  get<T = unknown>(
+    path: string,
+    overrides?: {
+      retry?: Partial<RetryPolicy>;
+    },
+  ): Promise<T>;
+  post<T = unknown>(
+    path: string,
+    body: URLSearchParams | string,
+    overrides?: {
+      retry?: Partial<RetryPolicy>;
+    },
+  ): Promise<T>;
+}
+
+// @public (undocumented)
+export interface HorizonClientConfig {
+  fetchImpl?: typeof fetch;
+  horizonUrl: string;
+  retry?: Partial<RetryPolicy>;
+}
 
 // @public
 export const ID_MEMO_MAX: bigint;
@@ -457,6 +520,14 @@ export class RetentionExceededError extends Error {
   readonly oldestAvailableLedger: number;
   // (undocumented)
   readonly requestedLedger: number;
+}
+
+// @public (undocumented)
+export interface RetryPolicy {
+  baseDelayMs: number;
+  maxDelayMs: number;
+  maxRetries: number;
+  retryableStatuses: number[];
 }
 
 // @public @deprecated
