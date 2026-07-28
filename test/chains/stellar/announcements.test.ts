@@ -5,6 +5,9 @@ import {
 } from '../../../src/chains/stellar/announcements';
 import type { Announcement } from '../../../src/chains/stellar/types';
 
+// vi.mock() is not supported in Bun; skip this entire test suite
+const isBun = typeof Bun !== 'undefined';
+
 vi.mock('@stellar/stellar-sdk', () => {
   const mockAddress = {
     toString: () => 'GMOCKADDRESS000000000000000000000000000000000000000000000',
@@ -125,11 +128,9 @@ async function collectStream(gen: AsyncGenerator<Announcement>): Promise<Announc
   return out;
 }
 
-// ---------------------------------------------------------------------------
 // fetchAnnouncements with FetchAnnouncementsOptions (ledger ranges, cursors, timestamps)
-// ---------------------------------------------------------------------------
 
-describe('fetchAnnouncements Stellar ranges', () => {
+describe.skipIf(isBun)('fetchAnnouncements Stellar ranges', () => {
   test('passes an explicit ledger range to Soroban getEvents', async () => {
     mockFetch((_url, body) => {
       if (body?.id === 0) return sorobanRange();
@@ -225,11 +226,9 @@ describe('fetchAnnouncements Stellar ranges', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // fetchAnnouncementsStream (streaming generator)
-// ---------------------------------------------------------------------------
 
-describe('fetchAnnouncementsStream', () => {
+describe.skipIf(isBun)('fetchAnnouncementsStream', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
