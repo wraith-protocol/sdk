@@ -1,12 +1,13 @@
+'use client';
+
 import { useState, useCallback, useEffect } from 'react';
 import {
   deriveStealthKeys,
-  fetchAnnouncements,
+  deriveStealthKeysFromSigner,
   buildStealthPayment,
   getDeployment,
   type StealthKeys,
-  type FetchAnnouncementsOptions,
-  type Announcement,
+  type StellarStealthSigner,
   type BuildStealthPaymentOptions,
 } from '@wraith-protocol/sdk/chains/stellar';
 import { Horizon } from '@stellar/stellar-sdk';
@@ -14,6 +15,8 @@ import { getPlatform, setPlatform, type Platform } from './platform';
 
 export { getPlatform, setPlatform };
 export type { Platform };
+
+export { useScanner } from './hooks/useScanner';
 
 /** Hook to generate and manage stealth keys */
 export function useStellarStealthKeys() {
@@ -25,31 +28,13 @@ export function useStellarStealthKeys() {
     return derived;
   }, []);
 
-  return { keys, generate };
-}
-
-/** Hook to scan for announcements */
-export function useStellarAnnouncementScan() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [scanning, setScanning] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const scan = useCallback(async (options: FetchAnnouncementsOptions) => {
-    setScanning(true);
-    setError(null);
-    try {
-      const result = await fetchAnnouncements(options);
-      setAnnouncements(result.announcements);
-      return result.announcements;
-    } catch (err: any) {
-      setError(err);
-      throw err;
-    } finally {
-      setScanning(false);
-    }
+  const generateFromSigner = useCallback(async (signer: StellarStealthSigner) => {
+    const derived = await deriveStealthKeysFromSigner(signer);
+    setKeys(derived);
+    return derived;
   }, []);
 
-  return { announcements, scanning, error, scan };
+  return { keys, generate, generateFromSigner };
 }
 
 /** Hook to send stealth payments */

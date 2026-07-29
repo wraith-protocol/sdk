@@ -4,13 +4,14 @@ Five self-contained examples demonstrating the `@wraith-protocol/sdk` across dif
 
 ## Example Index
 
-| Directory                | Description                                                                                                                            | Type  |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `stellar-cli-send/`      | Derive stealth keys, encode a meta-address, generate a stealth address for a recipient, print deployment info                          | CLI   |
-| `stellar-cli-scan/`      | Fetch and scan on-chain announcements to find incoming stealth payments                                                                | CLI   |
-| `stellar-react-receive/` | Minimal Vite + React app — input a secret key, derive stealth keys, view and copy your meta-address                                    | React |
-| `stellar-spectre-agent/` | Connect to the Wraith managed agent platform — create/retrieve an agent, chat, check balance, scan payments, send via natural language | Agent |
-| `multichain-scan/`       | Scan for stealth payments on all 4 chains (Stellar, EVM, Solana, CKB) in parallel via `Promise.all`                                    | CLI   |
+| Directory                   | Description                                                                                                                            | Type      |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `stellar-cli-send/`         | Derive stealth keys, encode a meta-address, generate a stealth address for a recipient, print deployment info                          | CLI       |
+| `stellar-cli-scan/`         | Fetch and scan on-chain announcements to find incoming stealth payments                                                                | CLI       |
+| `stellar-react-receive/`    | Minimal Vite + React app — input a secret key, derive stealth keys, view and copy your meta-address                                    | React     |
+| `stellar-spectre-agent/`    | Connect to the Wraith managed agent platform — create/retrieve an agent, chat, check balance, scan payments, send via natural language | Agent     |
+| `multichain-scan/`          | Scan for stealth payments on all 4 chains (Stellar, EVM, Solana, CKB) in parallel via `Promise.all`                                    | CLI       |
+| `stellar-chrome-extension/` | MV3 Chrome extension — scans Stellar in the background service worker, notifies on incoming stealth payments, no webapp required       | Extension |
 
 ## Running an Example
 

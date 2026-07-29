@@ -1,4 +1,12 @@
-export { deriveStealthKeys } from './keys';
+export { deriveStealthKeys, deriveStealthKeysFromSigner } from './keys';
+export { FreighterStealthSigner, WebAuthnPasskeyStealthSigner } from './signer';
+export type {
+  StellarStealthSigner,
+  FreighterLikeWallet,
+  WebAuthnPRFAssertion,
+  WebAuthnCredentialsContainer,
+  WebAuthnPasskeyStealthSignerOptions,
+} from './signer';
 export {
   STEALTH_SIGNING_MESSAGE,
   SCHEME_ID,
@@ -67,6 +75,13 @@ export type { SorobanEventFilter, SorobanTopicMatcher } from './event-filters';
 export { DEPLOYMENTS, getDeployment } from './deployments';
 export { StellarBatchBuilder, encodeAnnouncementData, decodeAnnouncementData } from './batch';
 export type { StealthPaymentConfig, BatchConfig, BuildResult } from './batch';
+export {
+  buildBatchSendTx,
+  buildAnnouncementData,
+  STELLAR_MAX_OPERATIONS,
+  DEFAULT_BASE_FEE,
+  DEFAULT_BATCH_SENDER_THRESHOLD,
+} from './tx-builder';
 export type { StellarChainDeployment } from './deployments';
 export type {
   HexString,
@@ -76,6 +91,9 @@ export type {
   GeneratedStealthAddress,
   Announcement,
   MatchedAnnouncement,
+  StealthPayment,
+  BuildBatchSendTxParams,
+  BuildBatchSendTxResult,
 } from './types';
 
 export { buildStellarSwapAndStealth } from './swap';
@@ -89,4 +107,10 @@ export type {
 } from './path-payment';
 export { encodeMemo, decodeMemo, extractMemoFromTransaction } from './memo';
 export type { MemoType, MemoValue, TypedMemo } from './memo';
+
+export { getAssetMetadata, getAssetBalance, clearAssetMetadataCache } from './asset';
+export type { AssetMetadata, GetAssetMetadataOptions, GetAssetBalanceOptions } from './asset';
 export { MemoValidationError, TEXT_MEMO_MAX_BYTES, HASH_MEMO_BYTES, ID_MEMO_MAX } from './memo';
+
+export { createHorizonClient } from './horizon';
+export type { RetryPolicy, HorizonClient, HorizonClientConfig } from './horizon';

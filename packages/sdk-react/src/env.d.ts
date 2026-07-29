@@ -1,14 +1,3 @@
-declare module '@wraith-protocol/sdk/chains/stellar' {
-  export const deriveStealthKeys: any;
-  export const fetchAnnouncements: any;
-  export const buildStealthPayment: any;
-  export const getDeployment: any;
-  export type StealthKeys = any;
-  export type FetchAnnouncementsOptions = any;
-  export type Announcement = any;
-  export type BuildStealthPaymentOptions = any;
-}
-
 declare module '@react-native-async-storage/async-storage' {
   const AsyncStorage: {
     getItem(key: string): Promise<string | null>;
