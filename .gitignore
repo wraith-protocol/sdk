@@ -3,4 +3,5 @@ node_modules/
 dist/
 *.tsbuildinfo
 package-lock.json
+packages/test-vectors/.differential/
 .claude/
