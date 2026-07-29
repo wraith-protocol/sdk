@@ -283,6 +283,5 @@ export function signWithScalar(
   const sig = new Uint8Array(64);
   sig.set(encodedR);
   sig.set(encodedS, 32);
-  console.log('SCALAR:', scalar, scalar >= L);
   return sig;
 }

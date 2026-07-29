@@ -1,6 +1,10 @@
 export { Wraith, WraithAgent } from './agent/client';
 export { Chain } from './agent/types';
+/**
+ * @internal
+ */
 export { installReactNativePolyfills } from './compat';
+export { scanAll } from './scanner/unified';
 export type {
   WraithConfig,
   AgentConfig,
@@ -16,6 +20,15 @@ export type {
   Notification,
   Conversation,
 } from './agent/types';
+export type {
+  ScanAllInput,
+  MatchedAnnouncement,
+  SupportedChain,
+  EvmChainInput,
+  StellarChainInput,
+  SolanaChainInput,
+  CkbChainInput,
+} from './scanner/unified';
 
 export {
   WraithError,

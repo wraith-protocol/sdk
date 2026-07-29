@@ -1,0 +1,39 @@
+﻿{
+  "docModel": {
+    "enabled": false
+  },
+  "mainEntryPointFilePath": "\u003cprojectFolder\u003e/dist/vault/index.d.ts",
+  "dtsRollup": {
+    "enabled": false
+  },
+  "messages": {
+    "tsdocMessageReporting": {
+      "default": {
+        "logLevel": "none"
+      }
+    },
+    "extractorMessageReporting": {
+      "ae-unresolved-link": {
+        "logLevel": "none"
+      },
+      "default": {
+        "logLevel": "none"
+      },
+      "ae-missing-release-tag": {
+        "logLevel": "none"
+      }
+    },
+    "compilerMessageReporting": {
+      "default": {
+        "logLevel": "none"
+      }
+    }
+  },
+  "apiReport": {
+    "reportTempFolder": "\u003cprojectFolder\u003e/temp",
+    "reportFileName": "sdk-vault.api.md",
+    "reportFolder": "\u003cprojectFolder\u003e/etc",
+    "enabled": true
+  },
+  "$schema": "https://developer.microsoft.com/json-schemas/api-extractor/v7/api-extractor.schema.json"
+}

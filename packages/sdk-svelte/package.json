@@ -25,6 +25,7 @@
     "@wraith-protocol/sdk": "workspace:*"
   },
   "peerDependencies": {
+    "@wraith-protocol/sdk": "workspace:*",
     "svelte": "^5.0.0"
   },
   "devDependencies": {
