@@ -45,16 +45,18 @@ jobs:
 
       - name: Install example (${{ matrix.example }})
         working-directory: examples/${{ matrix.example }}
-        # stellar-nextjs-app-router depends on @stellar/stellar-sdk directly
-        # (sdk-react's peer dep) alongside a `file:` link to the workspace
-        # root. That combination makes npm treat @stellar/stellar-sdk as
-        # needing a rebuild from source, and its own `prepare` script shells
-        # out to `yarn build:prod`, which isn't available here. Skip
-        # lifecycle scripts for this example — nothing it depends on needs
-        # one to function.
+        # stellar-nextjs-app-router is a pnpm workspace member (examples/*
+        # in pnpm-workspace.yaml), so the root `pnpm install --frozen-lockfile`
+        # step above already installed it correctly. Running a second, separate
+        # `npm install` here doesn't just duplicate that — it actively breaks:
+        # resolving its `file:../..` link to the workspace root makes npm try
+        # to rebuild @stellar/stellar-sdk from source, and that package's own
+        # `prepare` script shells out to `yarn build:prod`, which isn't
+        # available in CI. --ignore-scripts doesn't reliably suppress this on
+        # every npm version, so just skip the redundant install instead.
         run: |
           if [ "${{ matrix.example }}" = "stellar-nextjs-app-router" ]; then
-            npm install --ignore-scripts
+            echo "Already installed by the workspace-wide pnpm install step."
           else
             npm install
           fi
