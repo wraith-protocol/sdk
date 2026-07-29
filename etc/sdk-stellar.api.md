@@ -75,6 +75,15 @@ export interface BatchConfig {
 }
 
 // @public
+export function buildAnnouncementData(stealthAddresses: GeneratedStealthAddress[], caller: string): Array<{
+    schemeId: number;
+    stealthAddress: string;
+    caller: string;
+    ephemeralPubKey: string;
+    metadata: string;
+}>;
+
+// @public
 export interface BuildAnnouncementOptions {
     announcerContract: string;
     fee?: string;
@@ -82,6 +91,29 @@ export interface BuildAnnouncementOptions {
     sender: string;
     sequence: string;
     stealthResult: GeneratedStealthAddress;
+}
+
+// @public
+export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSendTxResult;
+
+// @public
+export interface BuildBatchSendTxParams {
+    baseFee?: number;
+    batchSenderContract?: string;
+    batchSenderThreshold?: number;
+    maxOperations?: number;
+    memo?: string;
+    networkPassphrase: string;
+    payments: StealthPayment[];
+    sourceAccount: any;
+}
+
+// @public
+export interface BuildBatchSendTxResult {
+    stealthAddresses: GeneratedStealthAddress[];
+    totalFee: number;
+    transaction: any;
+    usedBatchSender: boolean;
 }
 
 // @public
@@ -232,10 +264,19 @@ export function decodeMemo(memo: Memo | xdr.Memo): TypedMemo;
 export function decodeStealthMetaAddress(metaAddress: string): StealthMetaAddress;
 
 // @public
+export const DEFAULT_BASE_FEE = 100;
+
+// @public
+export const DEFAULT_BATCH_SENDER_THRESHOLD = 10;
+
+// @public
 export const DEPLOYMENTS: Record<string, StellarChainDeployment>;
 
 // @public
 export function deriveStealthKeys(signature: Uint8Array): StealthKeys;
+
+// @public
+export function deriveStealthKeysFromSigner(signer: StellarStealthSigner): Promise<StealthKeys>;
 
 // @public
 export function deriveStealthPrivateScalar(spendingScalar: bigint, viewingKey: Uint8Array, ephemeralPubKey: Uint8Array): bigint;
@@ -289,6 +330,21 @@ export interface FindStrictReceivePathOptions {
     horizonUrl?: string;
     receiveAsset: Asset;
     sendAsset: Asset;
+}
+
+// @public
+export interface FreighterLikeWallet {
+    // (undocumented)
+    signMessage(message: string): Promise<{
+        signedMessage: Uint8Array | string;
+    }>;
+}
+
+// @public
+export class FreighterStealthSigner implements StellarStealthSigner {
+    constructor(wallet: FreighterLikeWallet);
+    // (undocumented)
+    signMessage(message: Uint8Array): Promise<Uint8Array>;
 }
 
 // @public
@@ -518,6 +574,12 @@ export interface StealthMetaAddress {
     viewingPubKey: Uint8Array;
 }
 
+// @public
+export interface StealthPayment {
+    amount: string;
+    metaAddress: string;
+}
+
 // @public (undocumented)
 export interface StealthPaymentConfig {
     amount: string;
@@ -528,6 +590,9 @@ export interface StealthPaymentConfig {
     ephemeralPubKey: string;
     viewTag: number;
 }
+
+// @public
+export const STELLAR_MAX_OPERATIONS = 100;
 
 // @public
 export class StellarBatchBuilder {
@@ -551,6 +616,11 @@ export interface StellarChainDeployment {
     network: string;
     networkPassphrase: string;
     sorobanUrl: string;
+}
+
+// @public
+export interface StellarStealthSigner {
+    signMessage(message: Uint8Array): Promise<Uint8Array>;
 }
 
 // @public
@@ -579,6 +649,39 @@ export const VIEW_TAG_BUCKET_COUNT = 256;
 
 // @public
 export function viewTagToBucket(viewTag: number): number;
+
+// @public
+export interface WebAuthnCredentialsContainer {
+    // (undocumented)
+    get(options: Record<string, unknown>): Promise<WebAuthnPRFAssertion | null>;
+}
+
+// @public
+export class WebAuthnPasskeyStealthSigner implements StellarStealthSigner {
+    constructor(options: WebAuthnPasskeyStealthSignerOptions);
+    // (undocumented)
+    signMessage(message: Uint8Array): Promise<Uint8Array>;
+}
+
+// @public
+export interface WebAuthnPasskeyStealthSignerOptions {
+    credentialId: Uint8Array;
+    credentials?: WebAuthnCredentialsContainer;
+    rpId?: string;
+}
+
+// @public
+export interface WebAuthnPRFAssertion {
+    // (undocumented)
+    getClientExtensionResults(): {
+        prf?: {
+            results?: {
+                first?: ArrayBuffer;
+                second?: ArrayBuffer;
+            };
+        };
+    };
+}
 
 // (No @packageDocumentation comment for this package)
 
