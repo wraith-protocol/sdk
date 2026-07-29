@@ -3,3 +3,5 @@ node_modules
 reference
 pnpm-lock.yaml
 test/**/bench/**
+.claude
+etc/*.api.md

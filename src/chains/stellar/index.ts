@@ -1,4 +1,12 @@
-export { deriveStealthKeys } from './keys';
+export { deriveStealthKeys, deriveStealthKeysFromSigner } from './keys';
+export { FreighterStealthSigner, WebAuthnPasskeyStealthSigner } from './signer';
+export type {
+  StellarStealthSigner,
+  FreighterLikeWallet,
+  WebAuthnPRFAssertion,
+  WebAuthnCredentialsContainer,
+  WebAuthnPasskeyStealthSignerOptions,
+} from './signer';
 export {
   STEALTH_SIGNING_MESSAGE,
   SCHEME_ID,
@@ -9,17 +17,16 @@ export {
   META_ADDRESS_PREFIX,
 } from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
-export {
-  generateStealthAddress,
-  computeSharedSecret,
-  computeAnnouncementViewTag,
-  computeViewTag,
-} from './stealth';
-export {
-  checkStealthAddress,
-  scanAnnouncements,
-  scanAnnouncementsLegacySharedSecretTag,
-} from './scan';
+export { generateStealthAddress } from './stealth';
+/**
+ * @internal
+ */
+export { computeSharedSecret, computeAnnouncementViewTag, computeViewTag } from './stealth';
+export { checkStealthAddress, scanAnnouncements } from './scan';
+/**
+ * @internal
+ */
+export { scanAnnouncementsLegacySharedSecretTag } from './scan';
 
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export {
@@ -28,12 +35,21 @@ export {
   prepareStealthAccountForAsset,
   buildWithdrawCustomAsset,
 } from './builders';
+export {
+  buildMultisigStealthWithdraw,
+  addStealthMultisigSigner,
+  isStealthMultisigReady,
+} from './multisig';
+export type { BuildMultisigStealthWithdrawOptions } from './multisig';
 export type {
   BuildStealthPaymentOptions,
   BuildAnnouncementOptions,
   AssetReceivabilityResult,
   BuildWithdrawCustomAssetOptions,
 } from './builders';
+/**
+ * @internal
+ */
 export {
   seedToScalar,
   hashToScalar,
@@ -43,15 +59,21 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
-export {
-  fetchAnnouncementsStream,
-  RetentionExceededError,
-  parseAnnouncementEvent,
-} from './announcements';
+/**
+ * @internal
+ */
+export { fetchAnnouncementsStream, parseAnnouncementEvent } from './announcements';
+export { RetentionExceededError } from './announcements';
 export type { FetchAnnouncementsOptions } from './announcements';
+/**
+ * @internal
+ */
 export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
 export type { AnnouncementCache } from './cache';
 
+/**
+ * @internal
+ */
 export {
   MAX_RPC_EVENT_FILTERS,
   encodeSymbolTopic,
@@ -64,9 +86,22 @@ export {
   buildV2BucketEventFilterBatches,
 } from './event-filters';
 export type { SorobanEventFilter, SorobanTopicMatcher } from './event-filters';
+/**
+ * @internal
+ */
 export { DEPLOYMENTS, getDeployment } from './deployments';
+/**
+ * @internal
+ */
 export { StellarBatchBuilder, encodeAnnouncementData, decodeAnnouncementData } from './batch';
 export type { StealthPaymentConfig, BatchConfig, BuildResult } from './batch';
+export {
+  buildBatchSendTx,
+  buildAnnouncementData,
+  STELLAR_MAX_OPERATIONS,
+  DEFAULT_BASE_FEE,
+  DEFAULT_BATCH_SENDER_THRESHOLD,
+} from './tx-builder';
 export type { StellarChainDeployment } from './deployments';
 export type {
   HexString,
@@ -76,6 +111,9 @@ export type {
   GeneratedStealthAddress,
   Announcement,
   MatchedAnnouncement,
+  StealthPayment,
+  BuildBatchSendTxParams,
+  BuildBatchSendTxResult,
 } from './types';
 
 export { buildStellarSwapAndStealth } from './swap';

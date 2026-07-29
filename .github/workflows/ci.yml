@@ -24,28 +24,54 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run format:check
       - run: pnpm build
+      - run: pnpm api:check
       - run: pnpm test
 
-  test-bun:
-    name: Test (Bun)
+  differential:
+    name: Differential (test-vectors vs vN-1)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        bun-version: [latest]
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v1
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
         with:
-          bun-version: ${{ matrix.bun-version }}
+          filters: |
+            chains:
+              - 'src/chains/**'
+
+      - name: Determine whether to run
+        id: should-run
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ] || [ "${{ steps.filter.outputs.chains }}" = "true" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: pnpm/action-setup@v4
+        if: steps.should-run.outputs.run == 'true'
         with:
           version: 10
+
       - uses: actions/setup-node@v4
+        if: steps.should-run.outputs.run == 'true'
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: bun test test/**/*.test.ts --preload test/setup.ts --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts'
+
+      - name: Install dependencies
+        if: steps.should-run.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build SDK
+        if: steps.should-run.outputs.run == 'true'
+        run: pnpm build
+
+      - name: Run differential harness
+        if: steps.should-run.outputs.run == 'true'
+        run: pnpm --filter @wraith-protocol/test-vectors differential
 
   slow-tests:
     name: Property fuzz (nightly)
