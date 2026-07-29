@@ -8,6 +8,8 @@ import {
 } from '../../../../src/chains/stellar/stealth';
 import {
   scanAnnouncements,
+  scanAnnouncementsStream,
+  scanAnnouncementsStreamSequential,
   scanAnnouncementsLegacySharedSecretTag,
 } from '../../../../src/chains/stellar/scan';
 import { SCHEME_ID } from '../../../../src/chains/stellar/constants';
@@ -62,61 +64,65 @@ function makeAnnouncementFor(
   };
 }
 
-let pools: { legacy: Announcement[]; optimized: Announcement[] } | undefined;
-let matchingAnnouncements: { legacy: Announcement; optimized: Announcement } | undefined;
+const pools = {
+  legacy: Array.from({ length: POOL_SIZE }, (_, i) =>
+    makeAnnouncementFor(foreignKeys, seedFor(i), 'legacy-shared-secret'),
+  ),
+  optimized: Array.from({ length: POOL_SIZE }, (_, i) =>
+    makeAnnouncementFor(foreignKeys, seedFor(i), 'public-announcement'),
+  ),
+};
 
-async function initFixtures() {
-  if (pools && matchingAnnouncements) return;
-
-  pools = {
-    legacy: Array.from({ length: POOL_SIZE }, (_, i) =>
-      makeAnnouncementFor(foreignKeys, seedFor(i), 'legacy-shared-secret'),
-    ),
-    optimized: Array.from({ length: POOL_SIZE }, (_, i) =>
-      makeAnnouncementFor(foreignKeys, seedFor(i), 'public-announcement'),
-    ),
-  };
-  matchingAnnouncements = {
-    legacy: makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'legacy-shared-secret'),
-    optimized: makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'public-announcement'),
-  };
-}
+const matchingAnnouncements = {
+  legacy: makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'legacy-shared-secret'),
+  optimized: makeAnnouncementFor(keys, seedFor(POOL_SIZE + 1), 'public-announcement'),
+};
 
 function makeDataset(size: number, tagScheme: 'legacy' | 'optimized') {
-  const foreignPool = pools![tagScheme];
-  const matchingAnnouncement = matchingAnnouncements![tagScheme];
+  const foreignPool = pools[tagScheme];
+  const matchingAnnouncement = matchingAnnouncements[tagScheme];
 
   return Array.from({ length: size }, (_, i) =>
     i === MATCH_INDEX ? matchingAnnouncement : foreignPool[i % foreignPool.length],
   );
 }
 
+const datasets = new Map(
+  DATASET_SIZES.map((size) => [
+    size,
+    {
+      legacy: makeDataset(size, 'legacy'),
+      optimized: makeDataset(size, 'optimized'),
+    },
+  ]),
+);
+
 describe('Stellar scan benchmark fixtures', () => {
-  test('optimized scanner preserves correctness on the 10k synthetic dataset', async () => {
-    await initFixtures();
-    const dataset = makeDataset(10_000, 'optimized');
+  test('optimized scanner preserves correctness on the 10k synthetic dataset', () => {
+    const dataset = datasets.get(10_000)?.optimized;
+    expect(dataset).toBeDefined();
 
     const matched = scanAnnouncements(
-      dataset,
+      dataset!,
       keys.viewingKey,
       keys.spendingPubKey,
       keys.spendingScalar,
     );
 
     expect(matched).toHaveLength(1);
-    expect(matched[0].stealthAddress).toBe(matchingAnnouncements!.optimized.stealthAddress);
+    expect(matched[0].stealthAddress).toBe(matchingAnnouncements.optimized.stealthAddress);
   });
 });
 
 describe('Stellar scan announcement view-tag batching', () => {
   for (const size of DATASET_SIZES) {
+    const dataset = datasets.get(size)!;
+
     bench(
       `before: shared-secret view tag (${size.toLocaleString()} announcements)`,
-      async () => {
-        await initFixtures();
-        const dataset = makeDataset(size, 'legacy');
+      () => {
         scanAnnouncementsLegacySharedSecretTag(
-          dataset,
+          dataset.legacy,
           keys.viewingKey,
           keys.spendingPubKey,
           keys.spendingScalar,
@@ -127,14 +133,100 @@ describe('Stellar scan announcement view-tag batching', () => {
 
     bench(
       `after: public view-tag prefilter (${size.toLocaleString()} announcements)`,
-      async () => {
-        await initFixtures();
-        const dataset = makeDataset(size, 'optimized');
+      () => {
         scanAnnouncements(
-          dataset,
+          dataset.optimized,
           keys.viewingKey,
           keys.spendingPubKey,
           keys.spendingScalar,
+        );
+      },
+      BENCH_OPTIONS,
+    );
+  }
+});
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Mimics fetchAnnouncementsStream's paging: one simulated RPC round trip per
+ * `pageSize` announcements, each paying `pageLatencyMs` before its events are
+ * available to the scanner.
+ */
+function paginatedMockSource(
+  items: Announcement[],
+  pageSize: number,
+  pageLatencyMs: number,
+): AsyncGenerator<Announcement> {
+  return (async function* () {
+    for (let offset = 0; offset < items.length; offset += pageSize) {
+      await sleep(pageLatencyMs);
+      const page = items.slice(offset, offset + pageSize);
+      for (const item of page) yield item;
+    }
+  })();
+}
+
+async function drain<T>(source: AsyncIterable<T>): Promise<T[]> {
+  const results: T[] = [];
+  for await (const value of source) results.push(value);
+  return results;
+}
+
+const PAGE_SIZE = 1_000;
+const PAGE_LATENCY_MS = 15;
+
+describe('Stellar streaming scan pipelining', () => {
+  test('pipelined scan finds the same match as the sequential scan', async () => {
+    const dataset = datasets.get(10_000)?.optimized;
+    expect(dataset).toBeDefined();
+
+    const matched = await drain(
+      scanAnnouncementsStream(
+        paginatedMockSource(dataset!, PAGE_SIZE, PAGE_LATENCY_MS),
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+        { window: PAGE_SIZE },
+      ),
+    );
+
+    expect(matched).toHaveLength(1);
+    expect(matched[0].stealthAddress).toBe(matchingAnnouncements.optimized.stealthAddress);
+  });
+
+  for (const size of DATASET_SIZES) {
+    const dataset = datasets.get(size)!.optimized;
+
+    bench(
+      `before: sequential window fetch-then-scan (${size.toLocaleString()} announcements)`,
+      async () => {
+        await drain(
+          scanAnnouncementsStreamSequential(
+            paginatedMockSource(dataset, PAGE_SIZE, PAGE_LATENCY_MS),
+            keys.viewingKey,
+            keys.spendingPubKey,
+            keys.spendingScalar,
+            { window: PAGE_SIZE },
+          ),
+        );
+      },
+      BENCH_OPTIONS,
+    );
+
+    bench(
+      `after: pipelined fetch+scan (${size.toLocaleString()} announcements)`,
+      async () => {
+        await drain(
+          scanAnnouncementsStream(
+            paginatedMockSource(dataset, PAGE_SIZE, PAGE_LATENCY_MS),
+            keys.viewingKey,
+            keys.spendingPubKey,
+            keys.spendingScalar,
+            { window: PAGE_SIZE },
+          ),
         );
       },
       BENCH_OPTIONS,

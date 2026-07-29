@@ -1,0 +1,19 @@
+{
+  "waived": [
+    {
+      "category": "stealth_gen",
+      "field": "viewTag",
+      "reason": "generateStealthAddress's default view-tag computation moved from the legacy wraith:tag: prefix to the domain-separated wraith:stellar:view-tag:v2: prefix in commit f7def68 (PR #93, 2026-06-25), which landed before the 1.4.0 minor. The 1.3.0 reference still computes the legacy tag by default; the old scheme remains available explicitly via computeViewTag(). This is a real, already-shipped protocol change predating this harness — waived so the harness stays green on develop. New view-tag diffs beyond this one must not be silently added to this waiver."
+    },
+    {
+      "category": "scan_match",
+      "field": "isMatch",
+      "reason": "Direct consequence of the stealth_gen.viewTag change above: checkStealthAddress compares the caller-supplied viewTag against its own internal computation, so a v2-generated viewTag no longer matches the 1.3.0 reference's legacy-scheme comparison. Same root cause and same commit (f7def68, PR #93) as the stealth_gen.viewTag waiver."
+    },
+    {
+      "category": "scan_match",
+      "field": "stealthPubKey",
+      "reason": "checkStealthAddress only returns a non-null stealthPubKeyBytes when isMatch is true, so this is a downstream artifact of the scan_match.isMatch waiver above, not an independent discrepancy. Same root cause and commit (f7def68, PR #93)."
+    }
+  ]
+}

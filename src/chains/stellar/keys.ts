@@ -3,6 +3,8 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha256';
 import type { StealthKeys } from './types';
 import { seedToScalar } from './scalar';
+import { STEALTH_SIGNING_MESSAGE } from './constants';
+import type { StellarStealthSigner } from './signer';
 
 /**
  * Derives Stellar stealth spending and viewing keys from a wallet signature.
@@ -50,4 +52,27 @@ export function deriveStealthKeys(signature: Uint8Array): StealthKeys {
     spendingPubKey,
     viewingPubKey,
   };
+}
+
+/**
+ * Derives Stellar stealth keys using any {@link StellarStealthSigner}.
+ *
+ * This is the signer-based entry point: it asks `signer` to sign
+ * {@link STEALTH_SIGNING_MESSAGE} and feeds the resulting bytes into
+ * {@link deriveStealthKeys}. Existing callers that already hold a raw 64-byte
+ * Freighter signature can keep calling `deriveStealthKeys` directly; this
+ * wrapper exists for signers (e.g. passkeys) whose signing step isn't a
+ * simple synchronous ed25519 signature.
+ *
+ * @throws {InvalidSignatureError} If the signer does not return 64 bytes.
+ *
+ * @see {@link deriveStealthKeys}
+ * @see {@link StellarStealthSigner}
+ */
+export async function deriveStealthKeysFromSigner(
+  signer: StellarStealthSigner,
+): Promise<StealthKeys> {
+  const message = new TextEncoder().encode(STEALTH_SIGNING_MESSAGE);
+  const signature = await signer.signMessage(message);
+  return deriveStealthKeys(signature);
 }
