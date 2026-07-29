@@ -69,6 +69,22 @@ export interface ChatResponse {
 }
 
 // @public (undocumented)
+export interface CkbChainInput {
+    // Warning: (ae-forgotten-export) The symbol "StealthCell" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    source: AsyncIterable<StealthCell>;
+    // (undocumented)
+    spendingKey: HexString;
+    // (undocumented)
+    spendingPubKey: HexString;
+    // Warning: (ae-forgotten-export) The symbol "HexString" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    viewingKey: HexString;
+}
+
+// @public (undocumented)
 export class ContractRevertError extends WraithContractError {
     constructor(reason: string, txHash?: string);
     // (undocumented)
@@ -94,6 +110,22 @@ export class ECDHFailedError extends WraithCryptoError {
     constructor(reason: string);
     // (undocumented)
     readonly code = "WRAITH/CRYPTO/ECDH_FAILED";
+}
+
+// @public (undocumented)
+export interface EvmChainInput {
+    // Warning: (ae-forgotten-export) The symbol "Announcement" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    source: AsyncIterable<Announcement>;
+    // (undocumented)
+    spendingKey: HexString_2;
+    // (undocumented)
+    spendingPubKey: HexString_2;
+    // Warning: (ae-forgotten-export) The symbol "HexString_2" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    viewingKey: HexString_2;
 }
 
 // @public (undocumented)
@@ -169,6 +201,29 @@ export class KeyDerivationFailedError extends WraithCryptoError {
     // (undocumented)
     readonly code = "WRAITH/CRYPTO/KEY_DERIVATION_FAILED";
 }
+
+// @public (undocumented)
+export type MatchedAnnouncement = {
+    chain: 'evm';
+    timestamp: number;
+    seq: number;
+    announcement: MatchedAnnouncement_2;
+} | {
+    chain: 'stellar';
+    timestamp: number;
+    seq: number;
+    announcement: MatchedAnnouncement_3;
+} | {
+    chain: 'solana';
+    timestamp: number;
+    seq: number;
+    announcement: MatchedAnnouncement_4;
+} | {
+    chain: 'ckb';
+    timestamp: number;
+    seq: number;
+    announcement: MatchedStealthCell;
+};
 
 // @public (undocumented)
 export class NameAlreadyRegisteredError extends WraithContractError {
@@ -249,6 +304,21 @@ export class RPCRetryExhaustedError extends WraithNetworkError {
 }
 
 // @public (undocumented)
+export function scanAll(input: ScanAllInput): AsyncGenerator<MatchedAnnouncement>;
+
+// @public (undocumented)
+export interface ScanAllInput {
+    // (undocumented)
+    ckb?: CkbChainInput;
+    // (undocumented)
+    evm?: EvmChainInput;
+    // (undocumented)
+    solana?: SolanaChainInput;
+    // (undocumented)
+    stellar?: StellarChainInput;
+}
+
+// @public (undocumented)
 export interface Schedule {
     // (undocumented)
     amount: string;
@@ -265,6 +335,37 @@ export interface Schedule {
     // (undocumented)
     status: 'active' | 'paused' | 'cancelled';
 }
+
+// @public (undocumented)
+export interface SolanaChainInput {
+    // Warning: (ae-forgotten-export) The symbol "Announcement_3" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    source: AsyncIterable<Announcement_3>;
+    // (undocumented)
+    spendingPubKey: Uint8Array;
+    // (undocumented)
+    spendingScalar: bigint;
+    // (undocumented)
+    viewingKey: Uint8Array;
+}
+
+// @public (undocumented)
+export interface StellarChainInput {
+    // Warning: (ae-forgotten-export) The symbol "Announcement_2" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    source: AsyncIterable<Announcement_2>;
+    // (undocumented)
+    spendingPubKey: Uint8Array;
+    // (undocumented)
+    spendingScalar: bigint;
+    // (undocumented)
+    viewingKey: Uint8Array;
+}
+
+// @public (undocumented)
+export type SupportedChain = 'evm' | 'stellar' | 'solana' | 'ckb';
 
 // @public (undocumented)
 export interface ToolCall {
@@ -399,6 +500,13 @@ export abstract class WraithInputError extends WraithError {
 // @public (undocumented)
 export abstract class WraithNetworkError extends WraithError {
 }
+
+// Warnings were encountered during analysis:
+//
+// dist/index.d.ts:207:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
+// dist/index.d.ts:212:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
+// dist/index.d.ts:217:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_4" needs to be exported by the entry point index.d.ts
+// dist/index.d.ts:222:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 
