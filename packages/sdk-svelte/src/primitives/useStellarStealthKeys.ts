@@ -130,10 +130,7 @@ export function useStellarStealthKeys() {
     _error.set(null);
     try {
       const list: Announcement[] = [];
-      for await (const announcement of fetchAnnouncementsStream(
-        chain ?? 'stellar',
-        sorobanUrl,
-      )) {
+      for await (const announcement of fetchAnnouncementsStream(chain ?? 'stellar', sorobanUrl)) {
         list.push(announcement);
       }
       _announcements.set(list);
