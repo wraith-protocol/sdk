@@ -47,7 +47,7 @@
   ],
   "scripts": {
     "build": "tsup",
-    "test": "vitest run --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts'",
+    "test": "vitest run --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts' && pnpm --filter @wraith-protocol/sdk-svelte test",
     "docs": "typedoc",
     "test:watch": "vitest",
     "bench": "vitest bench --run",
