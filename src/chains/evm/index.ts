@@ -4,6 +4,9 @@ export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-addre
 export { generateStealthAddress } from './stealth';
 export { checkStealthAddress, scanAnnouncements } from './scan';
 export { deriveStealthPrivateKey } from './spend';
+/**
+ * @internal
+ */
 export {
   signNameRegistration,
   signNameRegistrationOnBehalf,
@@ -11,8 +14,17 @@ export {
   signNameRelease,
   metaAddressToBytes,
 } from './names';
+/**
+ * @internal
+ */
 export { fetchAnnouncements } from './announcements';
+/**
+ * @internal
+ */
 export { DEPLOYMENTS, getDeployment } from './deployments';
+/**
+ * @internal
+ */
 export {
   buildSendStealth,
   buildSendERC20,
@@ -23,6 +35,9 @@ export {
   buildAnnounce,
   buildResolveName,
 } from './builders';
+/**
+ * @internal
+ */
 export { SENDER_ABI, NAMES_ABI, REGISTRY_ABI, ANNOUNCER_ABI, WITHDRAWER_ABI } from './abis';
 export type { TransactionData, BuildSendStealthResult } from './builders';
 export type { EVMChainDeployment } from './deployments';

@@ -33,6 +33,7 @@
     "jsdom": "^25.0.0"
   },
   "peerDependencies": {
+    "@wraith-protocol/sdk": "workspace:*",
     "vue": "^3.5.0"
   }
 }

@@ -28,7 +28,7 @@ vi.mock('@wraith-protocol/sdk/chains/stellar', () => ({
     spendingPubKey: new Uint8Array(32),
     viewingPubKey: new Uint8Array(32),
   }),
-  fetchAnnouncements: vi.fn().mockResolvedValue([]),
+  fetchAnnouncementsStream: vi.fn(),
 }));
 
 describe('useStellarStealthKeys', () => {
