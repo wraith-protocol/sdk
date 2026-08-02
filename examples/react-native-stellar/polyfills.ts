@@ -14,7 +14,7 @@ if (typeof globalThis.atob === 'undefined') {
     let buffer;
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
 
-    for (let idx = 0; (buffer = base64.charAt(idx++));) {
+    for (let idx = 0; (buffer = base64.charAt(idx++)); ) {
       const code = chars.indexOf(buffer);
       if (code === -1) continue;
       bs = (bs << 6) | code;

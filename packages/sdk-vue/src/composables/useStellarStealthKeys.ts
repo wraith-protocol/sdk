@@ -7,13 +7,19 @@ import {
   deriveStealthPrivateScalar,
   encodeStealthMetaAddress,
   decodeStealthMetaAddress,
-  fetchAnnouncements,
+  fetchAnnouncementsStream,
   type StealthKeys,
   type GeneratedStealthAddress,
   type Announcement,
   type MatchedAnnouncement,
   type StealthMetaAddress,
 } from '@wraith-protocol/sdk/chains/stellar';
+
+async function collectAnnouncements(stream: AsyncGenerator<Announcement>): Promise<Announcement[]> {
+  const result: Announcement[] = [];
+  for await (const ann of stream) result.push(ann);
+  return result;
+}
 
 export function useStellarStealthKeys() {
   const keys = ref<StealthKeys | null>(null);
@@ -130,7 +136,8 @@ export function useStellarStealthKeys() {
     loading.value = true;
     error.value = null;
     try {
-      const list = await fetchAnnouncements(chain, sorobanUrl);
+      const stream = fetchAnnouncementsStream(chain, sorobanUrl);
+      const list = await collectAnnouncements(stream);
       announcements.value = list;
       return list;
     } catch (e) {

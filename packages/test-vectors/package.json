@@ -10,12 +10,14 @@
   ],
   "scripts": {
     "generate": "tsx scripts/generate.ts",
-    "checksum": "tsx scripts/checksum.ts"
+    "checksum": "tsx scripts/checksum.ts",
+    "differential": "tsx differential.ts"
   },
   "devDependencies": {
     "@noble/curves": "^1.8.0",
     "@noble/hashes": "^1.7.0",
     "@stellar/stellar-sdk": "^13.1.0",
+    "@wraith-protocol/sdk": "workspace:*",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   },

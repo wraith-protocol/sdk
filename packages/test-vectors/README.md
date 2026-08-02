@@ -37,6 +37,47 @@ for (const [f, expected] of Object.entries(files)) {
 "
 ```
 
+## Differential Testing
+
+`differential.ts` runs every vector in `vectors/stellar.json` through two builds of `@wraith-protocol/sdk` — a pinned previous-minor reference version and the current workspace tip — and diffs the outputs field by field. Semver numbers alone don't catch a change that silently alters cryptographic output for existing inputs; this does, by actually comparing behavior across versions instead of behavior against a fixed expectation.
+
+```bash
+pnpm --filter @wraith-protocol/test-vectors differential
+```
+
+### How it works
+
+1. `differential.config.json` names the reference version (`referenceVersion`, vN-1) and the peer dependency range it needs. This is a plain config value, not auto-computed from semver, so a maintainer decides when to move the reference forward.
+2. The script installs that reference version into a throwaway `.differential/reference/` directory (gitignored) with `npm install --ignore-scripts`, and runs `differential-runner.mjs` there — the same runner file, unmodified, also runs against the workspace's own build. Node's normal module resolution is what picks the SDK version in each case; the runner never hardcodes a path.
+3. Every vector's `input` is fed through the corresponding SDK function (`deriveStealthKeys`, `generateStealthAddress`, `checkStealthAddress` + `deriveStealthPrivateScalar`, `signStellarTransaction`, `encodeStealthMetaAddress` + `decodeStealthMetaAddress`) on both sides, and the two output objects are compared key by key.
+4. Any field that differs between the reference and the tip is a diff. A diff either matches an entry in `differences.json`, in which case it's a waived, expected difference, or it doesn't, in which case the run fails.
+
+### Waiving an expected difference
+
+Add an entry to `differences.json`:
+
+```json
+{
+  "waived": [
+    {
+      "category": "stealth_gen",
+      "field": "viewTag",
+      "reason": "Explain why this diff is expected and safe — reference the commit/PR that introduced it."
+    }
+  ]
+}
+```
+
+`category` and `field` match the diff's location (e.g. `stealth_gen.viewTag`, `scan_match.isMatch`). Every waiver **must** carry a non-empty `reason` — the script refuses to run (exit code 2) if it finds one without. A waiver with no matching diff is reported as stale but doesn't fail the run; clean those up when you notice them.
+
+### Bumping the reference version
+
+When a new minor of `@wraith-protocol/sdk` ships, update `referenceVersion` in `differential.config.json` to that new minor so the reference stays one minor behind the current line. If the move introduces new diffs that are intentional (a documented, deliberate behavior change), waive them with a reason; anything undocumented is exactly what this harness exists to catch.
+
+### CI
+
+The `differential` job in `.github/workflows/ci.yml` runs this on every pull request that touches `src/chains/**`.
+
 ---
 
 ## Consumption Examples
