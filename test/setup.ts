@@ -6,23 +6,7 @@
  */
 
 // Re-export test globals (both runners have these)
-// For Bun compatibility: check if these exist before exporting
-let describe: any;
-let it: any;
-let test: any;
-let expect: any;
-let beforeEach: any;
-let afterEach: any;
-
-if (typeof globalThis !== 'undefined' && (globalThis as any).describe) {
-  // Vitest or Bun native test globals already exist
-  ({ describe, it, test, expect, beforeEach, afterEach } = globalThis as any);
-} else {
-  // Fallback (shouldn't happen, but for safety)
-  ({ describe, it, test, expect, beforeEach, afterEach } = require('vitest'));
-}
-
-export { describe, it, test, expect, beforeEach, afterEach };
+export { describe, it, test, expect, beforeEach, afterEach } from 'vitest';
 
 // Mock tracking for Bun
 const mockStack: Array<{ calls: any[][] }> = [];
