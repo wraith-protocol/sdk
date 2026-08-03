@@ -248,16 +248,62 @@ export interface ExtractContractSpecOptions {
 export interface ExtractedContractSpec {
   /** Contract identifier used for extraction. */
   contractId: string;
+
   /** Stellar network used to resolve the RPC URL. */
   network: Network;
+
   /** Effective Soroban RPC URL used for extraction. */
   rpcUrl: string;
+
   /** Current deployed Wasm hash for cache versioning. */
   wasmHash: HexString;
+
   /** Normalized function signatures. */
   functions: ContractFunctionSpec[];
+
   /** Normalized user-defined types. */
   types: ContractUserTypeSpec[];
+
   /** Generated TypeScript declarations when requested. */
   typescript?: string;
+}
+
+/** Payment details for a single stealth payment recipient. */
+export interface StealthPayment {
+  /** Recipient's stealth meta-address (st:xlm:...) */
+  metaAddress: string;
+  /** Amount in XLM (string to preserve precision) */
+  amount: string;
+}
+
+/** Parameters for building a batch send transaction. */
+export interface BuildBatchSendTxParams {
+  /** Array of stealth payments to include in the batch */
+  payments: StealthPayment[];
+  /** Stellar source account object with sequence number */
+  sourceAccount: any;
+  /** Optional memo for the transaction */
+  memo?: string;
+  /** Network passphrase (e.g., 'Test SDF Network ; September 2015') */
+  networkPassphrase: string;
+  /** Base fee per operation in stroops (default: 100) */
+  baseFee?: number;
+  /** Maximum operations allowed per transaction (default: 100) */
+  maxOperations?: number;
+  /** Threshold for using stealth-batch-sender contract (default: 10) */
+  batchSenderThreshold?: number;
+  /** Optional stealth-batch-sender contract address */
+  batchSenderContract?: string;
+}
+
+/** Result of building a batch send transaction. */
+export interface BuildBatchSendTxResult {
+  /** The built Stellar transaction (TransactionBuilder output) */
+  transaction: any;
+  /** Generated stealth addresses for each payment */
+  stealthAddresses: GeneratedStealthAddress[];
+  /** Total fee in stroops */
+  totalFee: number;
+  /** Whether stealth-batch-sender contract was used */
+  usedBatchSender: boolean;
 }

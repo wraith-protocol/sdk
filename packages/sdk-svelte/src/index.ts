@@ -1,5 +1,9 @@
 export { useWraith } from './primitives/useWraith.js';
 export { useStellarStealthKeys } from './primitives/useStellarStealthKeys.js';
+export { useStellarAnnouncementScan } from './primitives/useStellarAnnouncementScan.js';
+export { useStellarSendStealthPayment } from './primitives/useStellarSendStealthPayment.js';
+export { useStellarBalance } from './primitives/useStellarBalance.js';
+export { useStellarName } from './primitives/useStellarName.js';
 export { useEvmStealthKeys } from './primitives/useEvmStealthKeys.js';
 export { useSolanaStealthKeys } from './primitives/useSolanaStealthKeys.js';
 export { useStealthMetaAddress } from './primitives/useStealthMetaAddress.js';

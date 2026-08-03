@@ -4,6 +4,9 @@ export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-addre
 export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
 export { checkStealthAddress, scanAnnouncements } from './scan';
 export { deriveStealthPrivateScalar, signSolanaTransaction } from './spend';
+/**
+ * @internal
+ */
 export {
   seedToScalar,
   hashToScalar,
@@ -13,7 +16,13 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
+/**
+ * @internal
+ */
 export { fetchAnnouncements } from './announcements';
+/**
+ * @internal
+ */
 export {
   buildSendSol,
   buildAnnounce,
@@ -22,6 +31,9 @@ export {
   buildReleaseName,
   buildResolveName,
 } from './builders';
+/**
+ * @internal
+ */
 export { DEPLOYMENTS, getDeployment } from './deployments';
 export type {
   SolanaInstruction,
