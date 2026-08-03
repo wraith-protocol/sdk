@@ -1,4 +1,5 @@
 import { ed25519 } from '@noble/curves/ed25519';
+import type { ExtPointType } from '@noble/curves/abstract/edwards';
 import { computeAnnouncementViewTag, computeSharedSecret, computeViewTag } from './stealth';
 import { hashToScalar, deriveStealthPubKey, pubKeyToStellarAddress, L } from './scalar';
 import { SCHEME_ID, SCHEME_ID_V2 } from './constants';
@@ -145,10 +146,8 @@ export async function* scanAnnouncementsStreamSequential(
   const windowSize = Math.max(1, opts.window ?? 64);
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
   const iter = source[Symbol.asyncIterator]();
-  const viewingPubKey = ed25519.getPublicKey(viewingKey);
   const ephemeralBuffer = new Uint8Array(32);
-  const batch: Announcement[] = [];
-  let spendingPoint: ed25519.ExtendedPoint | undefined;
+  let spendingPoint: ExtPointType | undefined;
 
   try {
     try {
@@ -263,7 +262,7 @@ function checkStealthAddressWithViewingPubKey(
   viewingPubKey: Uint8Array,
   spendingPubKey: Uint8Array,
   viewTag: number,
-  spendingPoint?: ed25519.ExtendedPoint,
+  spendingPoint?: ExtPointType,
 ): {
   isMatch: boolean;
   stealthAddress: string | null;
@@ -291,7 +290,7 @@ function deriveStealthAddressFromAnnouncement(
   ephemeralPubKey: Uint8Array,
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
-  spendingPoint?: ed25519.ExtendedPoint,
+  spendingPoint?: ExtPointType,
 ): {
   isMatch: boolean;
   stealthAddress: string | null;
@@ -349,7 +348,7 @@ export function scanAnnouncements(
   const matched: MatchedAnnouncement[] = [];
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
   const ephemeralBuffer = new Uint8Array(32);
-  let spendingPoint: ed25519.ExtendedPoint | undefined;
+  let spendingPoint: ExtPointType | undefined;
 
   try {
     spendingPoint = ed25519.ExtendedPoint.fromHex(spendingPubKey);
