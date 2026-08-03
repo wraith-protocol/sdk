@@ -5,6 +5,7 @@
 ```ts
 
 import { Asset } from '@stellar/stellar-sdk';
+import { ExtPointType } from '@noble/curves/abstract/edwards';
 import { Horizon } from '@stellar/stellar-sdk';
 import { Keypair } from '@stellar/stellar-sdk';
 import { Memo } from '@stellar/stellar-sdk';
@@ -282,7 +283,7 @@ export function deriveStealthKeysFromSigner(signer: StellarStealthSigner): Promi
 export function deriveStealthPrivateScalar(spendingScalar: bigint, viewingKey: Uint8Array, ephemeralPubKey: Uint8Array): bigint;
 
 // @public
-export function deriveStealthPubKey(spendingPubKey: Uint8Array, hashScalar: bigint): Uint8Array;
+export function deriveStealthPubKey(spendingPubKey: Uint8Array, hashScalar: bigint, spendingPoint?: ExtPointType): Uint8Array;
 
 // @public
 export function encodeAnnouncementData(ephemeralPubKey: Uint8Array, viewTag: number): Uint8Array;
