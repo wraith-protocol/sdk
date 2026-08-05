@@ -17,7 +17,10 @@ function mockFetch(
   });
 }
 
-function mockFetchSequence(url: string, sequence: Array<{ status: number; body: unknown }>): typeof fetch {
+function mockFetchSequence(
+  url: string,
+  sequence: Array<{ status: number; body: unknown }>,
+): typeof fetch {
   let callCount = 0;
   return vi.fn(async (u: string) => {
     if (u !== url) {
@@ -41,9 +44,9 @@ describe('createRpcClient', () => {
   });
 
   it('throws if no endpoints provided', () => {
-    expect(() =>
-      createRpcClient({ endpoints: [] }),
-    ).toThrow('At least one RPC endpoint is required');
+    expect(() => createRpcClient({ endpoints: [] })).toThrow(
+      'At least one RPC endpoint is required',
+    );
   });
 
   it('returns healthy endpoint', async () => {
@@ -151,7 +154,9 @@ describe('createRpcClient', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'down' }), { status: 503 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'down' }), { status: 503 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'down' }), { status: 503 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, recovered: true }), { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true, recovered: true }), { status: 200 }),
+      );
 
     const fetchFallback = mockFetchSequence(fallbackUrl, [
       { status: 200, body: { ok: true, fallback: true } },
@@ -175,7 +180,9 @@ describe('createRpcClient', () => {
     await new Promise((r) => setTimeout(r, 100));
 
     fetchSequence.mockReset();
-    fetchSequence.mockResolvedValue(new Response(JSON.stringify({ ok: true, recovered: true }), { status: 200 }));
+    fetchSequence.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, recovered: true }), { status: 200 }),
+    );
 
     const result = await client.request('GET', '/');
     expect(result).toEqual({ ok: true, fallback: true });
