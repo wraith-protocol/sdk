@@ -259,7 +259,16 @@ export function decodeAnnouncementData(data: Uint8Array): {
 };
 
 // @public
+export interface DecodedMemoSchema {
+    bytes: Uint8Array;
+    schema?: MemoSchemaV1;
+}
+
+// @public
 export function decodeMemo(memo: Memo | xdr.Memo): TypedMemo;
+
+// @public
+export function decodeMemoSchema(bytes: Uint8Array): DecodedMemoSchema;
 
 // @public
 export function decodeStealthMetaAddress(metaAddress: string): StealthMetaAddress;
@@ -290,6 +299,9 @@ export function encodeAnnouncementData(ephemeralPubKey: Uint8Array, viewTag: num
 
 // @public
 export function encodeMemo(memo: TypedMemo): Memo;
+
+// @public
+export function encodeMemoSchema(kind: MemoKind, data: Uint8Array | string): Uint8Array;
 
 // @public
 export function encodeStealthMetaAddress(spendingPubKey: Uint8Array, viewingPubKey: Uint8Array): string;
@@ -444,6 +456,19 @@ export interface MatchedAnnouncement extends Announcement {
 export const MAX_RPC_EVENT_FILTERS = 5;
 
 // @public
+export const MEMO_SCHEMA_VERSION = 1;
+
+// @public
+export enum MemoKind {
+    // (undocumented)
+    InvoiceId = 2,
+    // (undocumented)
+    Reason = 1,
+    // (undocumented)
+    Reference = 3
+}
+
+// @public
 export class MemoryCache implements AnnouncementCache {
     constructor(maxBytes?: number);
     // (undocumented)
@@ -459,6 +484,16 @@ export class MemoryCache implements AnnouncementCache {
     put(network: Network, announcements: Announcement[]): Promise<void>;
     // (undocumented)
     setLastSeen(network: Network, ledger: number, cursor: string): Promise<void>;
+}
+
+// @public
+export interface MemoSchemaV1 {
+    // (undocumented)
+    data: Uint8Array;
+    // (undocumented)
+    kind: MemoKind;
+    // (undocumented)
+    version: typeof MEMO_SCHEMA_VERSION;
 }
 
 // @public
@@ -523,6 +558,15 @@ export function scanAnnouncements(announcements: Announcement[], viewingKey: Uin
 
 // @public
 export function scanAnnouncementsLegacySharedSecretTag(announcements: Announcement[], viewingKey: Uint8Array, spendingPubKey: Uint8Array, spendingScalar: bigint): MatchedAnnouncement[];
+
+// @public
+export const SCHEMA_HEADER_BYTES = 3;
+
+// @public
+export const SCHEMA_MAX_DATA_BYTES: number;
+
+// @public
+export const SCHEMA_MEMO_BYTES = 32;
 
 // @public
 export const SCHEME_ID = 1;
