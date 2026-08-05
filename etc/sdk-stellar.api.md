@@ -251,6 +251,9 @@ export function computeViewTag(sharedSecret: Uint8Array): number;
 // @public (undocumented)
 export function createHorizonClient(config: HorizonClientConfig): HorizonClient;
 
+// @public (undocumented)
+export function createRpcClient(config: RpcClientConfig): RpcClient;
+
 // @public
 export function decodeAnnouncementData(data: Uint8Array): {
     schemeId: number;
@@ -516,6 +519,53 @@ export interface RetryPolicy {
     maxDelayMs: number;
     maxRetries: number;
     retryableStatuses: number[];
+}
+
+// @public (undocumented)
+export interface RpcClient {
+    // (undocumented)
+    getHealthyEndpoint(): string;
+    // (undocumented)
+    off(event: 'endpointFailover', listener: (detail: {
+        from: string;
+        to: string;
+        reason: string;
+    }) => void): void;
+    // (undocumented)
+    on(event: 'endpointFailover', listener: (detail: {
+        from: string;
+        to: string;
+        reason: string;
+    }) => void): void;
+    // (undocumented)
+    request<T = unknown>(method: string, path: string, body?: unknown): Promise<T>;
+}
+
+// @public (undocumented)
+export interface RpcClientConfig {
+    // (undocumented)
+    circuitBreaker?: {
+        failureThreshold: number;
+        cooldownMs: number;
+    };
+    // (undocumented)
+    endpoints: RpcEndpoint[];
+    // (undocumented)
+    fetchImpl?: typeof fetch;
+    // (undocumented)
+    healthCheckPath?: string;
+    // (undocumented)
+    retry?: {
+        maxRetries: number;
+        baseDelayMs: number;
+        maxDelayMs: number;
+    };
+}
+
+// @public (undocumented)
+export interface RpcEndpoint {
+    // (undocumented)
+    url: string;
 }
 
 // @public @deprecated
