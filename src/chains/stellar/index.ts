@@ -134,3 +134,6 @@ export { MemoValidationError, TEXT_MEMO_MAX_BYTES, HASH_MEMO_BYTES, ID_MEMO_MAX 
 
 export { createHorizonClient } from './horizon';
 export type { RetryPolicy, HorizonClient, HorizonClientConfig } from './horizon';
+
+export { createRpcClient } from './rpc';
+export type { RpcClient, RpcClientConfig, RpcEndpoint } from './rpc';

@@ -18,7 +18,7 @@ import type { Announcement, StealthKeys } from '../../../../src/chains/stellar/t
 
 const MATCH_INDEX = 997;
 const POOL_SIZE = 512;
-const DEFAULT_DATASET_SIZES = [10_000, 100_000, 1_000_000] as const;
+const DEFAULT_DATASET_SIZES = [10_000, 100_000] as const;
 const DATASET_SIZES = (
   process.env.STELLAR_SCAN_BENCH_SIZES?.split(',').map(Number) ?? [...DEFAULT_DATASET_SIZES]
 ).filter((size) => Number.isFinite(size) && size > 0);

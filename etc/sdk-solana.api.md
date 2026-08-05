@@ -4,6 +4,8 @@
 
 ```ts
 
+import { ExtPointType } from '@noble/curves/abstract/edwards';
+
 // @public
 export interface Announcement {
     caller: string;
@@ -141,7 +143,7 @@ export function deriveStealthKeys(signature: Uint8Array): StealthKeys_2;
 export function deriveStealthPrivateScalar(spendingScalar: bigint, viewingKey: Uint8Array, ephemeralPubKey: Uint8Array): bigint;
 
 // @public
-export function deriveStealthPubKey(spendingPubKey: Uint8Array, hashScalar: bigint): Uint8Array;
+export function deriveStealthPubKey(spendingPubKey: Uint8Array, hashScalar: bigint, spendingPoint?: ExtPointType): Uint8Array;
 
 // @public
 export function encodeStealthMetaAddress(spendingPubKey: Uint8Array, viewingPubKey: Uint8Array): string;
