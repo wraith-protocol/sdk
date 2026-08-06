@@ -22,8 +22,9 @@ function mockFetchSequence(
   sequence: Array<{ status: number; body: unknown }>,
 ): typeof fetch {
   let callCount = 0;
+  const normalize = (s: string) => s.replace(/\/$/, '');
   return vi.fn(async (u: string) => {
-    if (u !== url) {
+    if (normalize(u) !== normalize(url)) {
       return new Response(JSON.stringify({ error: 'not found' }), { status: 404 });
     }
     const idx = Math.min(callCount, sequence.length - 1);
@@ -65,7 +66,6 @@ describe('createRpcClient', () => {
 
   it('fails over to secondary endpoint on consecutive failures', async () => {
     const fetchImpl = mockFetchSequence(primaryUrl, [
-      { status: 200, body: { ok: true } },
       { status: 503, body: { error: 'down' } },
       { status: 503, body: { error: 'down' } },
       { status: 503, body: { error: 'down' } },
@@ -150,7 +150,6 @@ describe('createRpcClient', () => {
   it('recovers endpoint after cooldown', async () => {
     const fetchSequence = vi.fn();
     fetchSequence
-      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'down' }), { status: 503 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'down' }), { status: 503 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'down' }), { status: 503 }))

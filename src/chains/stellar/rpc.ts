@@ -128,7 +128,11 @@ export function createRpcClient(config: RpcClientConfig): RpcClient {
   }
 
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const maxAttempts = states.length * (maxRetries + 1);
+    // Each endpoint needs at least `failureThreshold` attempts for the circuit
+    // breaker to trip and trigger failover — otherwise a low maxRetries could
+    // exhaust the loop before failover is ever reachable.
+    const maxAttemptsPerEndpoint = Math.max(maxRetries + 1, failureThreshold);
+    const maxAttempts = states.length * maxAttemptsPerEndpoint;
     let lastError: Error | undefined;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
