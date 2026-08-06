@@ -144,3 +144,6 @@ export type { MemoSchemaV1, DecodedMemoSchema } from './memo/schema';
 
 export { createHorizonClient } from './horizon';
 export type { RetryPolicy, HorizonClient, HorizonClientConfig } from './horizon';
+
+export { createRpcClient } from './rpc';
+export type { RpcClient, RpcClientConfig, RpcEndpoint } from './rpc';
