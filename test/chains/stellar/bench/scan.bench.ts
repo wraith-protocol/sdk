@@ -15,6 +15,7 @@ import {
 import { SCHEME_ID } from '../../../../src/chains/stellar/constants';
 import { bytesToHex } from '../../../../src/chains/stellar/utils';
 import type { Announcement, StealthKeys } from '../../../../src/chains/stellar/types';
+import { fetchAnnouncementsStream } from '../../../../src/chains/stellar/announcements';
 
 const MATCH_INDEX = 997;
 const POOL_SIZE = 512;
@@ -232,4 +233,115 @@ describe('Stellar streaming scan pipelining', () => {
       BENCH_OPTIONS,
     );
   }
+});
+
+/**
+ * Mock source that simulates parallel chunk fetching with variable latency.
+ * Each chunk has a base latency plus random jitter to simulate real-world network variance.
+ */
+function parallelChunkMockSource(
+  items: Announcement[],
+  numChunks: number,
+  baseLatencyMs: number,
+  jitterMs: number,
+): AsyncGenerator<Announcement> {
+  return (async function* () {
+    const chunkSize = Math.ceil(items.length / numChunks);
+    const chunks: Array<{ items: Announcement[]; latency: number }> = [];
+
+    for (let i = 0; i < numChunks; i++) {
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, items.length);
+      const chunkItems = items.slice(start, end);
+      const latency = baseLatencyMs + Math.random() * jitterMs;
+      chunks.push({ items: chunkItems, latency });
+    }
+
+    // Simulate parallel fetching by starting all chunks concurrently
+    const chunkPromises = chunks.map(async (chunk) => {
+      await sleep(chunk.latency);
+      return chunk.items;
+    });
+
+    // Wait for all chunks to complete
+    const completedChunks = await Promise.all(chunkPromises);
+
+    // Yield items in original order (simulating ordered merge)
+    for (const chunk of completedChunks) {
+      for (const item of chunk) {
+        yield item;
+      }
+    }
+  })();
+}
+
+describe('Stellar parallel horizon range chunking', () => {
+  const PARALLEL_BENCH_SIZE = 50_000;
+  const PARALLEL_BASE_LATENCY_MS = 50;
+  const PARALLEL_JITTER_MS = 30;
+
+  const parallelDataset = makeDataset(PARALLEL_BENCH_SIZE, 'optimized');
+
+  test('parallel scan maintains correctness with 4 chunks', async () => {
+    const matched = await drain(
+      scanAnnouncementsStream(
+        parallelChunkMockSource(parallelDataset, 4, PARALLEL_BASE_LATENCY_MS, PARALLEL_JITTER_MS),
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+        { window: PAGE_SIZE },
+      ),
+    );
+
+    expect(matched).toHaveLength(1);
+    expect(matched[0].stealthAddress).toBe(matchingAnnouncements.optimized.stealthAddress);
+  });
+
+  bench(
+    `parallelism=1 (baseline) (${PARALLEL_BENCH_SIZE.toLocaleString()} announcements)`,
+    async () => {
+      await drain(
+        scanAnnouncementsStream(
+          parallelChunkMockSource(parallelDataset, 1, PARALLEL_BASE_LATENCY_MS, PARALLEL_JITTER_MS),
+          keys.viewingKey,
+          keys.spendingPubKey,
+          keys.spendingScalar,
+          { window: PAGE_SIZE },
+        ),
+      );
+    },
+    BENCH_OPTIONS,
+  );
+
+  bench(
+    `parallelism=4 (${PARALLEL_BENCH_SIZE.toLocaleString()} announcements)`,
+    async () => {
+      await drain(
+        scanAnnouncementsStream(
+          parallelChunkMockSource(parallelDataset, 4, PARALLEL_BASE_LATENCY_MS, PARALLEL_JITTER_MS),
+          keys.viewingKey,
+          keys.spendingPubKey,
+          keys.spendingScalar,
+          { window: PAGE_SIZE },
+        ),
+      );
+    },
+    BENCH_OPTIONS,
+  );
+
+  bench(
+    `parallelism=8 (${PARALLEL_BENCH_SIZE.toLocaleString()} announcements)`,
+    async () => {
+      await drain(
+        scanAnnouncementsStream(
+          parallelChunkMockSource(parallelDataset, 8, PARALLEL_BASE_LATENCY_MS, PARALLEL_JITTER_MS),
+          keys.viewingKey,
+          keys.spendingPubKey,
+          keys.spendingScalar,
+          { window: PAGE_SIZE },
+        ),
+      );
+    },
+    BENCH_OPTIONS,
+  );
 });
