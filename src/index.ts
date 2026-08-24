@@ -5,6 +5,26 @@ export { Chain } from './agent/types';
  */
 export { installReactNativePolyfills } from './compat';
 export { scanAll } from './scanner/unified';
+export {
+  deriveStealthKeysFromWallet,
+  FreighterWalletAdapter,
+  createFreighterWalletAdapter,
+  ViemWalletAdapter,
+  createViemWalletAdapter,
+  SolanaWalletAdapter,
+  createSolanaWalletAdapter,
+} from './wallet';
+export type {
+  WalletAdapterChain,
+  BaseWalletAdapter,
+  StellarWalletAdapter,
+  EvmWalletAdapter,
+  SolanaChainWalletAdapter,
+  WalletAdapter,
+  FreighterWalletApi,
+  ViemWalletClient,
+  SolanaWalletAdapterLike,
+} from './wallet';
 export type {
   WraithConfig,
   AgentConfig,
