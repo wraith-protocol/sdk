@@ -157,7 +157,7 @@ export async function* mergeOrdered<T>(
 
   while (pending.length > 0) {
     // Find the item with the smallest key
-    pending.sort((a, b) => a.key - b.key);
+    pending.sort((a, b) => a.key - b.key || a.index - b.index);
     const [next, ...rest] = pending;
 
     yield next.value;
@@ -187,12 +187,12 @@ export function splitRange(
   }
 
   const totalLedgers = endLedger - startLedger;
-  const chunkSize = Math.ceil(totalLedgers / numChunks);
+  
   const chunks: ChunkRange[] = [];
 
   for (let i = 0; i < numChunks; i++) {
-    const chunkStart = startLedger + i * chunkSize;
-    const chunkEnd = Math.min(chunkStart + chunkSize, endLedger);
+    const chunkStart = startLedger + Math.floor((i * totalLedgers) / numChunks);
+    const chunkEnd = startLedger + Math.floor(((i + 1) * totalLedgers) / numChunks);
     if (chunkStart < chunkEnd) {
       chunks.push({ startLedger: chunkStart, endLedger: chunkEnd });
     }

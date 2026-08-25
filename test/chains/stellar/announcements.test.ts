@@ -509,7 +509,7 @@ describe('parallel chunking ordering guarantee', () => {
   });
 
   test('parallelism is ignored when cursor is provided', async () => {
-    fetchSpy = mockFetchSequence([makeProbeSuccess(), emptyEvents('resume-cursor')]);
+    fetchSpy = mockFetchSequence([makeProbeSuccess(), { result: { sequence: 100 } }, emptyEvents('resume-cursor')]);
     vi.stubGlobal('fetch', fetchSpy);
 
     // Even with parallelism=4, cursor should force sequential path
@@ -521,7 +521,7 @@ describe('parallel chunking ordering guarantee', () => {
       }),
     );
 
-    const scan = methodCalls('getEvents')[1].body.params;
+    const scan = JSON.parse(fetchSpy.mock.calls[2][1].body).params;
 
     // Should use cursor pagination, not parallel chunking
     expect(scan.startLedger).toBeUndefined();
