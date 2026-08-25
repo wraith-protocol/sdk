@@ -315,6 +315,7 @@ export interface FetchAnnouncementsOptions {
     fromTimestamp?: Date;
     includeV1?: boolean;
     includeV2?: boolean;
+    parallelism?: number;
     sorobanUrl?: string;
     toLedger?: number;
     toTimestamp?: Date;
