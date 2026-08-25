@@ -165,3 +165,31 @@ console.log(JSON.stringify(error, null, 2));
   }
 }
 ```
+
+---
+
+## Actionable Fix Hints with `describe()`
+
+Every `WraithError` instance exposes a `describe(): string` method in addition to `message`, `code`, `context`, and `docsLink`. Where `message` is a compact, log-friendly summary, `describe()` returns a longer, human-readable hint — templated from the error's `context` — that suggests one or two concrete next steps, plus a link to the relevant docs anchor. This means console output and error toasts can surface useful guidance without a round-trip to the docs site.
+
+`WraithError` defines a generic fallback `describe()`, and every concrete subclass overrides it with a hint tailored to that specific failure mode.
+
+### Example
+
+```ts
+import { InsufficientBalanceError } from '@wraith-protocol/sdk';
+
+try {
+  // ... build a transaction
+} catch (err) {
+  if (err instanceof InsufficientBalanceError) {
+    console.error(err.message); // compact summary, e.g. for log lines
+    console.error(err.describe());
+    // "Not enough balance of XLM to build this transaction — need 100, have 50.
+    //  Try: fund the account, reduce the amount, or account for network fees
+    //  separately from the transfer amount. See https://docs.wraith.dev/sdk/errors#insufficient-balance."
+  }
+}
+```
+
+This makes `describe()` well suited for error toasts and CLI output, where a developer (or end user) needs to know what to try next without leaving the app.
