@@ -187,7 +187,7 @@ export function splitRange(
   }
 
   const totalLedgers = endLedger - startLedger;
-  
+
   const chunks: ChunkRange[] = [];
 
   for (let i = 0; i < numChunks; i++) {
