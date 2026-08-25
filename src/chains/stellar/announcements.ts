@@ -159,7 +159,7 @@ export async function* mergeOrdered<T>(
     // Find the item with the smallest key
     pending.sort((a, b) => a.key - b.key);
     const [next, ...rest] = pending;
-    
+
     yield next.value;
 
     // Pull the next item from the iterator that just yielded
@@ -167,7 +167,7 @@ export async function* mergeOrdered<T>(
     if (!result.done) {
       rest.push({ value: result.value.item, key: result.value.key, index: next.index });
     }
-    
+
     pending.length = 0;
     pending.push(...rest);
   }
@@ -177,7 +177,11 @@ export async function* mergeOrdered<T>(
  * Splits a ledger range into N contiguous chunks.
  * @internal
  */
-export function splitRange(startLedger: number, endLedger: number, numChunks: number): ChunkRange[] {
+export function splitRange(
+  startLedger: number,
+  endLedger: number,
+  numChunks: number,
+): ChunkRange[] {
   if (numChunks <= 1) {
     return [{ startLedger, endLedger }];
   }
@@ -251,7 +255,7 @@ export async function* fetchAnnouncementsStream(
   if (!opts?.cursor && parallelism > 1 && toLedger !== undefined) {
     const seen = new Set<string>();
     const chunks = splitRange(startLedger, toLedger, parallelism);
-    
+
     const chunkIterables = chunks.map((chunk) => {
       return (async function* () {
         for await (const result of fetchAnnouncementsRange(

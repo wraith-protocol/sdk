@@ -388,7 +388,7 @@ describe('parallel chunking ordering guarantee', () => {
 
     // Import the internal mergeOrdered function
     const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
-    
+
     const results: number[] = [];
     for await (const item of mergeOrdered(iterables)) {
       results.push(item);
@@ -412,7 +412,7 @@ describe('parallel chunking ordering guarantee', () => {
     ];
 
     const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
-    
+
     const results: number[] = [];
     for await (const item of mergeOrdered(iterables)) {
       results.push(item);
@@ -434,7 +434,7 @@ describe('parallel chunking ordering guarantee', () => {
     ];
 
     const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
-    
+
     const results: number[] = [];
     for await (const item of mergeOrdered(iterables)) {
       results.push(item);
@@ -446,7 +446,7 @@ describe('parallel chunking ordering guarantee', () => {
 
   test('splitRange divides ledger range into contiguous chunks', async () => {
     const { splitRange } = await import('../../../src/chains/stellar/announcements');
-    
+
     const chunks = splitRange(100, 400, 3);
     expect(chunks).toEqual([
       { startLedger: 100, endLedger: 200 },
@@ -457,16 +457,14 @@ describe('parallel chunking ordering guarantee', () => {
 
   test('splitRange handles single chunk', async () => {
     const { splitRange } = await import('../../../src/chains/stellar/announcements');
-    
+
     const chunks = splitRange(100, 400, 1);
-    expect(chunks).toEqual([
-      { startLedger: 100, endLedger: 400 },
-    ]);
+    expect(chunks).toEqual([{ startLedger: 100, endLedger: 400 }]);
   });
 
   test('splitRange handles non-even division', async () => {
     const { splitRange } = await import('../../../src/chains/stellar/announcements');
-    
+
     const chunks = splitRange(100, 500, 3);
     expect(chunks).toEqual([
       { startLedger: 100, endLedger: 233 },
@@ -486,7 +484,7 @@ describe('parallel chunking ordering guarantee', () => {
     const results1 = await collectStream(
       fetchAnnouncementsStream('stellar', { fromLedger: 150, toLedger: 175, includeV2: false }),
     );
-    
+
     // Reset and test with explicit parallelism=1
     vi.clearAllMocks();
     fetchSpy = mockFetchSequence([
@@ -497,7 +495,12 @@ describe('parallel chunking ordering guarantee', () => {
     vi.stubGlobal('fetch', fetchSpy);
 
     const results2 = await collectStream(
-      fetchAnnouncementsStream('stellar', { fromLedger: 150, toLedger: 175, parallelism: 1, includeV2: false }),
+      fetchAnnouncementsStream('stellar', {
+        fromLedger: 150,
+        toLedger: 175,
+        parallelism: 1,
+        includeV2: false,
+      }),
     );
 
     // Both should produce identical results
@@ -506,19 +509,20 @@ describe('parallel chunking ordering guarantee', () => {
   });
 
   test('parallelism is ignored when cursor is provided', async () => {
-    fetchSpy = mockFetchSequence([
-      makeProbeSuccess(),
-      emptyEvents('resume-cursor'),
-    ]);
+    fetchSpy = mockFetchSequence([makeProbeSuccess(), emptyEvents('resume-cursor')]);
     vi.stubGlobal('fetch', fetchSpy);
 
     // Even with parallelism=4, cursor should force sequential path
     await collectStream(
-      fetchAnnouncementsStream('stellar', { cursor: 'previous-cursor', parallelism: 4, includeV2: false }),
+      fetchAnnouncementsStream('stellar', {
+        cursor: 'previous-cursor',
+        parallelism: 4,
+        includeV2: false,
+      }),
     );
 
     const scan = methodCalls('getEvents')[1].body.params;
-    
+
     // Should use cursor pagination, not parallel chunking
     expect(scan.startLedger).toBeUndefined();
     expect(scan.pagination).toEqual({ limit: 1000, cursor: 'previous-cursor' });
