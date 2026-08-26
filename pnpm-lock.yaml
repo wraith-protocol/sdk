@@ -401,8 +401,8 @@ importers:
         specifier: file:../..
         version: file:(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@stellar/stellar-sdk@13.3.0)(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
       '@wraith-protocol/sdk-agent':
-        specifier: workspace:*
-        version: link:../../packages/sdk-agent
+        specifier: file:../../packages/sdk-agent
+        version: file:packages/sdk-agent
     devDependencies:
       tsx:
         specifier: ^4.0.0
@@ -3220,6 +3220,9 @@ packages:
 
   '@webcomponents/custom-elements@1.6.0':
     resolution: {integrity: sha512-CqTpxOlUCPWRNUPZDxT5v2NnHXA4oox612iUGnmTUGQFhZ1Gkj8kirtl/2wcF6MqX7+PqqicZzOCBKKfIn0dww==}
+
+  '@wraith-protocol/sdk-agent@file:packages/sdk-agent':
+    resolution: {directory: packages/sdk-agent, type: directory}
 
   '@wraith-protocol/sdk-react@file:packages/sdk-react':
     resolution: {directory: packages/sdk-react, type: directory}
@@ -10921,6 +10924,10 @@ snapshots:
       '@vue/server-renderer': 3.5.39(vue@3.5.39(typescript@5.9.3))
 
   '@webcomponents/custom-elements@1.6.0': {}
+
+  '@wraith-protocol/sdk-agent@file:packages/sdk-agent':
+    dependencies:
+      '@wraith-protocol/sdk': 'link:'
 
   '@wraith-protocol/sdk-react@file:packages/sdk-react(@stellar/stellar-sdk@13.3.0)(@wraith-protocol/sdk@file:(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@stellar/stellar-sdk@13.3.0)(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:

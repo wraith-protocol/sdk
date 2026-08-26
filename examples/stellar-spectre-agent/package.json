@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@wraith-protocol/sdk": "file:../..",
-    "@wraith-protocol/sdk-agent": "workspace:*"
+    "@wraith-protocol/sdk-agent": "file:../../packages/sdk-agent"
   },
   "devDependencies": {
     "tsx": "^4.0.0",
