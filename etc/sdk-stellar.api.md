@@ -707,15 +707,22 @@ export interface WebAuthnCredentialsContainer {
     get(options: Record<string, unknown>): Promise<WebAuthnPRFAssertion | null>;
 }
 
+// Warning: (ae-forgotten-export) The symbol "StellarWalletAdapter" needs to be exported by the entry point index.d.ts
+//
 // @public
-export class WebAuthnPasskeyStealthSigner implements StellarStealthSigner {
+export class WebAuthnPasskeyStealthSigner implements StellarStealthSigner, StellarWalletAdapter {
     constructor(options: WebAuthnPasskeyStealthSignerOptions);
+    // (undocumented)
+    readonly chain: "stellar";
+    // (undocumented)
+    getAddress(): Promise<string>;
     // (undocumented)
     signMessage(message: Uint8Array): Promise<Uint8Array>;
 }
 
 // @public
 export interface WebAuthnPasskeyStealthSignerOptions {
+    address?: string;
     credentialId: Uint8Array;
     credentials?: WebAuthnCredentialsContainer;
     rpId?: string;

@@ -40,6 +40,16 @@ export interface Balance {
     tokens: Record<string, string>;
 }
 
+// @public
+export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature> {
+    // (undocumented)
+    readonly chain: TChain;
+    // (undocumented)
+    getAddress(): Promise<string>;
+    // (undocumented)
+    signMessage(message: Uint8Array): Promise<TSignature>;
+}
+
 // @public (undocumented)
 export enum Chain {
     // (undocumented)
@@ -75,13 +85,13 @@ export interface CkbChainInput {
     // (undocumented)
     source: AsyncIterable<StealthCell>;
     // (undocumented)
-    spendingKey: HexString;
+    spendingKey: HexString_2;
     // (undocumented)
-    spendingPubKey: HexString;
-    // Warning: (ae-forgotten-export) The symbol "HexString" needs to be exported by the entry point index.d.ts
+    spendingPubKey: HexString_2;
+    // Warning: (ae-forgotten-export) The symbol "HexString_2" needs to be exported by the entry point index.d.ts
     //
     // (undocumented)
-    viewingKey: HexString;
+    viewingKey: HexString_2;
 }
 
 // @public (undocumented)
@@ -105,6 +115,33 @@ export interface Conversation {
     updatedAt: string;
 }
 
+// @public
+export function createFreighterWalletAdapter(wallet: FreighterWalletApi): FreighterWalletAdapter;
+
+// @public
+export function createSolanaWalletAdapter(wallet: SolanaWalletAdapterLike): SolanaWalletAdapter;
+
+// @public
+export function createViemWalletAdapter(client: ViemWalletClient): ViemWalletAdapter;
+
+// Warning: (ae-forgotten-export) The symbol "StealthKeys$1" needs to be exported by the entry point index.d.ts
+//
+// @public (undocumented)
+export function deriveStealthKeysFromWallet(adapter: StellarWalletAdapter): Promise<StealthKeys$1>;
+
+// Warning: (ae-forgotten-export) The symbol "StealthKeys" needs to be exported by the entry point index.d.ts
+//
+// @public (undocumented)
+export function deriveStealthKeysFromWallet(adapter: EvmWalletAdapter): Promise<StealthKeys>;
+
+// Warning: (ae-forgotten-export) The symbol "StealthKeys_2" needs to be exported by the entry point index.d.ts
+//
+// @public (undocumented)
+export function deriveStealthKeysFromWallet(adapter: SolanaChainWalletAdapter): Promise<StealthKeys_2>;
+
+// @public (undocumented)
+export function deriveStealthKeysFromWallet(adapter: WalletAdapter): Promise<StealthKeys$1 | StealthKeys | StealthKeys_2>;
+
 // @public (undocumented)
 export class ECDHFailedError extends WraithCryptoError {
     constructor(reason: string);
@@ -119,13 +156,45 @@ export interface EvmChainInput {
     // (undocumented)
     source: AsyncIterable<Announcement>;
     // (undocumented)
-    spendingKey: HexString_2;
+    spendingKey: HexString;
     // (undocumented)
-    spendingPubKey: HexString_2;
-    // Warning: (ae-forgotten-export) The symbol "HexString_2" needs to be exported by the entry point index.d.ts
+    spendingPubKey: HexString;
+    // Warning: (ae-forgotten-export) The symbol "HexString" needs to be exported by the entry point index.d.ts
     //
     // (undocumented)
-    viewingKey: HexString_2;
+    viewingKey: HexString;
+}
+
+// @public
+export type EvmWalletAdapter = BaseWalletAdapter<'evm', HexString>;
+
+// @public
+export class FreighterWalletAdapter implements StellarWalletAdapter {
+    constructor(wallet: FreighterWalletApi);
+    // (undocumented)
+    readonly chain: "stellar";
+    // (undocumented)
+    getAddress(): Promise<string>;
+    // (undocumented)
+    signMessage(message: Uint8Array): Promise<Uint8Array>;
+}
+
+// @public
+export interface FreighterWalletApi {
+    // (undocumented)
+    getAddress(): Promise<string | {
+        address?: string;
+        error?: string | {
+            message?: string;
+        };
+    }>;
+    // (undocumented)
+    signMessage(message: string): Promise<{
+        signedMessage?: Uint8Array | string;
+        error?: string | {
+            message?: string;
+        };
+    }>;
 }
 
 // @public (undocumented)
@@ -212,12 +281,12 @@ export type MatchedAnnouncement = {
     chain: 'stellar';
     timestamp: number;
     seq: number;
-    announcement: MatchedAnnouncement_3;
+    announcement: MatchedAnnouncement$1;
 } | {
     chain: 'solana';
     timestamp: number;
     seq: number;
-    announcement: MatchedAnnouncement_4;
+    announcement: MatchedAnnouncement_3;
 } | {
     chain: 'ckb';
     timestamp: number;
@@ -338,20 +407,6 @@ export interface Schedule {
 
 // @public (undocumented)
 export interface SolanaChainInput {
-    // Warning: (ae-forgotten-export) The symbol "Announcement_3" needs to be exported by the entry point index.d.ts
-    //
-    // (undocumented)
-    source: AsyncIterable<Announcement_3>;
-    // (undocumented)
-    spendingPubKey: Uint8Array;
-    // (undocumented)
-    spendingScalar: bigint;
-    // (undocumented)
-    viewingKey: Uint8Array;
-}
-
-// @public (undocumented)
-export interface StellarChainInput {
     // Warning: (ae-forgotten-export) The symbol "Announcement_2" needs to be exported by the entry point index.d.ts
     //
     // (undocumented)
@@ -363,6 +418,47 @@ export interface StellarChainInput {
     // (undocumented)
     viewingKey: Uint8Array;
 }
+
+// @public
+export type SolanaChainWalletAdapter = BaseWalletAdapter<'solana', Uint8Array>;
+
+// @public
+export class SolanaWalletAdapter implements SolanaChainWalletAdapter {
+    constructor(wallet: SolanaWalletAdapterLike);
+    // (undocumented)
+    readonly chain: "solana";
+    // (undocumented)
+    getAddress(): Promise<string>;
+    // (undocumented)
+    signMessage(message: Uint8Array): Promise<Uint8Array>;
+}
+
+// @public
+export interface SolanaWalletAdapterLike {
+    // (undocumented)
+    publicKey: {
+        toBase58(): string;
+    } | null;
+    // (undocumented)
+    signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
+}
+
+// @public (undocumented)
+export interface StellarChainInput {
+    // Warning: (ae-forgotten-export) The symbol "Announcement$1" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    source: AsyncIterable<Announcement$1>;
+    // (undocumented)
+    spendingPubKey: Uint8Array;
+    // (undocumented)
+    spendingScalar: bigint;
+    // (undocumented)
+    viewingKey: Uint8Array;
+}
+
+// @public
+export type StellarWalletAdapter = BaseWalletAdapter<'stellar', Uint8Array>;
 
 // @public (undocumented)
 export type SupportedChain = 'evm' | 'stellar' | 'solana' | 'ckb';
@@ -392,12 +488,48 @@ export class UnsupportedAssetError extends WraithBuilderError {
     readonly code = "WRAITH/BUILDER/UNSUPPORTED_ASSET";
 }
 
+// @public
+export class ViemWalletAdapter implements EvmWalletAdapter {
+    constructor(client: ViemWalletClient);
+    // (undocumented)
+    readonly chain: "evm";
+    // (undocumented)
+    getAddress(): Promise<string>;
+    // (undocumented)
+    signMessage(message: Uint8Array): Promise<HexString>;
+}
+
+// @public
+export interface ViemWalletClient {
+    // (undocumented)
+    account?: {
+        address: string;
+    } | null;
+    // (undocumented)
+    getAddresses?: () => Promise<readonly string[]>;
+    // (undocumented)
+    signMessage(args: {
+        account?: {
+            address: string;
+        } | string;
+        message: {
+            raw: Uint8Array;
+        };
+    }): Promise<HexString>;
+}
+
 // @public (undocumented)
 export class ViewTagMismatchError extends WraithCryptoError {
     constructor(expectedTag: number, actualTag: number);
     // (undocumented)
     readonly code = "WRAITH/CRYPTO/VIEW_TAG_MISMATCH";
 }
+
+// @public
+export type WalletAdapter = StellarWalletAdapter | EvmWalletAdapter | SolanaChainWalletAdapter;
+
+// @public
+export type WalletAdapterChain = 'stellar' | 'evm' | 'solana';
 
 // @public (undocumented)
 export class Wraith {
@@ -504,8 +636,8 @@ export abstract class WraithNetworkError extends WraithError {
 // Warnings were encountered during analysis:
 //
 // dist/index.d.ts:207:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
-// dist/index.d.ts:212:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
-// dist/index.d.ts:217:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_4" needs to be exported by the entry point index.d.ts
+// dist/index.d.ts:212:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
+// dist/index.d.ts:217:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
 // dist/index.d.ts:222:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)

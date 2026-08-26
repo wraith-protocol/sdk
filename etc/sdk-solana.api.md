@@ -134,10 +134,10 @@ export function decodeStealthMetaAddress(metaAddress: string): StealthMetaAddres
 // @public (undocumented)
 export const DEPLOYMENTS: Record<string, SolanaChainDeployment>;
 
-// Warning: (ae-forgotten-export) The symbol "StealthKeys_2" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "StealthKeys$1" needs to be exported by the entry point index.d.ts
 //
 // @public
-export function deriveStealthKeys(signature: Uint8Array): StealthKeys_2;
+export function deriveStealthKeys(signature: Uint8Array): StealthKeys$1;
 
 // @public
 export function deriveStealthPrivateScalar(spendingScalar: bigint, viewingKey: Uint8Array, ephemeralPubKey: Uint8Array): bigint;
