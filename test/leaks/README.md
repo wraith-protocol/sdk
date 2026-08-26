@@ -15,7 +15,7 @@ The harness requires explicit garbage collection so the before/after snapshots a
 pnpm test:heap-leak
 ```
 
-This script launches Vitest through Node with `--expose-gc` and writes these files in the repository root:
+This script launches Vitest through Node with `--expose-gc` and uses the thread pool so the test worker retains explicit GC access. It writes these files in the repository root:
 
 - `heap-before.heapsnapshot`
 - `heap-after.heapsnapshot`

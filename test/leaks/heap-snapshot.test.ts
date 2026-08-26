@@ -46,7 +46,9 @@ function generateAnnouncements(
   viewingPubKey: Uint8Array,
 ): Announcement[] {
   return Array.from({ length: count }, (_, i) => {
-    const stealth = generateStealthAddress(spendingPubKey, viewingPubKey);
+    const ephemeralSeed = new Uint8Array(32);
+    new DataView(ephemeralSeed.buffer).setUint32(28, i + 1, false);
+    const stealth = generateStealthAddress(spendingPubKey, viewingPubKey, ephemeralSeed);
     return {
       schemeId: SCHEME_ID,
       stealthAddress: stealth.stealthAddress,
