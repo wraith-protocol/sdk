@@ -76,6 +76,19 @@ importers:
         specifier: ^3.1.0
         version: 3.2.4(@types/node@20.19.43)(jiti@2.6.1)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@6.0.6))(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0)
 
+  examples/custom-chain-adapter:
+    dependencies:
+      '@wraith-protocol/sdk':
+        specifier: file:../..
+        version: file:(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@stellar/stellar-sdk@13.3.0)(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
+    devDependencies:
+      tsx:
+        specifier: ^4.0.0
+        version: 4.23.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   examples/multichain-scan:
     dependencies:
       '@wraith-protocol/sdk':
