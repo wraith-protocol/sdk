@@ -22,11 +22,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Show canonical Prettier diff for leak harness
-        run: |
-          pnpm exec prettier --write test/leaks/heap-snapshot.test.ts test/leaks/README.md
-          git diff -- test/leaks/heap-snapshot.test.ts test/leaks/README.md
-          git checkout -- test/leaks/heap-snapshot.test.ts test/leaks/README.md
       - run: pnpm run format:check
       - run: pnpm build
       - run: pnpm api:check
