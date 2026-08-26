@@ -71,7 +71,6 @@
     {
       "name": "Stellar CJS (require)",
       "path": "dist/chains/stellar/index.cjs",
-      "import": "*",
       "limit": "20 KB"
     }
   ],
