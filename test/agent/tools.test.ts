@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { createClaudeAgentTools } from '../../src/agent/tools';
 import { deriveStealthKeys } from '../../src/chains/stellar/keys';
 import { encodeStealthMetaAddress } from '../../src/chains/stellar/meta-address';
+import { type Tracer, type Span } from '../../src/telemetry';
 
 describe('Claude agent tools', () => {
   test('send-to-meta-address builds a signing plan without signing', async () => {
@@ -71,5 +72,36 @@ describe('Claude agent tools', () => {
     expect(result.kind).toBe('resolve-name');
     expect(result.name).toBe('alice');
     expect(result.chain).toBe('stellar');
+  });
+});
+
+function makeRecordingTracer() {
+  const spanNames: string[] = [];
+  const tracer: Tracer = {
+    startSpan(name) {
+      spanNames.push(name);
+      const span: Span = { setAttribute() {}, recordException() {}, end() {} };
+      return span;
+    },
+  };
+  return { tracer, spanNames };
+}
+
+describe('Claude agent tools telemetry', () => {
+  test('each tool method emits its own span when a tracer is configured', async () => {
+    const { tracer, spanNames } = makeRecordingTracer();
+    const tools = createClaudeAgentTools({ tracer });
+
+    await tools.resolveName({ name: 'alice' });
+    await tools.withdraw({
+      stealthAddress: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+    });
+
+    expect(spanNames).toEqual(['agent.tool.resolveName', 'agent.tool.withdraw']);
+  });
+
+  test('no tracer configured means no error and no spans recorded elsewhere', async () => {
+    const tools = createClaudeAgentTools();
+    await expect(tools.resolveName({ name: 'alice' })).resolves.toBeDefined();
   });
 });

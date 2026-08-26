@@ -1,4 +1,5 @@
 import { RPCRequestError, RPCRetryExhaustedError } from '../../errors';
+import { withSpan, type Tracer, type Span } from '../../telemetry';
 
 export interface RpcEndpoint {
   url: string;
@@ -17,10 +18,23 @@ export interface RpcClientConfig {
     maxDelayMs: number;
   };
   fetchImpl?: typeof fetch;
+  /** Default tracer for spans created by this client. Overridable per call. */
+  tracer?: Tracer;
+}
+
+/** Optional per-call telemetry override for {@link RpcClient.request}. */
+export interface RpcRequestOptions {
+  /** Overrides the client's configured tracer (and the global one) for this call only. */
+  tracer?: Tracer;
 }
 
 export interface RpcClient {
-  request<T = unknown>(method: string, path: string, body?: unknown): Promise<T>;
+  request<T = unknown>(
+    method: string,
+    path: string,
+    body?: unknown,
+    opts?: RpcRequestOptions,
+  ): Promise<T>;
   getHealthyEndpoint(): string;
   on(
     event: 'endpointFailover',
@@ -62,6 +76,7 @@ export function createRpcClient(config: RpcClientConfig): RpcClient {
   const baseDelayMs = config.retry?.baseDelayMs ?? 500;
   const maxDelayMs = config.retry?.maxDelayMs ?? 10_000;
   const fetchImpl = config.fetchImpl ?? globalThis.fetch;
+  const clientTracer = config.tracer;
 
   const states: EndpointState[] = config.endpoints.map((ep) => ({
     url: ep.url,
@@ -127,7 +142,26 @@ export function createRpcClient(config: RpcClientConfig): RpcClient {
     return true;
   }
 
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  async function request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    opts: RpcRequestOptions = {},
+  ): Promise<T> {
+    return withSpan(
+      'stellar.rpc.request',
+      { 'wraith.rpc.method': method, 'wraith.rpc.path': path },
+      (span) => requestInner<T>(method, path, body, span),
+      opts.tracer ?? clientTracer,
+    );
+  }
+
+  async function requestInner<T>(
+    method: string,
+    path: string,
+    body: unknown,
+    span: Span,
+  ): Promise<T> {
     // Each endpoint needs at least `failureThreshold` attempts for the circuit
     // breaker to trip and trigger failover — otherwise a low maxRetries could
     // exhaust the loop before failover is ever reachable.
@@ -154,6 +188,8 @@ export function createRpcClient(config: RpcClientConfig): RpcClient {
       }
 
       const url = `${state.url.replace(/\/$/, '')}${path}`;
+      span.setAttribute('wraith.rpc.endpoint', state.url);
+      span.setAttribute('wraith.rpc.attempt', attempt + 1);
 
       try {
         const init: RequestInit = { method };
@@ -166,6 +202,7 @@ export function createRpcClient(config: RpcClientConfig): RpcClient {
 
         if (response.ok) {
           markHealthy(state);
+          span.setAttribute('wraith.rpc.status', response.status);
           return (await response.json()) as T;
         }
 
