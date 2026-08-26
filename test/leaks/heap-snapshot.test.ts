@@ -95,7 +95,10 @@ function constructorCounts(snapshotPath: string) {
   return counts;
 }
 
-function diffCounts(before: Map<string, number>, after: Map<string, number>): ConstructorDiff[] {
+function diffCounts(
+  before: Map<string, number>,
+  after: Map<string, number>,
+): ConstructorDiff[] {
   const constructors = new Set([...before.keys(), ...after.keys()]);
   return [...constructors]
     .map((constructor) => {
