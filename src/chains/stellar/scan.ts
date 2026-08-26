@@ -7,6 +7,21 @@ import type { Announcement, MatchedAnnouncement } from './types';
 import { hexToBytes } from './utils';
 import { pipeline } from './scanner/pipeline';
 
+/**
+ * Progress snapshot emitted during a cold scan so UIs can render honest
+ * progress bars instead of guessing at a spinner.
+ */
+export interface ScanProgress {
+  /** Number of ledgers scanned so far. */
+  scannedLedgers: number;
+  /** Total ledgers to scan, when known (e.g. a bounded cold scan). */
+  totalLedgers?: number;
+  /** Number of announcements matched so far. */
+  matches: number;
+  /** Milliseconds elapsed since the scan started. */
+  elapsedMs: number;
+}
+
 const HEX_TO_BYTE = (() => {
   const table = new Uint8Array(256).fill(255);
   const lower = '0123456789abcdef';
