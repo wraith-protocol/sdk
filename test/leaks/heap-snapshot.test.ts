@@ -119,8 +119,8 @@ describe('scanAnnouncements - constructor-level heap regression', () => {
     const threshold = envInt('HEAP_CONSTRUCTOR_GROWTH_THRESHOLD', 25);
     const injectLeak = process.env.HEAP_LEAK_INJECT === '1';
 
-    const signature = new Uint8Array(64);
-    crypto.getRandomValues(signature);
+    // Keep the workload deterministic so same-commit snapshot runs are comparable.
+    const signature = Uint8Array.from({ length: 64 }, (_, index) => (index * 17 + 29) & 0xff);
     const keys = deriveStealthKeys(signature);
     const announcements = generateAnnouncements(
       announcementsCount,
