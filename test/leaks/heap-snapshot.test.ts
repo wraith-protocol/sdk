@@ -95,10 +95,7 @@ function constructorCounts(snapshotPath: string) {
   return counts;
 }
 
-function diffCounts(
-  before: Map<string, number>,
-  after: Map<string, number>,
-): ConstructorDiff[] {
+function diffCounts(before: Map<string, number>, after: Map<string, number>): ConstructorDiff[] {
   const constructors = new Set([...before.keys(), ...after.keys()]);
   return [...constructors]
     .map((constructor) => {
@@ -132,24 +129,14 @@ describe('scanAnnouncements - constructor-level heap regression', () => {
     );
 
     for (let i = 0; i < 10; i++) {
-      scanAnnouncements(
-        announcements,
-        keys.viewingKey,
-        keys.spendingPubKey,
-        keys.spendingScalar,
-      );
+      scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
     }
 
     forceGc();
     const beforePath = writeSnapshot('heap-before.heapsnapshot');
 
     for (let i = 0; i < scans; i++) {
-      scanAnnouncements(
-        announcements,
-        keys.viewingKey,
-        keys.spendingPubKey,
-        keys.spendingScalar,
-      );
+      scanAnnouncements(announcements, keys.viewingKey, keys.spendingPubKey, keys.spendingScalar);
       if (injectLeak) injectedLeak.push(new LeakSentinel());
     }
 
