@@ -27,11 +27,11 @@ This script launches Vitest through Node with `--expose-gc` and writes these fil
 
 The following environment variables can be used to tune a run:
 
-| Variable                            | Default | Meaning                                                        |
-| ----------------------------------- | ------: | -------------------------------------------------------------- |
-| `HEAP_ANNOUNCEMENTS`                |  `1000` | Announcements generated for the scan workload                  |
-| `HEAP_SCANS`                        |   `100` | Number of measured scan iterations                             |
-| `HEAP_CONSTRUCTOR_GROWTH_THRESHOLD` |    `25` | Maximum retained-object growth allowed for any constructor     |
+| Variable                            | Default | Meaning                                                                           |
+| ----------------------------------- | ------: | --------------------------------------------------------------------------------- |
+| `HEAP_ANNOUNCEMENTS`                |  `1000` | Announcements generated for the scan workload                                     |
+| `HEAP_SCANS`                        |   `100` | Number of measured scan iterations                                                |
+| `HEAP_CONSTRUCTOR_GROWTH_THRESHOLD` |    `25` | Maximum retained-object growth allowed for any constructor                        |
 | `HEAP_LEAK_INJECT`                  |   unset | Set to `1` to deliberately retain `LeakSentinel` objects and prove the gate fails |
 
 ## Reproducibility
