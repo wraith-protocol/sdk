@@ -1,4 +1,6 @@
 export { deriveStealthKeys, deriveStealthKeysFromSigner } from './keys';
+export type { KeyDerivationOptions } from './keys';
+export type { Tracer, Span } from '../../telemetry';
 export { FreighterStealthSigner, WebAuthnPasskeyStealthSigner } from './signer';
 export type {
   StellarStealthSigner,
@@ -22,7 +24,7 @@ export { generateStealthAddress } from './stealth';
  * @internal
  */
 export { computeSharedSecret, computeAnnouncementViewTag, computeViewTag } from './stealth';
-export { checkStealthAddress, scanAnnouncements } from './scan';
+export { checkStealthAddress, scanAnnouncements, scanAnnouncementsStream } from './scan';
 /**
  * @internal
  */

@@ -1,7 +1,8 @@
 import { InvalidSignatureError } from '../../../src/errors';
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, afterEach } from 'vitest';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
 import { scalarToBytes } from '../../../src/chains/stellar/scalar';
+import { setTracer, type Tracer, type Span } from '../../../src/telemetry';
 
 const testSig = new Uint8Array(64).fill(0xaa);
 
@@ -74,5 +75,43 @@ describe('deriveStealthKeys', () => {
     expect(bytes[31] & 0x40).toBe(0x40);
     // Bits 0,1,2 of byte 0 should be cleared
     expect(bytes[0] & 0x07).toBe(0);
+  });
+});
+
+function makeRecordingTracer() {
+  const spanNames: string[] = [];
+  const tracer: Tracer = {
+    startSpan(name) {
+      spanNames.push(name);
+      const span: Span = { setAttribute() {}, recordException() {}, end() {} };
+      return span;
+    },
+  };
+  return { tracer, spanNames };
+}
+
+describe('deriveStealthKeys telemetry', () => {
+  afterEach(() => {
+    setTracer(null);
+  });
+
+  test('emits a span via the global tracer', () => {
+    const { tracer, spanNames } = makeRecordingTracer();
+    setTracer(tracer);
+
+    deriveStealthKeys(testSig);
+
+    expect(spanNames).toContain('stellar.deriveStealthKeys');
+  });
+
+  test('honors a per-call tracer override over the global one', () => {
+    const globalTracer = makeRecordingTracer();
+    const override = makeRecordingTracer();
+    setTracer(globalTracer.tracer);
+
+    deriveStealthKeys(testSig, { tracer: override.tracer });
+
+    expect(globalTracer.spanNames).toHaveLength(0);
+    expect(override.spanNames).toContain('stellar.deriveStealthKeys');
   });
 });

@@ -6,6 +6,7 @@ import { SCHEME_ID, SCHEME_ID_V2 } from './constants';
 import type { Announcement, MatchedAnnouncement } from './types';
 import { hexToBytes } from './utils';
 import { pipeline } from './scanner/pipeline';
+import { getTracer, type Tracer } from '../../telemetry';
 
 const HEX_TO_BYTE = (() => {
   const table = new Uint8Array(256).fill(255);
@@ -81,14 +82,22 @@ export async function* scanAnnouncementsStream(
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
   spendingScalar: bigint,
-  opts: { window?: number } = {},
+  opts: { window?: number; tracer?: Tracer } = {},
 ): AsyncGenerator<MatchedAnnouncement> {
   const windowSize = Math.max(1, opts.window ?? 64);
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
   const piped = pipeline(source, windowSize);
 
+  const span = (opts.tracer ?? getTracer()).startSpan('stellar.scan', {
+    'wraith.chain': 'stellar',
+    'wraith.scan.window': windowSize,
+  });
+  let scanned = 0;
+  let matched = 0;
+
   try {
     for await (const ann of piped) {
+      scanned++;
       if (ann.schemeId !== SCHEME_ID && ann.schemeId !== SCHEME_ID_V2) continue;
 
       const metadataBytes = hexToBytes(ann.metadata);
@@ -112,17 +121,59 @@ export async function* scanAnnouncementsStream(
         result.hashScalar !== null &&
         result.stealthPubKeyBytes !== null
       ) {
-        const stealthPrivateScalar = ((spendingScalar % L) + result.hashScalar) % L;
-        yield {
-          ...ann,
-          stealthPrivateScalar,
-          stealthPubKeyBytes: result.stealthPubKeyBytes,
-        };
+        matched++;
+        const matchedAnnouncement = decryptMatch(
+          ann,
+          result.hashScalar,
+          result.stealthPubKeyBytes,
+          spendingScalar,
+          opts.tracer,
+        );
+        yield matchedAnnouncement;
       }
     }
+    span.setAttribute('wraith.scan.scanned_count', scanned);
+    span.setAttribute('wraith.scan.matched_count', matched);
+  } catch (err) {
+    span.recordException(err);
+    throw err;
   } finally {
     // Signal the pipeline (and transitively the source) to stop when consumer cancels early
     await piped.return(undefined);
+    span.end();
+  }
+}
+
+/**
+ * Derives the spendable private scalar for one matched announcement.
+ *
+ * Split out of {@link scanAnnouncementsStream} so this (comparatively rare)
+ * "decrypt" step gets its own span, separate from the continuous per-candidate
+ * scan loop.
+ */
+function decryptMatch(
+  ann: Announcement,
+  hashScalar: bigint,
+  stealthPubKeyBytes: Uint8Array,
+  spendingScalar: bigint,
+  tracer: Tracer | undefined,
+): MatchedAnnouncement {
+  const span = (tracer ?? getTracer()).startSpan('stellar.scan.match', {
+    'wraith.chain': 'stellar',
+    'wraith.scan.scheme_id': ann.schemeId,
+  });
+  try {
+    const stealthPrivateScalar = ((spendingScalar % L) + hashScalar) % L;
+    return {
+      ...ann,
+      stealthPrivateScalar,
+      stealthPubKeyBytes,
+    };
+  } catch (err) {
+    span.recordException(err);
+    throw err;
+  } finally {
+    span.end();
   }
 }
 
