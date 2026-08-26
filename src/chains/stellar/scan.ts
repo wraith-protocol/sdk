@@ -4,7 +4,8 @@ import { computeAnnouncementViewTag, computeSharedSecret, computeViewTag } from 
 import { hashToScalar, deriveStealthPubKey, pubKeyToStellarAddress, L } from './scalar';
 import { SCHEME_ID, SCHEME_ID_V2 } from './constants';
 import type { Announcement, MatchedAnnouncement } from './types';
-import { hexToBytes } from './utils';
+import { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
+import type { ChainScannerAdapter } from '../../scanner/unified';
 import { pipeline } from './scanner/pipeline';
 
 const HEX_TO_BYTE = (() => {
@@ -448,3 +449,27 @@ export function scanAnnouncementsLegacySharedSecretTag(
 
   return matched;
 }
+
+/**
+ * Stellar ChainScannerAdapter implementation.
+ */
+export const adapter: ChainScannerAdapter<
+  Announcement,
+  { viewingKey: Uint8Array; spendingPubKey: Uint8Array; spendingScalar: bigint },
+  MatchedAnnouncement
+> = {
+  id: 'stellar',
+  scan: async function* (source, keys) {
+    yield* scanAnnouncementsStream(
+      source,
+      keys.viewingKey,
+      keys.spendingPubKey,
+      keys.spendingScalar,
+    );
+  },
+  decodeMetaAddress: decodeStealthMetaAddress,
+  encodeMetaAddress: encodeStealthMetaAddress,
+};
+
+export const stellarAdapter = adapter;
+

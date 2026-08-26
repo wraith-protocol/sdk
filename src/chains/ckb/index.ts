@@ -6,7 +6,7 @@ export { generateStealthAddress } from './stealth';
 /**
  * @internal
  */
-export { checkStealthCell, scanStealthCells } from './scan';
+export { checkStealthCell, scanStealthCells, adapter as ckbAdapter, adapter } from './scan';
 export { deriveStealthPrivateKey } from './spend';
 /**
  * @internal

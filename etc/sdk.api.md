@@ -59,6 +59,28 @@ export enum Chain {
 }
 
 // @public (undocumented)
+export interface ChainScannerAdapter<TItem = any, TKeys = any, TMatched = any, TMetaAddress = any> {
+    // (undocumented)
+    decodeMetaAddress(metaAddress: string): TMetaAddress;
+    // (undocumented)
+    encodeMetaAddress(spendingPubKey: any, viewingPubKey: any): string;
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    scan(source: AsyncIterable<TItem>, keys: TKeys): AsyncGenerator<TMatched>;
+}
+
+// @public (undocumented)
+export interface CustomChainInput<TItem = any, TKeys = any, TMatched = any> {
+    // (undocumented)
+    adapter: ChainScannerAdapter<TItem, TKeys, TMatched, any>;
+    // (undocumented)
+    keys: TKeys;
+    // (undocumented)
+    source: AsyncIterable<TItem>;
+}
+
+// @public (undocumented)
 export interface ChatResponse {
     // (undocumented)
     conversationId: string;
@@ -223,6 +245,11 @@ export type MatchedAnnouncement = {
     timestamp: number;
     seq: number;
     announcement: MatchedStealthCell;
+} | {
+    chain: string;
+    timestamp: number;
+    seq: number;
+    announcement: any;
 };
 
 // @public (undocumented)
@@ -308,6 +335,8 @@ export function scanAll(input: ScanAllInput): AsyncGenerator<MatchedAnnouncement
 
 // @public (undocumented)
 export interface ScanAllInput {
+    // (undocumented)
+    adapters?: Array<CustomChainInput<any, any, any> | any>;
     // (undocumented)
     ckb?: CkbChainInput;
     // (undocumented)

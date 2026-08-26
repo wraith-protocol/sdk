@@ -2,7 +2,7 @@ export { deriveStealthKeys } from './keys';
 export { STEALTH_SIGNING_MESSAGE, SCHEME_ID, META_ADDRESS_PREFIX } from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
 export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
-export { checkStealthAddress, scanAnnouncements } from './scan';
+export { checkStealthAddress, scanAnnouncements, adapter as solanaAdapter, adapter } from './scan';
 export { deriveStealthPrivateScalar, signSolanaTransaction } from './spend';
 /**
  * @internal

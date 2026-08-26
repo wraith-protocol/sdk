@@ -22,7 +22,7 @@ export { generateStealthAddress } from './stealth';
  * @internal
  */
 export { computeSharedSecret, computeAnnouncementViewTag, computeViewTag } from './stealth';
-export { checkStealthAddress, scanAnnouncements } from './scan';
+export { checkStealthAddress, scanAnnouncements, adapter as stellarAdapter, adapter } from './scan';
 /**
  * @internal
  */
