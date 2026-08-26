@@ -9,7 +9,6 @@ export default defineConfig({
     'chains/ckb/index': 'src/chains/ckb/index.ts',
     'compat/react-native': 'src/compat/react-native.ts',
     'vault/index': 'src/vault/index.ts',
-    'agent/index': 'src/agent/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: {

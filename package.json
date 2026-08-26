@@ -40,11 +40,6 @@
       "types": "./dist/chains/ckb/index.d.ts",
       "import": "./dist/chains/ckb/index.js",
       "require": "./dist/chains/ckb/index.cjs"
-    },
-    "./agent": {
-      "types": "./dist/agent/index.d.ts",
-      "import": "./dist/agent/index.js",
-      "require": "./dist/agent/index.cjs"
     }
   },
   "files": [

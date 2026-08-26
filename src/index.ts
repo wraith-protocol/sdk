@@ -1,12 +1,4 @@
 /**
- * @deprecated Import from '@wraith-protocol/sdk-agent' instead. Agent functionality has been moved to a separate package.
- */
-export { Wraith, WraithAgent } from './agent/client';
-/**
- * @deprecated Import from '@wraith-protocol/sdk-agent' instead. Agent functionality has been moved to a separate package.
- */
-export { Chain } from './agent/types';
-/**
  * @internal
  */
 export { installReactNativePolyfills } from './compat';
@@ -44,7 +36,6 @@ export type {
   SolanaChainInput,
   CkbChainInput,
 } from './scanner/unified';
-
 export {
   WraithError,
   WraithInputError,

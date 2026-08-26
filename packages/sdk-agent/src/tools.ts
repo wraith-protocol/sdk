@@ -1,4 +1,8 @@
 import {
+  withSpan,
+  type Tracer,
+} from '@wraith-protocol/sdk';
+import {
   deriveStealthKeys,
   decodeStealthMetaAddress,
   encodeStealthMetaAddress,
@@ -8,26 +12,6 @@ import {
   bytesToHex,
   type Announcement,
 } from '@wraith-protocol/sdk/chains/stellar';
-
-export type Tracer = {
-  startActiveSpan?: <T>(
-    name: string,
-    attributes: Record<string, unknown>,
-    callback: () => Promise<T> | T,
-  ) => Promise<T> | T;
-};
-
-export function withSpan<T>(
-  name: string,
-  attributes: Record<string, unknown>,
-  callback: () => Promise<T> | T,
-  tracer?: Tracer,
-): Promise<T> | T {
-  if (typeof tracer?.startActiveSpan === 'function') {
-    return tracer.startActiveSpan(name, attributes, callback);
-  }
-  return callback();
-}
 
 export interface ClaudeAgentToolContext {
   apiKey?: string;
@@ -134,7 +118,10 @@ export function createClaudeAgentTools(context: ClaudeAgentToolContext = {}): Cl
       return Promise.resolve(
         withSpan(
           'agent.tool.scan',
-          { 'wraith.agent.tool': 'scan', 'wraith.scan.candidate_count': input.announcements.length },
+          {
+            'wraith.agent.tool': 'scan',
+            'wraith.scan.candidate_count': input.announcements.length,
+          },
           async () => {
             const viewingKey = parseHexBytes(input.viewingKeyHex);
             const spendingPubKey = parseHexBytes(input.spendingPubKeyHex);

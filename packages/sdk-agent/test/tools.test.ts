@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { createClaudeAgentTools, type Tracer } from '../src/tools';
+import { createClaudeAgentTools } from '../src/tools';
+import { type Tracer } from '@wraith-protocol/sdk';
 import { deriveStealthKeys, encodeStealthMetaAddress } from '@wraith-protocol/sdk/chains/stellar';
 
 describe('Claude agent tools', () => {
@@ -76,9 +77,13 @@ describe('Claude agent tools', () => {
 function makeRecordingTracer() {
   const spanNames: string[] = [];
   const tracer: Tracer = {
-    startActiveSpan(name, _attributes, callback) {
+    startSpan(name) {
       spanNames.push(name);
-      return callback();
+      return {
+        setAttribute() {},
+        recordException() {},
+        end() {},
+      };
     },
   };
   return { tracer, spanNames };

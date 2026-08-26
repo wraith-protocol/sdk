@@ -4,42 +4,6 @@
 
 ```ts
 
-// @public (undocumented)
-export interface AgentConfig {
-    // (undocumented)
-    chain: Chain | Chain[];
-    // (undocumented)
-    message?: string;
-    // (undocumented)
-    name: string;
-    // (undocumented)
-    signature: string;
-    // (undocumented)
-    wallet: string;
-}
-
-// @public (undocumented)
-export interface AgentInfo {
-    // (undocumented)
-    addresses: Record<Chain, string>;
-    // (undocumented)
-    chains: Chain[];
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    metaAddresses: Record<Chain, string>;
-    // (undocumented)
-    name: string;
-}
-
-// @public (undocumented)
-export interface Balance {
-    // (undocumented)
-    native: string;
-    // (undocumented)
-    tokens: Record<string, string>;
-}
-
 // @public
 export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature> {
     // (undocumented)
@@ -50,40 +14,12 @@ export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature
     signMessage(message: Uint8Array): Promise<TSignature>;
 }
 
-// @public (undocumented)
-export enum Chain {
-    // (undocumented)
-    All = "all",
-    // (undocumented)
-    Base = "base",
-    // (undocumented)
-    Ethereum = "ethereum",
-    // (undocumented)
-    Horizen = "horizen",
-    // (undocumented)
-    Polygon = "polygon",
-    // (undocumented)
-    Solana = "solana",
-    // (undocumented)
-    Stellar = "stellar"
-}
-
 // @public
 export interface ChainScannerAdapter<TItem = any, TKeys = any, TMatched = any, TMetaAddress = any> {
     decodeMetaAddress(metaAddress: string): TMetaAddress;
     encodeMetaAddress(spendingPubKey: any, viewingPubKey: any): string;
     id: string;
     scan(source: AsyncIterable<TItem>, keys: TKeys): AsyncGenerator<TMatched>;
-}
-
-// @public (undocumented)
-export interface ChatResponse {
-    // (undocumented)
-    conversationId: string;
-    // (undocumented)
-    response: string;
-    // (undocumented)
-    toolCalls?: ToolCall[];
 }
 
 // @public (undocumented)
@@ -111,18 +47,6 @@ export class ContractRevertError extends WraithContractError {
     describe(): string;
     // (undocumented)
     readonly reason: string;
-}
-
-// @public (undocumented)
-export interface Conversation {
-    // (undocumented)
-    createdAt: string;
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    title: string;
-    // (undocumented)
-    updatedAt: string;
 }
 
 // @public
@@ -277,28 +201,6 @@ export class InvalidSignatureError extends WraithInputError {
 }
 
 // @public (undocumented)
-export interface Invoice {
-    // (undocumented)
-    agentName: string;
-    // (undocumented)
-    amount: string;
-    // (undocumented)
-    asset: string;
-    // (undocumented)
-    createdAt: string;
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    memo: string;
-    // (undocumented)
-    paymentLink: string;
-    // (undocumented)
-    status: 'pending' | 'paid';
-    // (undocumented)
-    txHash: string | null;
-}
-
-// @public (undocumented)
 export class KeyDerivationFailedError extends WraithCryptoError {
     constructor(reason: string);
     // (undocumented)
@@ -357,47 +259,6 @@ export class NameNotFoundError extends WraithContractError {
 export const NOOP_TRACER: Tracer;
 
 // @public (undocumented)
-interface Notification_2 {
-    // (undocumented)
-    body: string;
-    // (undocumented)
-    createdAt: string;
-    // (undocumented)
-    id: number;
-    // (undocumented)
-    read: boolean;
-    // (undocumented)
-    title: string;
-    // (undocumented)
-    type: string;
-}
-export { Notification_2 as Notification }
-
-// @public (undocumented)
-export interface Payment {
-    // (undocumented)
-    balance: string;
-    // (undocumented)
-    ephemeralPubKey: string;
-    // (undocumented)
-    stealthAddress: string;
-}
-
-// @public (undocumented)
-export interface PrivacyReport {
-    // (undocumented)
-    bestPractices: string[];
-    // (undocumented)
-    issues: Array<{
-        severity: 'info' | 'low' | 'medium' | 'high' | 'critical';
-        issue: string;
-        recommendation: string;
-    }>;
-    // (undocumented)
-    score: number;
-}
-
-// @public (undocumented)
 export class RetentionExceededError extends WraithNetworkError {
     constructor(limit: number, actual: number);
     // (undocumented)
@@ -441,24 +302,6 @@ export interface ScanAllInput {
     solana?: SolanaChainInput;
     // (undocumented)
     stellar?: StellarChainInput;
-}
-
-// @public (undocumented)
-export interface Schedule {
-    // (undocumented)
-    amount: string;
-    // (undocumented)
-    asset: string;
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    interval: 'daily' | 'weekly' | 'monthly';
-    // (undocumented)
-    nextRun: string;
-    // (undocumented)
-    recipient: string;
-    // (undocumented)
-    status: 'active' | 'paused' | 'cancelled';
 }
 
 // @public
@@ -529,27 +372,9 @@ export type StellarWalletAdapter = BaseWalletAdapter<'stellar', Uint8Array>;
 // @public
 export type SupportedChain = 'evm' | 'stellar' | 'solana' | 'ckb';
 
-// @public (undocumented)
-export interface ToolCall {
-    // (undocumented)
-    detail?: string;
-    // (undocumented)
-    name: string;
-    // (undocumented)
-    status: string;
-}
-
 // @public
 export interface Tracer {
     startSpan(name: string, attributes?: Record<string, string | number | boolean>): Span;
-}
-
-// @public (undocumented)
-export interface TxResult {
-    // (undocumented)
-    txHash: string;
-    // (undocumented)
-    txLink: string;
 }
 
 // @public (undocumented)
@@ -610,70 +435,7 @@ export type WalletAdapterChain = 'stellar' | 'evm' | 'solana';
 export function withSpan<T>(name: string, attributes: Record<string, string | number | boolean> | undefined, fn: (span: Span) => T, tracer?: Tracer): T;
 
 // @public (undocumented)
-export class Wraith {
-    constructor(config: WraithConfig);
-    // (undocumented)
-    agent(agentId: string): WraithAgent;
-    createAgent(config: AgentConfig): Promise<WraithAgent>;
-    getAgentByName(name: string): Promise<WraithAgent>;
-    getAgentByWallet(walletAddress: string): Promise<WraithAgent>;
-    listAgents(): Promise<AgentInfo[]>;
-    // @internal
-    _request<T>(method: string, path: string, body?: unknown): Promise<T>;
-}
-
-// @public (undocumented)
-export class WraithAgent {
-    constructor(wraith: Wraith, info: AgentInfo);
-    // (undocumented)
-    chat(message: string, conversationId?: string): Promise<ChatResponse>;
-    // (undocumented)
-    clearNotifications(): Promise<void>;
-    // (undocumented)
-    deleteConversation(conversationId: string): Promise<void>;
-    // (undocumented)
-    exportKey(signature: string, message: string): Promise<{
-        secret: string;
-    }>;
-    // (undocumented)
-    getBalance(): Promise<Balance>;
-    // (undocumented)
-    getConversations(): Promise<Conversation[]>;
-    // (undocumented)
-    getMessages(conversationId: string): Promise<Array<{
-        role: string;
-        text: string;
-    }>>;
-    // (undocumented)
-    getNotifications(): Promise<{
-        notifications: Notification_2[];
-        unreadCount: number;
-    }>;
-    // (undocumented)
-    getStatus(): Promise<any>;
-    // (undocumented)
-    readonly info: AgentInfo;
-    // (undocumented)
-    markNotificationsRead(): Promise<void>;
-    // (undocumented)
-    scanPayments(): Promise<Payment[]>;
-}
-
-// @public (undocumented)
 export abstract class WraithBuilderError extends WraithError {
-}
-
-// @public (undocumented)
-export interface WraithConfig {
-    // (undocumented)
-    ai?: {
-        provider: 'gemini' | 'openai' | 'claude';
-        apiKey: string;
-    };
-    // (undocumented)
-    apiKey: string;
-    // (undocumented)
-    baseUrl?: string;
 }
 
 // @public (undocumented)
