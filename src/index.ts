@@ -1,4 +1,10 @@
+/**
+ * @deprecated Import from '@wraith-protocol/sdk-agent' instead. Agent functionality has been moved to a separate package.
+ */
 export { Wraith, WraithAgent } from './agent/client';
+/**
+ * @deprecated Import from '@wraith-protocol/sdk-agent' instead. Agent functionality has been moved to a separate package.
+ */
 export { Chain } from './agent/types';
 /**
  * @internal
@@ -27,21 +33,6 @@ export type {
 } from './wallet';
 export { setTracer, getTracer, withSpan, NOOP_TRACER } from './telemetry';
 export type { Tracer, Span } from './telemetry';
-export type {
-  WraithConfig,
-  AgentConfig,
-  AgentInfo,
-  ChatResponse,
-  ToolCall,
-  Balance,
-  Payment,
-  Invoice,
-  Schedule,
-  TxResult,
-  PrivacyReport,
-  Notification,
-  Conversation,
-} from './agent/types';
 export type {
   ScanAllInput,
   MatchedAnnouncement,
