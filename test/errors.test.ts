@@ -232,4 +232,44 @@ describe('Wraith Custom Errors Taxonomy', () => {
     expect(parsed.message).toContain(parsed.docsLink);
     expect(parsed.context).toEqual({ required: '500', actual: '100', asset: 'ETH' });
   });
+
+  // Test 7: describe() returns a non-empty, tailored hint for every concrete subclass
+  describe('describe() fix hints', () => {
+    const cases: Array<[string, WraithError]> = [
+      ['InvalidMetaAddressError', new InvalidMetaAddressError('st:eth:0x123', 'bad length')],
+      ['InvalidNameError', new InvalidNameError('alice.wraith', 'too short')],
+      ['InvalidSignatureError', new InvalidSignatureError('0xabc', 65, 3)],
+      ['InvalidScalarError', new InvalidScalarError(0n, 'is zero')],
+      ['KeyDerivationFailedError', new KeyDerivationFailedError('invalid scalar addition')],
+      ['ViewTagMismatchError', new ViewTagMismatchError(42, 24)],
+      ['ECDHFailedError', new ECDHFailedError('point off curve')],
+      ['RPCRequestError', new RPCRequestError('https://horizon.stellar.org', 404, 'Not Found')],
+      [
+        'RPCRetryExhaustedError',
+        new RPCRetryExhaustedError('https://horizon.stellar.org', 5, 'timeout'),
+      ],
+      ['RetentionExceededError', new RetentionExceededError(100, 105)],
+      ['NameNotFoundError', new NameNotFoundError('missing.wraith')],
+      [
+        'NameAlreadyRegisteredError',
+        new NameAlreadyRegisteredError('taken.wraith', 'owner_address'),
+      ],
+      ['InsufficientAuthError', new InsufficientAuthError('admin', 'user')],
+      ['ContractRevertError', new ContractRevertError('execution reverted: out of gas', '0x111')],
+      ['InsufficientBalanceError', new InsufficientBalanceError(100n, 50n, 'XLM')],
+      ['UnsupportedAssetError', new UnsupportedAssetError('SOL', 'horizen')],
+    ];
+
+    test.each(cases)('%s.describe() returns a non-empty, tailored hint', (className, error) => {
+      const hint = error.describe();
+      expect(typeof hint).toBe('string');
+      expect(hint.length).toBeGreaterThan(0);
+      // The hint should point back to the docs and not just be the generic base fallback
+      expect(hint).toContain(error.docsLink);
+      expect(hint).not.toBe(
+        `No specific guidance is available for this error. See ${error.docsLink} for details.`,
+      );
+      expect(hint).not.toBe(className); // sanity: not accidentally the class name
+    });
+  });
 });

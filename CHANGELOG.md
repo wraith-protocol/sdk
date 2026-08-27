@@ -4,6 +4,22 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
 
 ## Upcoming: 2.0.0
 
+### Added
+
+- **Stellar `StellarStealthSigner` Interface** (issue #121): `deriveStealthKeys()` now has a signer-based counterpart, `deriveStealthKeysFromSigner()`, that accepts any `StellarStealthSigner` (`{ signMessage(message): Promise<Uint8Array> }`) instead of assuming a synchronous Freighter-shaped ed25519 signature.
+  - `FreighterStealthSigner` wraps the existing Freighter-style wallet API; the raw `deriveStealthKeys(signature)` path is unchanged.
+  - `WebAuthnPasskeyStealthSigner` is a reference passkey adapter that uses the WebAuthn `prf` extension to derive stable key material across sessions, since raw WebAuthn assertion signatures are non-deterministic.
+  - `useStellarStealthKeys()` in `@wraith-protocol/sdk-react` gained a `generateFromSigner()` method alongside the existing `generate()`.
+- **OpenTelemetry-compatible Instrumentation Hooks** (issue #177): `src/telemetry.ts` introduces a minimal `Tracer`/`Span` interface plus `setTracer()`/`getTracer()`, exported from the package root. Zero runtime dependency on `@opentelemetry/*` or any tracing library — nothing is traced until `setTracer()` is called, and every instrumented call site defaults to a no-op tracer.
+  - Instrumented: `deriveStealthKeys()`, `deriveStealthKeysFromSigner()`, `scanAnnouncementsStream()` (`stellar.scan` plus a `stellar.scan.match` span per match), `RpcClient.request()` (`stellar.rpc.request`, covering internal retries/failover), and every `ClaudeAgentTools` method (`agent.tool.*`).
+  - Every instrumented function accepts a `tracer` option that overrides the global tracer for that call only.
+  - `scanAnnouncementsStream` is now exported from `@wraith-protocol/sdk/chains/stellar` (it previously wasn't part of the public API surface, only reachable via a relative import).
+  - Reference `@opentelemetry/api`-shaped adapter under `examples/otel/`; stable attribute names documented in `docs/observability.md`.
+
+### Performance
+
+- **Stellar Streaming Scan Pipelining** (issue #126): `scanAnnouncementsStream` now pulls its `source` through a bounded pipeline (`src/chains/stellar/scanner/pipeline.ts`) instead of prefetching a strict window before scanning it, so RPC fetches for later pages overlap with CPU work scanning earlier ones. Peak memory stays O(window). `fetchAnnouncementsStream` and `scanAnnouncementsStream`'s public shapes are unchanged; the old windowed algorithm is retained as `scanAnnouncementsStreamSequential` for benchmark comparisons. See [`docs/chains/stellar-streaming-scan-pipeline.md`](./docs/chains/stellar-streaming-scan-pipeline.md) — measured 36% wall-clock reduction on the 10k-announcement canned benchmark.
+
 ### Changed
 
 - **Stellar Chain Module Cryptographic Audit Fixes**: Applied all findings from independent cryptographic audit (issue #55). Breaking changes:

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wraith Stealth Scanner</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main id="app">
+      <header>
+        <h1>Wraith Stealth Scanner</h1>
+        <span id="status-dot" class="dot" title="scanner status"></span>
+      </header>
+
+      <!-- Connect view -->
+      <section id="connect-view" hidden>
+        <p class="muted">
+          Connect a Stellar wallet once. The extension scans testnet in the background and notifies
+          you of incoming stealth payments.
+        </p>
+
+        <button id="connect-freighter" class="primary">Connect with Freighter</button>
+
+        <details>
+          <summary>Connect manually</summary>
+          <label for="address">Stellar address (G…)</label>
+          <input id="address" type="text" placeholder="G..." autocomplete="off" />
+          <label for="signature"> Signature (64-byte hex) of the Wraith signing message </label>
+          <textarea id="signature" rows="3" placeholder="128 hex chars"></textarea>
+          <button id="connect-manual">Connect</button>
+        </details>
+
+        <p id="connect-error" class="error" hidden></p>
+      </section>
+
+      <!-- Connected view -->
+      <section id="connected-view" hidden>
+        <div class="row">
+          <span class="label">Address</span>
+          <span id="wallet-address" class="mono"></span>
+        </div>
+        <div class="row">
+          <span class="label">Last scan</span>
+          <span id="last-scan"></span>
+        </div>
+        <div class="row">
+          <span class="label">Interval</span>
+          <span id="interval"></span>
+        </div>
+        <p id="scan-error" class="error" hidden></p>
+
+        <div class="actions">
+          <button id="scan-now" class="primary">Scan now</button>
+          <button id="test-event">Fire test event</button>
+        </div>
+
+        <h2>Recent payments</h2>
+        <ul id="activity" class="activity">
+          <li class="empty">No payments detected yet.</li>
+        </ul>
+
+        <button id="disconnect" class="link">Disconnect</button>
+      </section>
+    </main>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

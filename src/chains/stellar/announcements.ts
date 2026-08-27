@@ -32,6 +32,12 @@ export interface FetchAnnouncementsOptions {
   includeV2?: boolean;
   /** Override the Soroban RPC URL. */
   sorobanUrl?: string;
+  /**
+   * Number of parallel chunks to fetch for cold scans. Splits the ledger range
+   * into N contiguous chunks fetched concurrently, then merged in order.
+   * Default: 1 (sequential). Ignored when cursor is provided.
+   */
+  parallelism?: number;
 }
 
 export class RetentionExceededError extends Error {
@@ -46,6 +52,153 @@ export class RetentionExceededError extends Error {
     this.requestedLedger = requestedLedger;
     this.oldestAvailableLedger = oldestAvailableLedger;
   }
+}
+
+export interface ChunkRange {
+  startLedger: number;
+  endLedger: number;
+}
+
+/**
+ * Fetches announcements from a specific ledger range.
+ * @internal
+ */
+async function* fetchAnnouncementsRange(
+  sorobanUrl: string,
+  announcerContract: string,
+  filterGroups: SorobanEventFilter[][],
+  startLedger: number,
+  toLedger: number | undefined,
+  seen: Set<string>,
+): AsyncGenerator<{ announcement: Announcement; ledger: number }> {
+  const singleFilterGroup = filterGroups.length === 1;
+
+  for (const filters of filterGroups) {
+    let hasMore = true;
+    let groupCursor: string | undefined = undefined;
+
+    while (hasMore) {
+      const params: Record<string, unknown> = {
+        filters,
+        pagination: groupCursor ? { limit: 1000, cursor: groupCursor } : { limit: 1000 },
+      };
+
+      if (!groupCursor) {
+        params.startLedger = startLedger;
+      }
+
+      const res = await fetch(sorobanUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 2,
+          method: 'getEvents',
+          params,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.error?.message) {
+        const range = parseLedgerRange(data.error.message);
+        if (range && !groupCursor && startLedger < range.oldest) {
+          throw new RetentionExceededError(startLedger, range.oldest);
+        }
+        // If we get a range error and we aren't exceeding retention, just break for this filter
+        break;
+      }
+
+      const events = data.result?.events ?? [];
+
+      for (const event of events) {
+        const ledger = eventLedger(event);
+        if (toLedger !== undefined && ledger !== undefined && ledger >= toLedger) {
+          hasMore = false;
+          continue;
+        }
+
+        const dedupeKey = String(event.id ?? `${event.txHash}:${JSON.stringify(event.topic)}`);
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+
+        const ann = parseAnnouncementEvent(event);
+        if (ann && ledger !== undefined) {
+          yield { announcement: ann, ledger };
+        }
+      }
+
+      if (!hasMore || events.length < 1000) {
+        hasMore = false;
+      } else {
+        groupCursor = data.result?.cursor;
+        if (!groupCursor) hasMore = false;
+      }
+    }
+  }
+}
+
+/**
+ * Merges multiple async iterables in order based on a numeric key.
+ * @internal
+ */
+export async function* mergeOrdered<T>(
+  iterables: Array<AsyncIterable<{ item: T; key: number }>>,
+): AsyncGenerator<T> {
+  const iterators = iterables.map((it) => it[Symbol.asyncIterator]());
+  const pending: Array<{ value: T; key: number; index: number }> = [];
+
+  // Initialize: pull first item from each iterator
+  for (let i = 0; i < iterators.length; i++) {
+    const result = await iterators[i].next();
+    if (!result.done) {
+      pending.push({ value: result.value.item, key: result.value.key, index: i });
+    }
+  }
+
+  while (pending.length > 0) {
+    // Find the item with the smallest key
+    pending.sort((a, b) => a.key - b.key || a.index - b.index);
+    const [next, ...rest] = pending;
+
+    yield next.value;
+
+    // Pull the next item from the iterator that just yielded
+    const result = await iterators[next.index].next();
+    if (!result.done) {
+      rest.push({ value: result.value.item, key: result.value.key, index: next.index });
+    }
+
+    pending.length = 0;
+    pending.push(...rest);
+  }
+}
+
+/**
+ * Splits a ledger range into N contiguous chunks.
+ * @internal
+ */
+export function splitRange(
+  startLedger: number,
+  endLedger: number,
+  numChunks: number,
+): ChunkRange[] {
+  if (numChunks <= 1) {
+    return [{ startLedger, endLedger }];
+  }
+
+  const totalLedgers = endLedger - startLedger;
+
+  const chunks: ChunkRange[] = [];
+
+  for (let i = 0; i < numChunks; i++) {
+    const chunkStart = startLedger + Math.floor((i * totalLedgers) / numChunks);
+    const chunkEnd = startLedger + Math.floor(((i + 1) * totalLedgers) / numChunks);
+    if (chunkStart < chunkEnd) {
+      chunks.push({ startLedger: chunkStart, endLedger: chunkEnd });
+    }
+  }
+
+  return chunks;
 }
 
 /**
@@ -97,6 +250,32 @@ export async function* fetchAnnouncementsStream(
     throw new RetentionExceededError(startLedger, ledgerWindow.oldest);
   }
 
+  // Use parallel chunking for cold scans (no cursor) when parallelism > 1
+  const parallelism = opts?.parallelism ?? 1;
+  if (!opts?.cursor && parallelism > 1 && toLedger !== undefined) {
+    const seen = new Set<string>();
+    const chunks = splitRange(startLedger, toLedger, parallelism);
+
+    const chunkIterables = chunks.map((chunk) => {
+      return (async function* () {
+        for await (const result of fetchAnnouncementsRange(
+          sorobanUrl,
+          announcerContract,
+          filterGroups,
+          chunk.startLedger,
+          chunk.endLedger,
+          seen,
+        )) {
+          yield { item: result.announcement, key: result.ledger };
+        }
+      })();
+    });
+
+    yield* mergeOrdered(chunkIterables);
+    return;
+  }
+
+  // Sequential path (existing behavior for cursor or parallelism = 1)
   let cursor = opts?.cursor;
   const seen = new Set<string>();
   const singleFilterGroup = filterGroups.length === 1;

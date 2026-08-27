@@ -1,9 +1,14 @@
 export { deriveStealthKeys } from './keys';
+export type { KeyDerivationOptions } from './keys';
+export type { Tracer, Span } from '../../telemetry';
 export { STEALTH_SIGNING_MESSAGE, SCHEME_ID, META_ADDRESS_PREFIX } from './constants';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
 export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
 export { checkStealthAddress, scanAnnouncements } from './scan';
 export { deriveStealthPrivateScalar, signSolanaTransaction } from './spend';
+/**
+ * @internal
+ */
 export {
   seedToScalar,
   hashToScalar,
@@ -13,7 +18,13 @@ export {
   L,
 } from './scalar';
 export { bytesToHex, hexToBytes } from './utils';
+/**
+ * @internal
+ */
 export { fetchAnnouncements } from './announcements';
+/**
+ * @internal
+ */
 export {
   buildSendSol,
   buildAnnounce,
@@ -22,6 +33,9 @@ export {
   buildReleaseName,
   buildResolveName,
 } from './builders';
+/**
+ * @internal
+ */
 export { DEPLOYMENTS, getDeployment } from './deployments';
 export type {
   SolanaInstruction,

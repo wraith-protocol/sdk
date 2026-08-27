@@ -354,3 +354,185 @@ describe('fetchAnnouncementsStream', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(3); // first page only
   });
 });
+
+// ---------------------------------------------------------------------------
+// Property tests for parallel chunking and ordered merge
+// ---------------------------------------------------------------------------
+
+describe('parallel chunking ordering guarantee', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.fn();
+  });
+
+  test('mergeOrdered yields items in ascending key order regardless of completion order', async () => {
+    // Create async iterables that complete in different orders
+    const iterables: Array<AsyncIterable<{ item: number; key: number }>> = [
+      (async function* () {
+        await sleep(30); // completes last
+        yield { item: 1, key: 1 };
+        yield { item: 2, key: 2 };
+      })(),
+      (async function* () {
+        await sleep(10); // completes first
+        yield { item: 5, key: 5 };
+        yield { item: 6, key: 6 };
+      })(),
+      (async function* () {
+        await sleep(20); // completes middle
+        yield { item: 3, key: 3 };
+        yield { item: 4, key: 4 };
+      })(),
+    ];
+
+    // Import the internal mergeOrdered function
+    const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
+
+    const results: number[] = [];
+    for await (const item of mergeOrdered(iterables)) {
+      results.push(item);
+    }
+
+    // Should be in ascending key order: 1, 2, 3, 4, 5, 6
+    expect(results).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  test('mergeOrdered handles empty iterables', async () => {
+    const iterables: Array<AsyncIterable<{ item: number; key: number }>> = [
+      (async function* () {
+        yield { item: 1, key: 1 };
+      })(),
+      (async function* () {
+        // empty
+      })(),
+      (async function* () {
+        yield { item: 2, key: 2 };
+      })(),
+    ];
+
+    const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
+
+    const results: number[] = [];
+    for await (const item of mergeOrdered(iterables)) {
+      results.push(item);
+    }
+
+    expect(results).toEqual([1, 2]);
+  });
+
+  test('mergeOrdered handles duplicate keys', async () => {
+    const iterables: Array<AsyncIterable<{ item: number; key: number }>> = [
+      (async function* () {
+        yield { item: 1, key: 1 };
+        yield { item: 2, key: 2 };
+      })(),
+      (async function* () {
+        yield { item: 3, key: 2 }; // duplicate key
+        yield { item: 4, key: 3 };
+      })(),
+    ];
+
+    const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
+
+    const results: number[] = [];
+    for await (const item of mergeOrdered(iterables)) {
+      results.push(item);
+    }
+
+    // Should maintain stable sort for duplicates
+    expect(results).toEqual([1, 2, 3, 4]);
+  });
+
+  test('splitRange divides ledger range into contiguous chunks', async () => {
+    const { splitRange } = await import('../../../src/chains/stellar/announcements');
+
+    const chunks = splitRange(100, 400, 3);
+    expect(chunks).toEqual([
+      { startLedger: 100, endLedger: 200 },
+      { startLedger: 200, endLedger: 300 },
+      { startLedger: 300, endLedger: 400 },
+    ]);
+  });
+
+  test('splitRange handles single chunk', async () => {
+    const { splitRange } = await import('../../../src/chains/stellar/announcements');
+
+    const chunks = splitRange(100, 400, 1);
+    expect(chunks).toEqual([{ startLedger: 100, endLedger: 400 }]);
+  });
+
+  test('splitRange handles non-even division', async () => {
+    const { splitRange } = await import('../../../src/chains/stellar/announcements');
+
+    const chunks = splitRange(100, 500, 3);
+    expect(chunks).toEqual([
+      { startLedger: 100, endLedger: 233 },
+      { startLedger: 233, endLedger: 366 },
+      { startLedger: 366, endLedger: 500 },
+    ]);
+  });
+
+  test('default parallelism=1 behavior matches sequential path', async () => {
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(3),
+    ]);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const results1 = await collectStream(
+      fetchAnnouncementsStream('stellar', { fromLedger: 150, toLedger: 175, includeV2: false }),
+    );
+
+    // Reset and test with explicit parallelism=1
+    vi.clearAllMocks();
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      makeEventsPage(3),
+    ]);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const results2 = await collectStream(
+      fetchAnnouncementsStream('stellar', {
+        fromLedger: 150,
+        toLedger: 175,
+        parallelism: 1,
+        includeV2: false,
+      }),
+    );
+
+    // Both should produce identical results
+    expect(results1).toEqual(results2);
+    expect(results1.length).toBe(3);
+  });
+
+  test('parallelism is ignored when cursor is provided', async () => {
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      emptyEvents('resume-cursor'),
+    ]);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    // Even with parallelism=4, cursor should force sequential path
+    await collectStream(
+      fetchAnnouncementsStream('stellar', {
+        cursor: 'previous-cursor',
+        parallelism: 4,
+        includeV2: false,
+      }),
+    );
+
+    const scan = JSON.parse(fetchSpy.mock.calls[2][1].body).params;
+
+    // Should use cursor pagination, not parallel chunking
+    expect(scan.startLedger).toBeUndefined();
+    expect(scan.pagination).toEqual({ limit: 1000, cursor: 'previous-cursor' });
+  });
+});
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

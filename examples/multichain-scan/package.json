@@ -4,7 +4,8 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
-    "start": "npx tsx index.ts"
+    "start": "npx tsx index.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@wraith-protocol/sdk": "file:../.."

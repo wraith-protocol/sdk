@@ -7,6 +7,9 @@ export default defineConfig({
       '**/node_modules/**',
       '**/reference/**',
       '**/bench/**',
+      // Svelte component tests require the package-level compiler plugin and jsdom.
+      // The root test script runs this package separately with its own config.
+      'packages/sdk-svelte/test/**',
       // Vectors tests for non-Stellar chains reference fixtures that ship
       // only in future waves (packages/test-vectors/vectors/{ckb,evm,solana}.json).
       // Re-enable per chain when its fixture lands.
@@ -17,7 +20,7 @@ export default defineConfig({
     testTimeout: 1200000, // 20 minutes for high-run nightly fuzz tests
   },
   benchmark: {
-    include: ['test/chains/**/bench/**/*.bench.ts'],
+    include: ['test/chains/**/bench/**/*.bench.ts', 'test/bench/**/*.bench.ts'],
     outputFile: './bench/results.json',
   },
 });

@@ -1,5 +1,6 @@
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, afterEach } from 'vitest';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
+import { setTracer, type Tracer, type Span } from '../../../src/telemetry';
 import {
   computeAnnouncementViewTag,
   computeSharedSecret,
@@ -582,4 +583,105 @@ describe('scanAnnouncementsStream', () => {
 
     expect(mem100k).toBeLessThan(Math.max(mem1k * 10, 5 * 1024 * 1024));
   }, 30_000);
+});
+
+function makeRecordingTracer() {
+  const spanNames: string[] = [];
+  const tracer: Tracer = {
+    startSpan(name) {
+      spanNames.push(name);
+      const span: Span = { setAttribute() {}, recordException() {}, end() {} };
+      return span;
+    },
+  };
+  return { tracer, spanNames };
+}
+
+describe('scanAnnouncementsStream telemetry', () => {
+  afterEach(() => {
+    setTracer(null);
+  });
+
+  test('emits a scan span and a match span per hit', async () => {
+    const keys = deriveStealthKeys(testSig);
+    const stealth = generateStealthAddress(keys.spendingPubKey, keys.viewingPubKey);
+    const announcements: Announcement[] = [
+      {
+        schemeId: SCHEME_ID,
+        stealthAddress: stealth.stealthAddress,
+        caller: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+        ephemeralPubKey: bytesToHex(stealth.ephemeralPubKey),
+        metadata: stealth.viewTag.toString(16).padStart(2, '0'),
+      },
+    ];
+
+    const { tracer, spanNames } = makeRecordingTracer();
+
+    const matched = await collectStream(
+      scanAnnouncementsStream(
+        announcementsFrom(announcements),
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+        { tracer },
+      ),
+    );
+
+    expect(matched).toHaveLength(1);
+    expect(spanNames).toEqual(['stellar.scan', 'stellar.scan.match']);
+  });
+
+  test('a scan with no matches only emits the scan span', async () => {
+    const keys = deriveStealthKeys(testSig);
+    const announcements: Announcement[] = [
+      {
+        schemeId: 99,
+        stealthAddress: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+        caller: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+        ephemeralPubKey: '00'.repeat(32),
+        metadata: '00',
+      },
+    ];
+
+    const { tracer, spanNames } = makeRecordingTracer();
+
+    await collectStream(
+      scanAnnouncementsStream(
+        announcementsFrom(announcements),
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+        { tracer },
+      ),
+    );
+
+    expect(spanNames).toEqual(['stellar.scan']);
+  });
+
+  test('global setTracer is used when no per-call tracer is given', async () => {
+    const keys = deriveStealthKeys(testSig);
+    const announcements: Announcement[] = [
+      {
+        schemeId: 99,
+        stealthAddress: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+        caller: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+        ephemeralPubKey: '00'.repeat(32),
+        metadata: '00',
+      },
+    ];
+
+    const { tracer, spanNames } = makeRecordingTracer();
+    setTracer(tracer);
+
+    await collectStream(
+      scanAnnouncementsStream(
+        announcementsFrom(announcements),
+        keys.viewingKey,
+        keys.spendingPubKey,
+        keys.spendingScalar,
+      ),
+    );
+
+    expect(spanNames).toEqual(['stellar.scan']);
+  });
 });

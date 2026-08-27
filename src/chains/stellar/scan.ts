@@ -1,13 +1,72 @@
 import { ed25519 } from '@noble/curves/ed25519';
+import type { ExtPointType } from '@noble/curves/abstract/edwards';
 import { computeAnnouncementViewTag, computeSharedSecret, computeViewTag } from './stealth';
 import { hashToScalar, deriveStealthPubKey, pubKeyToStellarAddress, L } from './scalar';
 import { SCHEME_ID, SCHEME_ID_V2 } from './constants';
 import type { Announcement, MatchedAnnouncement } from './types';
 import { hexToBytes } from './utils';
+import { pipeline } from './scanner/pipeline';
+import { getTracer, type Tracer } from '../../telemetry';
 
 /**
- * Streaming announcement scanner. Pulls announcements from `source` in windows of
- * `opts.window` (default 64), scans each window, and yields matches immediately.
+ * Progress snapshot emitted during a cold scan so UIs can render honest
+ * progress bars instead of guessing at a spinner.
+ */
+export interface ScanProgress {
+  /** Number of ledgers scanned so far. */
+  scannedLedgers: number;
+  /** Total ledgers to scan, when known (e.g. a bounded cold scan). */
+  totalLedgers?: number;
+  /** Number of announcements matched so far. */
+  matches: number;
+  /** Milliseconds elapsed since the scan started. */
+  elapsedMs: number;
+}
+
+const HEX_TO_BYTE = (() => {
+  const table = new Uint8Array(256).fill(255);
+  const lower = '0123456789abcdef';
+  const upper = '0123456789ABCDEF';
+  for (let i = 0; i < 16; i++) {
+    table[lower.charCodeAt(i)] = i;
+    table[upper.charCodeAt(i)] = i;
+  }
+  return table;
+})();
+
+function readViewTag(metadata: string): number | null {
+  const clean = metadata.startsWith('0x') ? metadata.slice(2) : metadata;
+  if (clean.length < 2) return null;
+
+  const hi = HEX_TO_BYTE[clean.charCodeAt(0)];
+  const lo = HEX_TO_BYTE[clean.charCodeAt(1)];
+  if (hi === 255 || lo === 255) return null;
+
+  return (hi << 4) | lo;
+}
+
+function decodeHexToBuffer(hex: string, output: Uint8Array): Uint8Array | null {
+  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+  if ((clean.length & 1) !== 0) return null;
+
+  const byteCount = clean.length / 2;
+  if (byteCount > output.length) return null;
+
+  let outOffset = 0;
+  for (let i = 0; i < clean.length; i += 2) {
+    const hi = HEX_TO_BYTE[clean.charCodeAt(i)];
+    const lo = HEX_TO_BYTE[clean.charCodeAt(i + 1)];
+    if (hi === 255 || lo === 255) return null;
+    output[outOffset++] = (hi << 4) | lo;
+  }
+
+  return output.subarray(0, outOffset);
+}
+
+/**
+ * Streaming announcement scanner. Pipelines `source` through a bounded queue
+ * of size `opts.window` (default 64) so fetching stays ahead of decryption,
+ * and yields matches as soon as they're found.
  *
  * Uses the cheap public view-tag prefilter before the X25519 shared secret:
  *   1. Derive the viewing public key once from the viewing seed
@@ -16,15 +75,134 @@ import { hexToBytes } from './utils';
  *   4. Compute hash_scalar = SHA-256("wraith:scalar:" || S) mod L
  *   5. Expected stealth pubkey = K_spend + hash_scalar * G
  *   6. Compare with announced stealth address
- * Peak memory is O(window) — never accumulates the full announcement set.
+ *
+ * Unlike fetching all announcements up front and then scanning them, `source` is
+ * pulled continuously in the background (see {@link pipeline}) while each buffered
+ * announcement is scanned, so RPC round-trips for later pages overlap with the CPU
+ * cost of scanning earlier ones instead of running strictly one after the other.
+ * Peak memory is still O(window) — the queue never buffers more than `window`
+ * announcements ahead of the scan, so a fast source paired with a slow scan
+ * doesn't grow memory unbounded.
+ *
  * Cancellation is clean: breaking out of the `for-await` loop triggers the `finally`
- * block which calls `.return()` on the source iterator, stopping upstream I/O.
+ * block which stops the pipeline, which in turn calls `.return()` on the source
+ * iterator, stopping upstream I/O.
  *
  * @param source  Async iterable of announcements (e.g. from {@link fetchAnnouncementsStream}).
- * @param opts.window  Max announcements buffered at once. Smaller = less memory, larger = fewer
- *                     async round-trips to the source. Default: 64.
+ * @param opts.window  Max announcements buffered ahead of the scan. Smaller = less memory,
+ *                     larger = more overlap between fetching and scanning. Default: 64.
  */
 export async function* scanAnnouncementsStream(
+  source: AsyncIterable<Announcement>,
+  viewingKey: Uint8Array,
+  spendingPubKey: Uint8Array,
+  spendingScalar: bigint,
+  opts: { window?: number; tracer?: Tracer } = {},
+): AsyncGenerator<MatchedAnnouncement> {
+  const windowSize = Math.max(1, opts.window ?? 64);
+  const viewingPubKey = ed25519.getPublicKey(viewingKey);
+  const piped = pipeline(source, windowSize);
+
+  const span = (opts.tracer ?? getTracer()).startSpan('stellar.scan', {
+    'wraith.chain': 'stellar',
+    'wraith.scan.window': windowSize,
+  });
+  let scanned = 0;
+  let matched = 0;
+
+  try {
+    for await (const ann of piped) {
+      scanned++;
+      if (ann.schemeId !== SCHEME_ID && ann.schemeId !== SCHEME_ID_V2) continue;
+
+      const metadataBytes = hexToBytes(ann.metadata);
+      if (metadataBytes.length === 0) continue;
+      const viewTag = metadataBytes[0];
+
+      const ephPubKey = hexToBytes(ann.ephemeralPubKey);
+      if (ephPubKey.length !== 32) continue;
+
+      const result = checkStealthAddressWithViewingPubKey(
+        ephPubKey,
+        viewingKey,
+        viewingPubKey,
+        spendingPubKey,
+        viewTag,
+      );
+
+      if (
+        result.isMatch &&
+        result.stealthAddress === ann.stealthAddress &&
+        result.hashScalar !== null &&
+        result.stealthPubKeyBytes !== null
+      ) {
+        matched++;
+        const matchedAnnouncement = decryptMatch(
+          ann,
+          result.hashScalar,
+          result.stealthPubKeyBytes,
+          spendingScalar,
+          opts.tracer,
+        );
+        yield matchedAnnouncement;
+      }
+    }
+    span.setAttribute('wraith.scan.scanned_count', scanned);
+    span.setAttribute('wraith.scan.matched_count', matched);
+  } catch (err) {
+    span.recordException(err);
+    throw err;
+  } finally {
+    // Signal the pipeline (and transitively the source) to stop when consumer cancels early
+    await piped.return(undefined);
+    span.end();
+  }
+}
+
+/**
+ * Derives the spendable private scalar for one matched announcement.
+ *
+ * Split out of {@link scanAnnouncementsStream} so this (comparatively rare)
+ * "decrypt" step gets its own span, separate from the continuous per-candidate
+ * scan loop.
+ */
+function decryptMatch(
+  ann: Announcement,
+  hashScalar: bigint,
+  stealthPubKeyBytes: Uint8Array,
+  spendingScalar: bigint,
+  tracer: Tracer | undefined,
+): MatchedAnnouncement {
+  const span = (tracer ?? getTracer()).startSpan('stellar.scan.match', {
+    'wraith.chain': 'stellar',
+    'wraith.scan.scheme_id': ann.schemeId,
+  });
+  try {
+    const stealthPrivateScalar = ((spendingScalar % L) + hashScalar) % L;
+    return {
+      ...ann,
+      stealthPrivateScalar,
+      stealthPubKeyBytes,
+    };
+  } catch (err) {
+    span.recordException(err);
+    throw err;
+  } finally {
+    span.end();
+  }
+}
+
+/**
+ * Pre-pipelining scanner retained for benchmarks.
+ *
+ * Matches the old streaming scan path: it prefetches up to `window` announcements
+ * strictly before scanning any of them, so no RPC fetch for the next window can
+ * start until the current window is fully scanned. {@link scanAnnouncementsStream}
+ * replaced this with a pipelined version that overlaps fetching with scanning.
+ *
+ * @see {@link scanAnnouncementsStream}
+ */
+export async function* scanAnnouncementsStreamSequential(
   source: AsyncIterable<Announcement>,
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
@@ -32,11 +210,19 @@ export async function* scanAnnouncementsStream(
   opts: { window?: number } = {},
 ): AsyncGenerator<MatchedAnnouncement> {
   const windowSize = Math.max(1, opts.window ?? 64);
+  const viewingPubKey = ed25519.getPublicKey(viewingKey);
   const iter = source[Symbol.asyncIterator]();
+  const ephemeralBuffer = new Uint8Array(32);
+  let spendingPoint: ExtPointType | undefined;
 
   try {
+    try {
+      spendingPoint = ed25519.ExtendedPoint.fromHex(spendingPubKey);
+    } catch {
+      spendingPoint = undefined;
+    }
+
     while (true) {
-      // Prefetch up to windowSize announcements — bounds peak memory to O(window)
       const batch: Announcement[] = [];
       for (let i = 0; i < windowSize; i++) {
         const next = await iter.next();
@@ -49,14 +235,19 @@ export async function* scanAnnouncementsStream(
       for (const ann of batch) {
         if (ann.schemeId !== SCHEME_ID && ann.schemeId !== SCHEME_ID_V2) continue;
 
-        const metadataBytes = hexToBytes(ann.metadata);
-        if (metadataBytes.length === 0) continue;
-        const viewTag = metadataBytes[0];
+        const viewTag = readViewTag(ann.metadata);
+        if (viewTag === null) continue;
 
-        const ephPubKey = hexToBytes(ann.ephemeralPubKey);
-        if (ephPubKey.length !== 32) continue;
+        const ephPubKey = decodeHexToBuffer(ann.ephemeralPubKey, ephemeralBuffer);
+        if (!ephPubKey || ephPubKey.length !== 32 || !spendingPoint) continue;
 
-        const result = checkStealthAddress(ephPubKey, viewingKey, spendingPubKey, viewTag);
+        const result = checkStealthAddressWithViewingPubKey(
+          ephPubKey,
+          viewingKey,
+          viewingPubKey,
+          spendingPubKey,
+          viewTag,
+        );
 
         if (
           result.isMatch &&
@@ -76,7 +267,6 @@ export async function* scanAnnouncementsStream(
       if (batch.length < windowSize) break;
     }
   } finally {
-    // Signal upstream to stop I/O when consumer cancels early
     await iter.return?.();
   }
 }
@@ -121,12 +311,14 @@ export function checkStealthAddress(
   stealthPubKeyBytes: Uint8Array | null;
 } {
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
+  const spendingPoint = ed25519.ExtendedPoint.fromHex(spendingPubKey);
   return checkStealthAddressWithViewingPubKey(
     ephemeralPubKey,
     viewingKey,
     viewingPubKey,
     spendingPubKey,
     viewTag,
+    spendingPoint,
   );
 }
 
@@ -136,6 +328,7 @@ function checkStealthAddressWithViewingPubKey(
   viewingPubKey: Uint8Array,
   spendingPubKey: Uint8Array,
   viewTag: number,
+  spendingPoint?: ExtPointType,
 ): {
   isMatch: boolean;
   stealthAddress: string | null;
@@ -148,7 +341,12 @@ function checkStealthAddressWithViewingPubKey(
   }
 
   try {
-    return deriveStealthAddressFromAnnouncement(ephemeralPubKey, viewingKey, spendingPubKey);
+    return deriveStealthAddressFromAnnouncement(
+      ephemeralPubKey,
+      viewingKey,
+      spendingPubKey,
+      spendingPoint,
+    );
   } catch {
     return { isMatch: false, stealthAddress: null, hashScalar: null, stealthPubKeyBytes: null };
   }
@@ -158,6 +356,7 @@ function deriveStealthAddressFromAnnouncement(
   ephemeralPubKey: Uint8Array,
   viewingKey: Uint8Array,
   spendingPubKey: Uint8Array,
+  spendingPoint?: ExtPointType,
 ): {
   isMatch: boolean;
   stealthAddress: string | null;
@@ -167,7 +366,7 @@ function deriveStealthAddressFromAnnouncement(
   const sharedSecret = computeSharedSecret(viewingKey, ephemeralPubKey);
   const hScalar = hashToScalar(sharedSecret);
 
-  const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar);
+  const stealthPubKeyBytes = deriveStealthPubKey(spendingPubKey, hScalar, spendingPoint);
   const stealthAddress = pubKeyToStellarAddress(stealthPubKeyBytes);
 
   return { isMatch: true, stealthAddress, hashScalar: hScalar, stealthPubKeyBytes };
@@ -214,16 +413,24 @@ export function scanAnnouncements(
 ): MatchedAnnouncement[] {
   const matched: MatchedAnnouncement[] = [];
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
+  const ephemeralBuffer = new Uint8Array(32);
+  let spendingPoint: ExtPointType | undefined;
 
-  for (const ann of announcements) {
+  try {
+    spendingPoint = ed25519.ExtendedPoint.fromHex(spendingPubKey);
+  } catch {
+    spendingPoint = undefined;
+  }
+
+  for (let i = 0, len = announcements.length; i < len; i++) {
+    const ann = announcements[i];
     if (ann.schemeId !== SCHEME_ID && ann.schemeId !== SCHEME_ID_V2) continue;
 
-    const metadataBytes = hexToBytes(ann.metadata);
-    if (metadataBytes.length === 0) continue;
-    const viewTag = metadataBytes[0];
+    const viewTag = readViewTag(ann.metadata);
+    if (viewTag === null) continue;
 
-    const ephPubKey = hexToBytes(ann.ephemeralPubKey);
-    if (ephPubKey.length !== 32) continue;
+    const ephPubKey = decodeHexToBuffer(ann.ephemeralPubKey, ephemeralBuffer);
+    if (!ephPubKey || ephPubKey.length !== 32 || !spendingPoint) continue;
 
     const result = checkStealthAddressWithViewingPubKey(
       ephPubKey,
@@ -231,6 +438,7 @@ export function scanAnnouncements(
       viewingPubKey,
       spendingPubKey,
       viewTag,
+      spendingPoint,
     );
 
     if (
