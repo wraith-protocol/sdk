@@ -138,4 +138,4 @@ export { createHorizonClient } from './horizon';
 export type { RetryPolicy, HorizonClient, HorizonClientConfig } from './horizon';
 
 export { createRpcClient } from './rpc';
-export type { RpcClient, RpcClientConfig, RpcEndpoint } from './rpc';
+export type { RpcClient, RpcClientConfig, RpcEndpoint, RpcRequestOptions } from './rpc';

@@ -137,7 +137,7 @@ export const DEPLOYMENTS: Record<string, SolanaChainDeployment>;
 // Warning: (ae-forgotten-export) The symbol "StealthKeys$1" needs to be exported by the entry point index.d.ts
 //
 // @public
-export function deriveStealthKeys(signature: Uint8Array): StealthKeys$1;
+export function deriveStealthKeys(signature: Uint8Array, opts?: KeyDerivationOptions): StealthKeys$1;
 
 // @public
 export function deriveStealthPrivateScalar(spendingScalar: bigint, viewingKey: Uint8Array, ephemeralPubKey: Uint8Array): bigint;
@@ -172,6 +172,11 @@ export type HexString = `0x${string}`;
 
 // @public
 export function hexToBytes(hex: string): Uint8Array;
+
+// @public
+export interface KeyDerivationOptions {
+    tracer?: Tracer;
+}
 
 // @public
 export const L: bigint;
@@ -234,6 +239,13 @@ export interface SolanaInstruction {
 }
 
 // @public
+export interface Span {
+    end(): void;
+    recordException(error: unknown): void;
+    setAttribute(key: string, value: string | number | boolean): void;
+}
+
+// @public
 export const STEALTH_SIGNING_MESSAGE = "Sign this message to generate your Wraith stealth keys.\n\nChain: Solana\nNote: This signature is used for key derivation only and does not authorize any transaction.";
 
 // @public
@@ -252,6 +264,11 @@ export interface StealthMetaAddress {
     prefix: string;
     spendingPubKey: Uint8Array;
     viewingPubKey: Uint8Array;
+}
+
+// @public
+export interface Tracer {
+    startSpan(name: string, attributes?: Record<string, string | number | boolean>): Span;
 }
 
 // (No @packageDocumentation comment for this package)
