@@ -23,8 +23,11 @@ export type {
   ViemWalletClient,
   SolanaWalletAdapterLike,
 } from './wallet';
+
 export { setTracer, getTracer, withSpan, NOOP_TRACER } from './telemetry';
 export type { Tracer, Span } from './telemetry';
+
+
 export type {
   ScanAllInput,
   MatchedAnnouncement,
