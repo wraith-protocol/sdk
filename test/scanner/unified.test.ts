@@ -498,4 +498,3 @@ describe('ChainScannerAdapter conformance & custom adapters', () => {
     expect(results[1].announcement).toEqual({ matchedId: '3', value: 300 });
   });
 });
-

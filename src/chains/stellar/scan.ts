@@ -539,4 +539,3 @@ export const adapter: ChainScannerAdapter<
 };
 
 export const stellarAdapter = adapter;
-

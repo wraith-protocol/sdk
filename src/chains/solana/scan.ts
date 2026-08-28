@@ -123,4 +123,3 @@ export const adapter: ChainScannerAdapter<
 };
 
 export const solanaAdapter = adapter;
-

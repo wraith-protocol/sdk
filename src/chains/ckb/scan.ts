@@ -125,4 +125,3 @@ export const adapter: ChainScannerAdapter<
 };
 
 export const ckbAdapter = adapter;
-

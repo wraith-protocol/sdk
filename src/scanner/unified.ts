@@ -34,12 +34,7 @@ export type SupportedChain = 'evm' | 'stellar' | 'solana' | 'ckb';
  * @template TMatched - Matched announcement output type.
  * @template TMetaAddress - Decoded stealth meta-address representation.
  */
-export interface ChainScannerAdapter<
-  TItem = any,
-  TKeys = any,
-  TMatched = any,
-  TMetaAddress = any,
-> {
+export interface ChainScannerAdapter<TItem = any, TKeys = any, TMatched = any, TMetaAddress = any> {
   /** Unique string identifier for the chain adapter (e.g., 'evm', 'stellar', 'monero'). */
   id: string;
 

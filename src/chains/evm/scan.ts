@@ -132,5 +132,3 @@ export const adapter = {
 };
 
 export const evmAdapter = adapter;
-
-
