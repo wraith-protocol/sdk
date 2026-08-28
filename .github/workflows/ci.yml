@@ -88,3 +88,31 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:fuzz
+
+  heap-regression:
+    name: Heap constructor regression (nightly)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run constructor-level heap regression harness
+        run: pnpm test:heap-leak
+      - name: Upload heap regression artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heap-regression-${{ github.run_id }}
+          path: |
+            heap-diff.json
+            heap-before.heapsnapshot
+            heap-after.heapsnapshot
+          if-no-files-found: warn
+          retention-days: 14

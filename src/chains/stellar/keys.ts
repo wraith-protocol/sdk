@@ -5,6 +5,13 @@ import type { StealthKeys } from './types';
 import { seedToScalar } from './scalar';
 import { STEALTH_SIGNING_MESSAGE } from './constants';
 import type { StellarStealthSigner } from './signer';
+import { withSpan, type Tracer } from '../../telemetry';
+
+/** Optional per-call telemetry override for key-derivation functions. */
+export interface KeyDerivationOptions {
+  /** Overrides the global tracer (set via `setTracer`) for this call only. */
+  tracer?: Tracer;
+}
 
 /**
  * Derives Stellar stealth spending and viewing keys from a wallet signature.
@@ -19,39 +26,49 @@ import type { StellarStealthSigner } from './signer';
  *
  * @throws {InvalidSignatureError} If signature length is not 64.
  */
-export function deriveStealthKeys(signature: Uint8Array): StealthKeys {
-  if (signature.length !== 64) {
-    throw new InvalidSignatureError(signature, 64, signature.length);
-  }
+export function deriveStealthKeys(
+  signature: Uint8Array,
+  opts: KeyDerivationOptions = {},
+): StealthKeys {
+  return withSpan(
+    'stellar.deriveStealthKeys',
+    { 'wraith.chain': 'stellar' },
+    () => {
+      if (signature.length !== 64) {
+        throw new InvalidSignatureError(signature, 64, signature.length);
+      }
 
-  const spendingPrefix = new TextEncoder().encode('wraith:spending:');
-  const viewingPrefix = new TextEncoder().encode('wraith:viewing:');
+      const spendingPrefix = new TextEncoder().encode('wraith:spending:');
+      const viewingPrefix = new TextEncoder().encode('wraith:viewing:');
 
-  const spendingInput = new Uint8Array(spendingPrefix.length + signature.length);
-  spendingInput.set(spendingPrefix);
-  spendingInput.set(signature, spendingPrefix.length);
+      const spendingInput = new Uint8Array(spendingPrefix.length + signature.length);
+      spendingInput.set(spendingPrefix);
+      spendingInput.set(signature, spendingPrefix.length);
 
-  const viewingInput = new Uint8Array(viewingPrefix.length + signature.length);
-  viewingInput.set(viewingPrefix);
-  viewingInput.set(signature, viewingPrefix.length);
+      const viewingInput = new Uint8Array(viewingPrefix.length + signature.length);
+      viewingInput.set(viewingPrefix);
+      viewingInput.set(signature, viewingPrefix.length);
 
-  const spendingKey = sha256(spendingInput);
-  const viewingKey = sha256(viewingInput);
+      const spendingKey = sha256(spendingInput);
+      const viewingKey = sha256(viewingInput);
 
-  const spendingScalar = seedToScalar(spendingKey);
-  const viewingScalar = seedToScalar(viewingKey);
+      const spendingScalar = seedToScalar(spendingKey);
+      const viewingScalar = seedToScalar(viewingKey);
 
-  const spendingPubKey = ed25519.getPublicKey(spendingKey);
-  const viewingPubKey = ed25519.getPublicKey(viewingKey);
+      const spendingPubKey = ed25519.getPublicKey(spendingKey);
+      const viewingPubKey = ed25519.getPublicKey(viewingKey);
 
-  return {
-    spendingKey,
-    spendingScalar,
-    viewingKey,
-    viewingScalar,
-    spendingPubKey,
-    viewingPubKey,
-  };
+      return {
+        spendingKey,
+        spendingScalar,
+        viewingKey,
+        viewingScalar,
+        spendingPubKey,
+        viewingPubKey,
+      };
+    },
+    opts.tracer,
+  );
 }
 
 /**
@@ -71,8 +88,16 @@ export function deriveStealthKeys(signature: Uint8Array): StealthKeys {
  */
 export async function deriveStealthKeysFromSigner(
   signer: StellarStealthSigner,
+  opts: KeyDerivationOptions = {},
 ): Promise<StealthKeys> {
-  const message = new TextEncoder().encode(STEALTH_SIGNING_MESSAGE);
-  const signature = await signer.signMessage(message);
-  return deriveStealthKeys(signature);
+  return withSpan(
+    'stellar.deriveStealthKeysFromSigner',
+    { 'wraith.chain': 'stellar' },
+    async () => {
+      const message = new TextEncoder().encode(STEALTH_SIGNING_MESSAGE);
+      const signature = await signer.signMessage(message);
+      return deriveStealthKeys(signature, opts);
+    },
+    opts.tracer,
+  );
 }

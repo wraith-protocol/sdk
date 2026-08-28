@@ -277,10 +277,10 @@ export const DEFAULT_BATCH_SENDER_THRESHOLD = 10;
 export const DEPLOYMENTS: Record<string, StellarChainDeployment>;
 
 // @public
-export function deriveStealthKeys(signature: Uint8Array): StealthKeys;
+export function deriveStealthKeys(signature: Uint8Array, opts?: KeyDerivationOptions): StealthKeys;
 
 // @public
-export function deriveStealthKeysFromSigner(signer: StellarStealthSigner): Promise<StealthKeys>;
+export function deriveStealthKeysFromSigner(signer: StellarStealthSigner, opts?: KeyDerivationOptions): Promise<StealthKeys>;
 
 // @public
 export function deriveStealthPrivateScalar(spendingScalar: bigint, viewingKey: Uint8Array, ephemeralPubKey: Uint8Array): bigint;
@@ -436,6 +436,11 @@ export class IndexedDBCache implements AnnouncementCache {
 export function isStealthMultisigReady(tx: Transaction): boolean;
 
 // @public
+export interface KeyDerivationOptions {
+    tracer?: Tracer;
+}
+
+// @public
 export const L: bigint;
 
 // @public
@@ -539,7 +544,7 @@ export interface RpcClient {
         reason: string;
     }) => void): void;
     // (undocumented)
-    request<T = unknown>(method: string, path: string, body?: unknown): Promise<T>;
+    request<T = unknown>(method: string, path: string, body?: unknown, opts?: RpcRequestOptions): Promise<T>;
 }
 
 // @public (undocumented)
@@ -561,6 +566,7 @@ export interface RpcClientConfig {
         baseDelayMs: number;
         maxDelayMs: number;
     };
+    tracer?: Tracer;
 }
 
 // @public (undocumented)
@@ -569,11 +575,22 @@ export interface RpcEndpoint {
     url: string;
 }
 
+// @public
+export interface RpcRequestOptions {
+    tracer?: Tracer;
+}
+
 // @public @deprecated
 export function scanAnnouncements(announcements: Announcement[], viewingKey: Uint8Array, spendingPubKey: Uint8Array, spendingScalar: bigint): MatchedAnnouncement[];
 
 // @public
 export function scanAnnouncementsLegacySharedSecretTag(announcements: Announcement[], viewingKey: Uint8Array, spendingPubKey: Uint8Array, spendingScalar: bigint): MatchedAnnouncement[];
+
+// @public
+export function scanAnnouncementsStream(source: AsyncIterable<Announcement>, viewingKey: Uint8Array, spendingPubKey: Uint8Array, spendingScalar: bigint, opts?: {
+    window?: number;
+    tracer?: Tracer;
+}): AsyncGenerator<MatchedAnnouncement>;
 
 // @public
 export const SCHEME_ID = 1;
@@ -605,6 +622,13 @@ export interface SorobanEventFilter {
 
 // @public
 export type SorobanTopicMatcher = string[];
+
+// @public
+export interface Span {
+    end(): void;
+    recordException(error: unknown): void;
+    setAttribute(key: string, value: string | number | boolean): void;
+}
 
 // @public
 export const STEALTH_SIGNING_MESSAGE = "Sign this message to generate your Wraith stealth keys.\n\nChain: Stellar\nNote: This signature is used for key derivation only and does not authorize any transaction.";
@@ -691,6 +715,11 @@ export interface SwapAndStealthResult {
 export const TEXT_MEMO_MAX_BYTES = 28;
 
 // @public
+export interface Tracer {
+    startSpan(name: string, attributes?: Record<string, string | number | boolean>): Span;
+}
+
+// @public
 export interface TypedMemo {
     type: MemoType;
     value: MemoValue;
@@ -708,15 +737,22 @@ export interface WebAuthnCredentialsContainer {
     get(options: Record<string, unknown>): Promise<WebAuthnPRFAssertion | null>;
 }
 
+// Warning: (ae-forgotten-export) The symbol "StellarWalletAdapter" needs to be exported by the entry point index.d.ts
+//
 // @public
-export class WebAuthnPasskeyStealthSigner implements StellarStealthSigner {
+export class WebAuthnPasskeyStealthSigner implements StellarStealthSigner, StellarWalletAdapter {
     constructor(options: WebAuthnPasskeyStealthSignerOptions);
+    // (undocumented)
+    readonly chain: "stellar";
+    // (undocumented)
+    getAddress(): Promise<string>;
     // (undocumented)
     signMessage(message: Uint8Array): Promise<Uint8Array>;
 }
 
 // @public
 export interface WebAuthnPasskeyStealthSignerOptions {
+    address?: string;
     credentialId: Uint8Array;
     credentials?: WebAuthnCredentialsContainer;
     rpId?: string;

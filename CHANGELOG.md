@@ -10,6 +10,11 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
   - `FreighterStealthSigner` wraps the existing Freighter-style wallet API; the raw `deriveStealthKeys(signature)` path is unchanged.
   - `WebAuthnPasskeyStealthSigner` is a reference passkey adapter that uses the WebAuthn `prf` extension to derive stable key material across sessions, since raw WebAuthn assertion signatures are non-deterministic.
   - `useStellarStealthKeys()` in `@wraith-protocol/sdk-react` gained a `generateFromSigner()` method alongside the existing `generate()`.
+- **OpenTelemetry-compatible Instrumentation Hooks** (issue #177): `src/telemetry.ts` introduces a minimal `Tracer`/`Span` interface plus `setTracer()`/`getTracer()`, exported from the package root. Zero runtime dependency on `@opentelemetry/*` or any tracing library — nothing is traced until `setTracer()` is called, and every instrumented call site defaults to a no-op tracer.
+  - Instrumented: `deriveStealthKeys()`, `deriveStealthKeysFromSigner()`, `scanAnnouncementsStream()` (`stellar.scan` plus a `stellar.scan.match` span per match), `RpcClient.request()` (`stellar.rpc.request`, covering internal retries/failover), and every `ClaudeAgentTools` method (`agent.tool.*`).
+  - Every instrumented function accepts a `tracer` option that overrides the global tracer for that call only.
+  - `scanAnnouncementsStream` is now exported from `@wraith-protocol/sdk/chains/stellar` (it previously wasn't part of the public API surface, only reachable via a relative import).
+  - Reference `@opentelemetry/api`-shaped adapter under `examples/otel/`; stable attribute names documented in `docs/observability.md`.
 
 ### Performance
 

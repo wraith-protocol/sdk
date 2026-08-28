@@ -70,6 +70,7 @@ describe('WebAuthnPasskeyStealthSigner', () => {
     const session1 = new WebAuthnPasskeyStealthSigner({
       credentialId,
       credentials: mockPasskeyCredentials(credentialId),
+      address: 'GSMARTACCOUNT',
     });
     const session2 = new WebAuthnPasskeyStealthSigner({
       credentialId,
@@ -83,6 +84,8 @@ describe('WebAuthnPasskeyStealthSigner', () => {
     expect(keys1.viewingKey).toEqual(keys2.viewingKey);
     expect(keys1.spendingPubKey).toEqual(keys2.spendingPubKey);
     expect(keys1.viewingPubKey).toEqual(keys2.viewingPubKey);
+    expect(session1.chain).toBe('stellar');
+    expect(await session1.getAddress()).toBe('GSMARTACCOUNT');
   });
 
   test('different credentials derive different keys', async () => {

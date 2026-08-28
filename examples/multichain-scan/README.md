@@ -1,34 +1,47 @@
-# Multichain Stealth Payment Scanner
+# Multichain Wallet Scanner
 
-A CLI that scans for incoming stealth payments across all 4 supported chains in parallel — Stellar, EVM, Solana, and CKB.
+A CLI that uses one `WalletAdapter` registry to request the chain-specific
+derivation signatures and scan the Wraith Stellar and Horizen test networks.
+An optional legacy signature can also enable the existing Solana and CKB scans.
 
-## How it works
+## Wallet registry
 
-1. Derives stealth keys from a single secret key
-2. Fetches announcements on all 4 chains simultaneously via `Promise.all`
-3. Filters announcements owned by this wallet using each chain's scan function
-4. Prints matched payments grouped by chain
+Create `wallet-registry.ts` next to the example. The SDK adapters are structural:
+the Freighter, viem, and Solana wallet packages remain optional and are never
+imported by the SDK adapters themselves.
 
-## Supported Chains
+```ts
+import {
+  FreighterWalletAdapter,
+  ViemWalletAdapter,
+  type WalletAdapter,
+} from '@wraith-protocol/sdk';
+import { createWalletClient, custom } from 'viem';
+import { horizenTestnet } from './your-chain-config';
+import * as freighter from '@stellar/freighter-api';
 
-| Chain   | Fetch function       | Scan function       | Crypto    |
-| ------- | -------------------- | ------------------- | --------- |
-| Stellar | `fetchAnnouncements` | `scanAnnouncements` | ed25519   |
-| EVM     | `fetchAnnouncements` | `scanAnnouncements` | secp256k1 |
-| Solana  | `fetchAnnouncements` | `scanAnnouncements` | ed25519   |
-| CKB     | `fetchStealthCells`  | `scanStealthCells`  | secp256k1 |
+const evmClient = createWalletClient({
+  chain: horizenTestnet,
+  transport: custom(window.ethereum),
+});
+
+export const walletAdapters = new Map<string, WalletAdapter>([
+  ['stellar', new FreighterWalletAdapter(freighter)],
+  ['evm', new ViemWalletAdapter(evmClient)],
+]);
+```
+
+The same registry can include a `SolanaWalletAdapter` from an
+`@solana/wallet-adapter` wallet when a Solana scan is needed.
 
 ## Usage
 
 ```bash
-# 1. Copy and fill in the environment variables
 cp .env.example .env
-# Edit .env with your SECRET_KEY
-
-# 2. Run the scanner
+# Set WALLET_REGISTRY_MODULE to the registry module above.
 npm start
 ```
 
-## Output
-
-The script prints results per chain — total announcements found, matched payments, and details for each match including stealth address, ephemeral public key, and derived private key/scalar.
+The CLI asks both wallets to sign their chain's fixed, non-transactional Wraith
+message, derives the correct key shape through `deriveStealthKeysFromWallet`,
+then scans Stellar testnet and Horizen testnet concurrently.

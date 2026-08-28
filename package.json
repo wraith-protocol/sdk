@@ -47,7 +47,7 @@
   ],
   "scripts": {
     "build": "tsup",
-    "test": "vitest run --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts' && pnpm --filter @wraith-protocol/sdk-svelte test",
+    "test": "vitest run --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts' --exclude 'test/leaks/heap-snapshot.test.ts' && pnpm --filter @wraith-protocol/sdk-svelte test",
     "docs": "typedoc",
     "test:watch": "vitest",
     "bench": "vitest bench --run",
@@ -58,6 +58,7 @@
     "prepare": "husky",
     "test:fuzz": "FC_RUNS=100000 vitest run test/chains/stellar/properties.test.ts",
     "test:leak": "vitest run test/leaks/scan-leak.test.ts",
+    "test:heap-leak": "node --expose-gc ./node_modules/vitest/vitest.mjs run test/leaks/heap-snapshot.test.ts --pool=threads",
     "api:check": "api-extractor run --config api-extractor.json && api-extractor run --config api-extractor-evm.json && api-extractor run --config api-extractor-stellar.json && api-extractor run --config api-extractor-solana.json && api-extractor run --config api-extractor-ckb.json && api-extractor run --config api-extractor-vault.json"
   },
   "size-limit": [

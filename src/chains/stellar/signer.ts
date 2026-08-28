@@ -1,5 +1,6 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { KeyDerivationFailedError } from '../../errors';
+import type { StellarWalletAdapter } from '../../wallet/adapter';
 
 /**
  * Minimal signing capability required to derive Stellar stealth keys.
@@ -84,6 +85,8 @@ export interface WebAuthnPasskeyStealthSignerOptions {
   credentials?: WebAuthnCredentialsContainer;
   /** Relying party ID passed through to `navigator.credentials.get()`. */
   rpId?: string;
+  /** Stellar smart-account address controlled by this passkey. */
+  address?: string;
 }
 
 /**
@@ -110,14 +113,17 @@ export interface WebAuthnPasskeyStealthSignerOptions {
  *
  * @see {@link StellarStealthSigner}
  */
-export class WebAuthnPasskeyStealthSigner implements StellarStealthSigner {
+export class WebAuthnPasskeyStealthSigner implements StellarStealthSigner, StellarWalletAdapter {
+  readonly chain = 'stellar' as const;
   private readonly credentialId: Uint8Array;
   private readonly credentials: WebAuthnCredentialsContainer;
   private readonly rpId?: string;
+  private readonly address?: string;
 
   constructor(options: WebAuthnPasskeyStealthSignerOptions) {
     this.credentialId = options.credentialId;
     this.rpId = options.rpId;
+    this.address = options.address;
 
     const globalCredentials = (globalThis as { navigator?: { credentials?: unknown } }).navigator
       ?.credentials as WebAuthnCredentialsContainer | undefined;
@@ -157,6 +163,15 @@ export class WebAuthnPasskeyStealthSigner implements StellarStealthSigner {
     combined.set(new Uint8Array(results.first).subarray(0, 32), 0);
     combined.set(new Uint8Array(results.second).subarray(0, 32), 32);
     return combined;
+  }
+
+  async getAddress(): Promise<string> {
+    if (!this.address) {
+      throw new KeyDerivationFailedError(
+        'No Stellar smart-account address was configured for this passkey signer.',
+      );
+    }
+    return this.address;
   }
 }
 

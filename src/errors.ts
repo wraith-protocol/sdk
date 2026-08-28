@@ -34,6 +34,16 @@ export abstract class WraithError extends Error {
       context: this.context,
     };
   }
+
+  /**
+   * Returns a short, actionable "what to try" hint for this error, derived
+   * from its `context`. Concrete subclasses should override this with a hint
+   * tailored to their specific failure mode. The default implementation is a
+   * generic fallback so `describe()` is always safe to call.
+   */
+  describe(): string {
+    return `No specific guidance is available for this error. See ${this.docsLink} for details.`;
+  }
 }
 
 // Intermediary Base Error Classes
@@ -53,6 +63,15 @@ export class InvalidMetaAddressError extends WraithInputError {
       reason,
     });
   }
+
+  describe(): string {
+    const { metaAddress, reason } = this.context ?? {};
+    return (
+      `"${metaAddress}" is not a valid stealth meta-address${reason ? ` (${reason})` : ''}. Try: ` +
+      `re-generate it with encodeStealthMetaAddress() rather than building the string by hand, and ` +
+      `confirm it targets the network you're actually using. See ${this.docsLink}.`
+    );
+  }
 }
 
 export class InvalidNameError extends WraithInputError {
@@ -60,6 +79,14 @@ export class InvalidNameError extends WraithInputError {
 
   constructor(name: string, reason?: string) {
     super(`Invalid name: "${name}"${reason ? `. ${reason}` : ''}`, { name, reason });
+  }
+
+  describe(): string {
+    const { name, reason } = this.context ?? {};
+    return (
+      `"${name}" isn't a valid .wraith name${reason ? ` (${reason})` : ''}. Try: check the length ` +
+      `and character rules in the docs, then re-submit. See ${this.docsLink}.`
+    );
   }
 }
 
@@ -77,6 +104,19 @@ export class InvalidSignatureError extends WraithInputError {
       { signature: sigStr, expectedLength, actualLength },
     );
   }
+
+  describe(): string {
+    const { expectedLength, actualLength } = this.context ?? {};
+    const lengthHint =
+      expectedLength !== undefined && actualLength !== undefined
+        ? `Expected ${expectedLength} bytes but got ${actualLength}. `
+        : '';
+    return (
+      `The signature is malformed. ${lengthHint}Try: confirm the signer produced a raw signature ` +
+      `(not hex-prefixed or base64-wrapped) and that you're passing the right byte encoding. ` +
+      `See ${this.docsLink}.`
+    );
+  }
 }
 
 export class InvalidScalarError extends WraithInputError {
@@ -88,6 +128,15 @@ export class InvalidScalarError extends WraithInputError {
       reason,
     });
   }
+
+  describe(): string {
+    const { reason } = this.context ?? {};
+    return (
+      `The computed scalar is out of valid curve range${reason ? ` (${reason})` : ''}. Try: this is ` +
+      `usually transient — retry the key derivation with fresh randomness, or check the inputs that ` +
+      `fed into it. See ${this.docsLink}.`
+    );
+  }
 }
 
 // WraithCryptoError Subclasses
@@ -96,6 +145,14 @@ export class KeyDerivationFailedError extends WraithCryptoError {
 
   constructor(reason: string) {
     super(`Key derivation failed: ${reason}`, { reason });
+  }
+
+  describe(): string {
+    const { reason } = this.context ?? {};
+    return (
+      `Stealth key derivation failed (${reason}). Try: verify the signature and spending/viewing ` +
+      `keys used for derivation are from the same account, and retry. See ${this.docsLink}.`
+    );
   }
 }
 
@@ -108,6 +165,15 @@ export class ViewTagMismatchError extends WraithCryptoError {
       actualTag,
     });
   }
+
+  describe(): string {
+    const { expectedTag, actualTag } = this.context ?? {};
+    return (
+      `View tag ${actualTag} doesn't match the expected ${expectedTag}. Try: this announcement ` +
+      `likely isn't for you — it's expected and safe to skip during a scan. Only investigate if ` +
+      `this happens for an announcement you know is yours. See ${this.docsLink}.`
+    );
+  }
 }
 
 export class ECDHFailedError extends WraithCryptoError {
@@ -115,6 +181,14 @@ export class ECDHFailedError extends WraithCryptoError {
 
   constructor(reason: string) {
     super(`Elliptic Curve Diffie-Hellman (ECDH) operation failed: ${reason}`, { reason });
+  }
+
+  describe(): string {
+    const { reason } = this.context ?? {};
+    return (
+      `ECDH failed (${reason}). Try: confirm the public point you're using is actually on the curve ` +
+      `and wasn't corrupted or hex-decoded incorrectly upstream. See ${this.docsLink}.`
+    );
   }
 }
 
@@ -134,6 +208,19 @@ export class RPCRequestError extends WraithNetworkError {
     );
     this.statusCode = statusCode;
   }
+
+  describe(): string {
+    const { url, statusCode } = this.context ?? {};
+    const hint =
+      statusCode >= 500
+        ? 'the endpoint is likely having issues — retry with backoff or switch RPC providers'
+        : statusCode === 429
+          ? 'you are being rate-limited — slow down requests or use a different endpoint'
+          : statusCode === 401 || statusCode === 403
+            ? 'check your API key / auth header for this endpoint'
+            : 'check the request payload and endpoint URL for correctness';
+    return `RPC call to "${url}" returned ${statusCode}. Try: ${hint}. See ${this.docsLink}.`;
+  }
 }
 
 export class RPCRetryExhaustedError extends WraithNetworkError {
@@ -147,6 +234,15 @@ export class RPCRetryExhaustedError extends WraithNetworkError {
       { url, attempts, lastError },
     );
   }
+
+  describe(): string {
+    const { url, attempts, lastError } = this.context ?? {};
+    return (
+      `Gave up on "${url}" after ${attempts} attempts${lastError ? ` (last error: ${lastError})` : ''}. ` +
+      `Try: check the endpoint is reachable and healthy, or configure a fallback RPC URL. ` +
+      `See ${this.docsLink}.`
+    );
+  }
 }
 
 export class RetentionExceededError extends WraithNetworkError {
@@ -158,6 +254,14 @@ export class RetentionExceededError extends WraithNetworkError {
       actual,
     });
   }
+
+  describe(): string {
+    const { limit, actual } = this.context ?? {};
+    return (
+      `Requested a range of ${actual}, but the max retention window is ${limit}. Try: narrow the ` +
+      `query to a smaller time/block range, or paginate across multiple requests. See ${this.docsLink}.`
+    );
+  }
 }
 
 // WraithContractError Subclasses
@@ -166,6 +270,14 @@ export class NameNotFoundError extends WraithContractError {
 
   constructor(name: string) {
     super(`Name not found: "${name}"`, { name });
+  }
+
+  describe(): string {
+    const { name } = this.context ?? {};
+    return (
+      `"${name}" isn't registered in the Wraith Names registry. Try: double-check the spelling, or ` +
+      `confirm it has actually been registered on the network you're querying. See ${this.docsLink}.`
+    );
   }
 }
 
@@ -178,6 +290,15 @@ export class NameAlreadyRegisteredError extends WraithContractError {
       owner,
     });
   }
+
+  describe(): string {
+    const { name, owner } = this.context ?? {};
+    return (
+      `"${name}" is already taken${owner ? ` (owned by ${owner})` : ''}. Try: pick a different name, ` +
+      `or if you believe you own it, verify you're signing with the correct account. ` +
+      `See ${this.docsLink}.`
+    );
+  }
 }
 
 export class InsufficientAuthError extends WraithContractError {
@@ -189,6 +310,15 @@ export class InsufficientAuthError extends WraithContractError {
         required && actual ? `. Required: ${required}, actual: ${actual}` : ''
       }`,
       { required, actual },
+    );
+  }
+
+  describe(): string {
+    const { required, actual } = this.context ?? {};
+    const detail = required && actual ? ` Required "${required}", but got "${actual}".` : '';
+    return (
+      `You don't have permission to perform this operation.${detail} Try: sign with the account ` +
+      `that owns this resource, or request the correct role/authorization. See ${this.docsLink}.`
     );
   }
 }
@@ -204,6 +334,15 @@ export class ContractRevertError extends WraithContractError {
     });
     this.reason = reason;
   }
+
+  describe(): string {
+    const { reason, txHash } = this.context ?? {};
+    return (
+      `Transaction reverted on-chain: ${reason}${txHash ? ` (tx: ${txHash})` : ''}. Try: decode the ` +
+      `revert reason with decodeSorobanError() for a contract-specific explanation, or inspect the ` +
+      `transaction in an explorer. See ${this.docsLink}.`
+    );
+  }
 }
 
 // WraithBuilderError Subclasses
@@ -216,6 +355,15 @@ export class InsufficientBalanceError extends WraithBuilderError {
       { required: required.toString(), actual: actual.toString(), asset },
     );
   }
+
+  describe(): string {
+    const { required, actual, asset } = this.context ?? {};
+    return (
+      `Not enough balance${asset ? ` of ${asset}` : ''} to build this transaction — need ${required}, ` +
+      `have ${actual}. Try: fund the account, reduce the amount, or account for network fees ` +
+      `separately from the transfer amount. See ${this.docsLink}.`
+    );
+  }
 }
 
 export class UnsupportedAssetError extends WraithBuilderError {
@@ -226,5 +374,14 @@ export class UnsupportedAssetError extends WraithBuilderError {
       asset,
       chain,
     });
+  }
+
+  describe(): string {
+    const { asset, chain } = this.context ?? {};
+    return (
+      `"${asset}" isn't supported${chain ? ` on ${chain}` : ''} by this SDK build. Try: check the ` +
+      `supported asset list for this chain, or register the asset if the SDK exposes a way to. ` +
+      `See ${this.docsLink}.`
+    );
   }
 }
