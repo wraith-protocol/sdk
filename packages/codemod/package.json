@@ -1,0 +1,34 @@
+{
+  "name": "@wraith-protocol/codemod",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Codemods that automate mechanical migrations across @wraith-protocol/sdk major versions.",
+  "bin": {
+    "wraith-codemod": "./bin/cli.mjs"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "bin",
+    "transforms"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "jscodeshift": "^17.4.0"
+  },
+  "devDependencies": {
+    "@types/jscodeshift": "^0.12.0",
+    "@types/node": "^20.19.43",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.0"
+  }
+}

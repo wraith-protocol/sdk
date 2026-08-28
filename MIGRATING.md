@@ -2,6 +2,49 @@
 
 This guide documents breaking changes to `@wraith-protocol/sdk` and how to update your code.
 
+## Automated Migration with `@wraith-protocol/codemod`
+
+Before working through the manual steps below, try the codemod -- it automates
+the mechanical parts of each breaking change (import updates, message-matching
+error handlers, the React Native polyfill call) so you don't have to
+grep-and-sed by hand.
+
+```bash
+npx @wraith-protocol/codemod v1 ./src
+```
+
+Run it with `--dry --print` first if you want to preview the diff without
+writing anything:
+
+```bash
+npx @wraith-protocol/codemod v1 ./src --dry --print
+```
+
+It's safe to run more than once -- files that are already migrated, or that
+don't match a known pattern, are left untouched.
+
+**What it handles automatically:**
+
+- Rewrites `catch (e) { if (e.message.includes('...')) }` message-matching
+  into `e instanceof <TypedError>` checks, and adds the required import (see
+  [Error Handling](#error-handling-from-message-matching-to-typed-exceptions-150)
+  below).
+- Inserts the `installReactNativePolyfills()` call and import into React
+  Native entry files that need it (see
+  [React Native](#react-native-explicit-polyfill-installation-required-150)
+  below).
+
+**What still needs a manual look:** the codemod only rewrites `.message.includes(...)`
+checks against message fragments it recognizes as belonging to a specific
+`@wraith-protocol/sdk` error class. If your code matches against custom or
+already-changed message text, or combines multiple `.message.includes(...)`
+checks with `||`/`&&` in a single condition, review those call sites by hand
+using the reference below. The Stellar cryptographic audit fixes require no
+code changes at all (automated or manual) -- see that section for details.
+
+Source lives in [`packages/codemod`](./packages/codemod), including the fixture
+pre/post pairs each transform is tested against.
+
 ## Upgrading to 2.0.0
 
 ### Error Handling: From Message Matching to Typed Exceptions (1.5.0+)
