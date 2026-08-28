@@ -132,16 +132,12 @@ function isMessageIncludesCall(node, errName) {
 function ensureNamedImport(j, root, source, names) {
   if (names.size === 0) return;
 
-  const existing = root
-    .find(j.ImportDeclaration)
-    .filter((p) => p.node.source.value === source);
+  const existing = root.find(j.ImportDeclaration).filter((p) => p.node.source.value === source);
 
   if (existing.size() > 0) {
     const decl = existing.paths()[0].node;
     const existingNames = new Set(
-      decl.specifiers
-        .filter((s) => s.type === 'ImportSpecifier')
-        .map((s) => s.imported.name),
+      decl.specifiers.filter((s) => s.type === 'ImportSpecifier').map((s) => s.imported.name),
     );
     for (const name of names) {
       if (!existingNames.has(name)) {

@@ -32,8 +32,10 @@ module.exports = function transform(fileInfo, api, options) {
   const printOptions = options.printOptions || { quote: 'single' };
 
   const importsReactNative =
-    root.find(j.ImportDeclaration).filter((p) => p.node.source.value === 'react-native').size() >
-    0;
+    root
+      .find(j.ImportDeclaration)
+      .filter((p) => p.node.source.value === 'react-native')
+      .size() > 0;
 
   const importsSdk =
     root
@@ -67,9 +69,7 @@ module.exports = function transform(fileInfo, api, options) {
 };
 
 function ensureNamedImport(j, root, source, name) {
-  const existing = root
-    .find(j.ImportDeclaration)
-    .filter((p) => p.node.source.value === source);
+  const existing = root.find(j.ImportDeclaration).filter((p) => p.node.source.value === source);
 
   if (existing.size() > 0) {
     const decl = existing.paths()[0].node;
@@ -82,10 +82,7 @@ function ensureNamedImport(j, root, source, name) {
     return;
   }
 
-  const newImport = j.importDeclaration(
-    [j.importSpecifier(j.identifier(name))],
-    j.literal(source),
-  );
+  const newImport = j.importDeclaration([j.importSpecifier(j.identifier(name))], j.literal(source));
   const body = root.get().node.program.body;
   const lastImportIndex = body.reduce(
     (acc, node, index) => (node.type === 'ImportDeclaration' ? index : acc),

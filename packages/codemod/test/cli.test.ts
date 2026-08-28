@@ -13,10 +13,7 @@ beforeEach(() => {
   const appDir = path.join(tempDir, 'app');
   fs.mkdirSync(appDir, { recursive: true });
 
-  fs.writeFileSync(
-    path.join(appDir, 'errors.ts'),
-    loadFixture('typed-error-catch', 'input.ts'),
-  );
+  fs.writeFileSync(path.join(appDir, 'errors.ts'), loadFixture('typed-error-catch', 'input.ts'));
   fs.writeFileSync(
     path.join(appDir, 'index.tsx'),
     loadFixture('install-react-native-polyfills', 'input.tsx'),

@@ -27,12 +27,12 @@ idempotent, and files that don't match a known pattern are left untouched.
 
 ### Options
 
-| Flag | Description |
-| --- | --- |
-| `--dry` | Run without writing any changes to disk. |
-| `--print` | Print transformed output to stdout. |
-| `--extensions` | Comma-separated file extensions to process. Defaults to `ts,tsx,js,jsx`. |
-| `--ignore` | Glob to skip. Can be passed more than once. `node_modules` is always ignored. |
+| Flag           | Description                                                                   |
+| -------------- | ----------------------------------------------------------------------------- |
+| `--dry`        | Run without writing any changes to disk.                                      |
+| `--print`      | Print transformed output to stdout.                                           |
+| `--extensions` | Comma-separated file extensions to process. Defaults to `ts,tsx,js,jsx`.      |
+| `--ignore`     | Glob to skip. Can be passed more than once. `node_modules` is always ignored. |
 
 ## What `v1` covers
 
