@@ -6,6 +6,17 @@
 
 import { ExtPointType } from '@noble/curves/abstract/edwards';
 
+// Warning: (ae-forgotten-export) The symbol "ChainScannerAdapter" needs to be exported by the entry point index.d.ts
+//
+// @public
+const adapter: ChainScannerAdapter<Announcement, {
+    viewingKey: Uint8Array;
+    spendingPubKey: Uint8Array;
+    spendingScalar: bigint;
+}, MatchedAnnouncement>;
+export { adapter }
+export { adapter as solanaAdapter }
+
 // @public
 export interface Announcement {
     caller: string;
