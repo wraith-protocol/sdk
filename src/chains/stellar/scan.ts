@@ -5,6 +5,7 @@ import { hashToScalar, deriveStealthPubKey, pubKeyToStellarAddress, L } from './
 import { SCHEME_ID, SCHEME_ID_V2 } from './constants';
 import type { Announcement, MatchedAnnouncement } from './types';
 import { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
+import { hexToBytes } from './utils';
 import type { ChainScannerAdapter } from '../../scanner/unified';
 import { pipeline } from './scanner/pipeline';
 
