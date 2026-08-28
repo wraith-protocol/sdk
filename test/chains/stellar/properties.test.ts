@@ -131,7 +131,8 @@ describe('stealth pubkey correctness', () => {
       fc.property(scalarArb, scalarArb, (m, s) => {
         const sum = (m + s) % L;
 
-        const lhs = ed25519.ExtendedPoint.BASE.multiply(sum);
+        const lhs =
+          sum === 0n ? ed25519.ExtendedPoint.ZERO : ed25519.ExtendedPoint.BASE.multiply(sum);
 
         const rhs = ed25519.ExtendedPoint.BASE.multiply(m).add(
           ed25519.ExtendedPoint.BASE.multiply(s),
@@ -149,7 +150,12 @@ describe('stealth pubkey correctness', () => {
         const pub = ed25519.ExtendedPoint.BASE.multiply(m).toRawBytes();
         const derived = deriveStealthPubKey(pub, s);
 
-        const expected = ed25519.ExtendedPoint.BASE.multiply((m + s) % L).toRawBytes();
+        const sum = (m + s) % L;
+
+        const expectedPoint =
+          sum === 0n ? ed25519.ExtendedPoint.ZERO : ed25519.ExtendedPoint.BASE.multiply(sum);
+
+        const expected = expectedPoint.toRawBytes();
 
         expect(derived).toEqual(expected);
       }),
