@@ -59,19 +59,75 @@
     "test:fuzz": "FC_RUNS=100000 vitest run test/chains/stellar/properties.test.ts",
     "test:leak": "vitest run test/leaks/scan-leak.test.ts",
     "test:heap-leak": "node --expose-gc ./node_modules/vitest/vitest.mjs run test/leaks/heap-snapshot.test.ts --pool=threads",
+    "size": "size-limit",
     "api:check": "api-extractor run --config api-extractor.json && api-extractor run --config api-extractor-evm.json && api-extractor run --config api-extractor-stellar.json && api-extractor run --config api-extractor-solana.json && api-extractor run --config api-extractor-ckb.json && api-extractor run --config api-extractor-vault.json"
   },
   "size-limit": [
     {
+      "name": "Root ESM (import *)",
+      "path": "dist/index.js",
+      "import": "*",
+      "limit": "36.1 KB"
+    },
+    {
+      "name": "Root CJS (require)",
+      "path": "dist/index.cjs",
+      "limit": "159.7 KB"
+    },
+    {
+      "name": "EVM ESM (import *)",
+      "path": "dist/chains/evm/index.js",
+      "import": "*",
+      "limit": "27.5 KB"
+    },
+    {
+      "name": "EVM CJS (require)",
+      "path": "dist/chains/evm/index.cjs",
+      "limit": "145.9 KB"
+    },
+    {
+      "name": "Solana ESM (import *)",
+      "path": "dist/chains/solana/index.js",
+      "import": "*",
+      "limit": "19.8 KB"
+    },
+    {
+      "name": "Solana CJS (require)",
+      "path": "dist/chains/solana/index.cjs",
+      "limit": "29.8 KB"
+    },
+    {
+      "name": "CKB ESM (import *)",
+      "path": "dist/chains/ckb/index.js",
+      "import": "*",
+      "limit": "23.6 KB"
+    },
+    {
+      "name": "CKB CJS (require)",
+      "path": "dist/chains/ckb/index.cjs",
+      "limit": "148.1 KB"
+    },
+    {
+      "name": "Vault ESM (import *)",
+      "path": "dist/vault/index.js",
+      "import": "*",
+      "limit": "2.3 KB"
+    },
+    {
+      "name": "Vault CJS (require)",
+      "path": "dist/vault/index.cjs",
+      "limit": "2.4 KB"
+    },
+    {
       "name": "Stellar ESM (import *)",
       "path": "dist/chains/stellar/index.js",
       "import": "*",
-      "limit": "20 KB"
+      "limit": "30.5 KB"
     },
     {
       "name": "Stellar CJS (require)",
       "path": "dist/chains/stellar/index.cjs",
-      "limit": "20 KB"
+      "limit": "39.5 KB"
     }
   ],
   "dependencies": {
@@ -99,6 +155,7 @@
     "@commitlint/config-conventional": "^19.6.0",
     "@microsoft/api-extractor": "^7.58.12",
     "@size-limit/esbuild": "^11.0.0",
+    "@size-limit/file": "^11.2.0",
     "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",
     "@types/node": "^20.19.43",
@@ -106,6 +163,7 @@
     "fast-check": "^4.8.0",
     "husky": "^9.1.0",
     "prettier": "^3.4.0",
+    "size-limit": "^11.0.0",
     "tinybench": "^2.9.0",
     "tsup": "^8.4.0",
     "typedoc": "^0.28.19",

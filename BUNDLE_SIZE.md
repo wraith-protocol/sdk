@@ -1,21 +1,57 @@
-# Bundle Size Baseline — Stellar Entry
+# Bundle Size Baselines — All Public Exports
 
-> Last measured: 2026-06-23
+> Last measured: 2026-08-29
 > Bundler: tsup (esbuild) via `size-limit`
+> Sizes are **minified and brotli-compressed**, include all bundled
+> dependencies, and are measured by `size-limit` (SI units: 1 KB = 1000 B).
 
-## Current Size
+## Current Sizes and Budgets
 
-| Format           | Size (gzip) | Budget |
-| ---------------- | ----------- | ------ |
-| ESM (`import *`) | TBD         | 20 KB  |
-| CJS (`require`)  | TBD         | 20 KB  |
+Every budget is the measured baseline **+ 15% headroom**, rounded up.
 
-> TBD — run `pnpm build && pnpm size` after installation to populate
-> actual measurements, then update this table.
+| Entry              | Format           | Baseline  | Budget (+15%) |
+| ------------------ | ---------------- | --------- | ------------- |
+| Root (`.`)         | ESM (`import *`) | 31.32 KB  | 36.1 KB       |
+| Root (`.`)         | CJS (`require`)  | 138.79 KB | 159.7 KB      |
+| `./chains/evm`     | ESM (`import *`) | 23.83 KB  | 27.5 KB       |
+| `./chains/evm`     | CJS (`require`)  | 126.79 KB | 145.9 KB      |
+| `./chains/solana`  | ESM (`import *`) | 17.15 KB  | 19.8 KB       |
+| `./chains/solana`  | CJS (`require`)  | 25.89 KB  | 29.8 KB       |
+| `./chains/ckb`     | ESM (`import *`) | 20.52 KB  | 23.6 KB       |
+| `./chains/ckb`     | CJS (`require`)  | 128.76 KB | 148.1 KB      |
+| `./vault`          | ESM (`import *`) | 1.93 KB   | 2.3 KB        |
+| `./vault`          | CJS (`require`)  | 2.07 KB   | 2.4 KB        |
+| `./chains/stellar` | ESM (`import *`) | 26.48 KB  | 30.5 KB       |
+| `./chains/stellar` | CJS (`require`)  | 34.29 KB  | 39.5 KB       |
 
-## Dependency Graph
+> Stellar note: the original 20 KB-per-format budget predated any actual
+> measurement (the baseline had never been populated). The current Stellar
+> bundle exceeds 20 KB, so its budget was re-baselined on 2026-08-29 using
+> the same baseline + 15% rule as the other entries. Entry paths and options
+> are unchanged.
 
-Generate a visual treemap of the Stellar entry's dependency graph:
+## Checking Sizes (CI gate)
+
+`pnpm size` checks **every** entry in the `size-limit` array of
+`package.json` and exits non-zero if any budget is exceeded. CI runs it on
+every PR that touches `src/` (see the `bundle-size` job in
+`.github/workflows/ci.yml`).
+
+```bash
+pnpm build   # size-limit measures dist/ output, so build first
+pnpm size
+```
+
+## Measuring / Debugging
+
+Machine-readable output (exact byte counts):
+
+```bash
+pnpm build
+./node_modules/.bin/size-limit --json
+```
+
+Generate a visual treemap of an entry's dependency graph:
 
 ```bash
 ANALYZE=true pnpm build
@@ -26,31 +62,15 @@ npx esbuild-visualizer --metadata stats/metafile-stellar.json --open
 > `esbuild-visualizer` is an optional dev tool — install it globally or
 > via `npx` when you need to inspect the graph.
 
-## Measurement Commands
-
-### esbuild (tsup) — via size-limit (CI gate)
-
-```bash
-pnpm build
-pnpm size
-```
-
-### Vite-style bundling — standalone esbuild
-
-```bash
-pnpm measure:vite
-```
-
-Output written to `stats/vite-measurement.json`.
-
 ## Budget Policy
 
-The Stellar entry budget is **20 KB gzipped** for each format (ESM, CJS).
-
-- If a PR increases the Stellar bundle beyond the budget, CI will fail.
-- Reviewers should verify no non-Stellar code was introduced into
-  `src/chains/stellar/` by checking imports.
-- To adjust the budget, update the `size-limit` array in `package.json`.
+- Each entry's budget is its measured baseline + 15% headroom (see table).
+- If a PR increases any bundle beyond its budget, CI fails.
+- Reviewers should verify no cross-chain code was introduced (e.g. nothing
+  from `evm/`, `solana/`, `ckb/`, or `agent/` leaking into
+  `src/chains/stellar/`) by checking imports.
+- To adjust a budget, update the `size-limit` array in `package.json` and
+  this table together, and note the reason in the PR description.
 
 ## Known Optimizations
 

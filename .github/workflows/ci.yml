@@ -73,6 +73,52 @@ jobs:
         if: steps.should-run.outputs.run == 'true'
         run: pnpm --filter @wraith-protocol/test-vectors differential
 
+  bundle-size:
+    name: Bundle size (size-limit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            src:
+              - 'src/**'
+
+      - name: Determine whether to run
+        id: should-run
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ] || [ "${{ steps.filter.outputs.src }}" = "true" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.should-run.outputs.run == 'true'
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        if: steps.should-run.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.should-run.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build SDK
+        if: steps.should-run.outputs.run == 'true'
+        run: pnpm build
+
+      - name: Check bundle sizes
+        if: steps.should-run.outputs.run == 'true'
+        run: pnpm size
+
   slow-tests:
     name: Property fuzz (nightly)
     runs-on: ubuntu-latest
