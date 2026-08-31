@@ -1,8 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { createClaudeAgentTools } from '../../src/agent/tools';
-import { deriveStealthKeys } from '../../src/chains/stellar/keys';
-import { encodeStealthMetaAddress } from '../../src/chains/stellar/meta-address';
-import { type Tracer, type Span } from '../../src/telemetry';
+import { createClaudeAgentTools, type Tracer } from '../src/tools';
+import { deriveStealthKeys, encodeStealthMetaAddress } from '@wraith-protocol/sdk/chains/stellar';
 
 describe('Claude agent tools', () => {
   test('send-to-meta-address builds a signing plan without signing', async () => {
@@ -78,10 +76,9 @@ describe('Claude agent tools', () => {
 function makeRecordingTracer() {
   const spanNames: string[] = [];
   const tracer: Tracer = {
-    startSpan(name) {
+    startActiveSpan(name, _attributes, callback) {
       spanNames.push(name);
-      const span: Span = { setAttribute() {}, recordException() {}, end() {} };
-      return span;
+      return callback();
     },
   };
   return { tracer, spanNames };
