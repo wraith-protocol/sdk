@@ -1,7 +1,4 @@
-import {
-  withSpan,
-  type Tracer,
-} from '@wraith-protocol/sdk';
+import { withSpan, type Tracer } from '@wraith-protocol/sdk';
 import {
   deriveStealthKeys,
   decodeStealthMetaAddress,
