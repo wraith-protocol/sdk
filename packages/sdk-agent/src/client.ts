@@ -1,4 +1,4 @@
-import { RPCRequestError } from '../errors';
+import { RPCRequestError } from '@wraith-protocol/sdk';
 import type {
   WraithConfig,
   AgentConfig,

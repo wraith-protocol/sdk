@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'http';
-import { Wraith, WraithAgent } from '../../src/agent/client';
-import { Chain } from '../../src/agent/types';
-import type { AgentInfo } from '../../src/agent/types';
+import { Wraith, WraithAgent } from '../src/client';
+import { Chain } from '../src/types';
+import type { AgentInfo } from '../src/types';
 
 const TEST_API_KEY = 'wraith_test_key123';
 const AGENT_ID = 'agent-001';

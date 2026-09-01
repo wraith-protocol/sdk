@@ -1,5 +1,3 @@
-export { Wraith, WraithAgent } from './agent/client';
-export { Chain } from './agent/types';
 /**
  * @internal
  */
@@ -25,23 +23,10 @@ export type {
   ViemWalletClient,
   SolanaWalletAdapterLike,
 } from './wallet';
+
 export { setTracer, getTracer, withSpan, NOOP_TRACER } from './telemetry';
 export type { Tracer, Span } from './telemetry';
-export type {
-  WraithConfig,
-  AgentConfig,
-  AgentInfo,
-  ChatResponse,
-  ToolCall,
-  Balance,
-  Payment,
-  Invoice,
-  Schedule,
-  TxResult,
-  PrivacyReport,
-  Notification,
-  Conversation,
-} from './agent/types';
+
 export type {
   ScanAllInput,
   MatchedAnnouncement,
@@ -53,7 +38,6 @@ export type {
   SolanaChainInput,
   CkbChainInput,
 } from './scanner/unified';
-
 export {
   WraithError,
   WraithInputError,
