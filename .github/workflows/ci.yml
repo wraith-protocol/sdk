@@ -27,6 +27,25 @@ jobs:
       - run: pnpm api:check
       - run: pnpm test
 
+  entrypoints:
+    name: Package entry point smoke tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test:exports
+
   differential:
     name: Differential (test-vectors vs vN-1)
     runs-on: ubuntu-latest
