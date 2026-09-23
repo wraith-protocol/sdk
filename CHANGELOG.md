@@ -15,6 +15,7 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
   - Every instrumented function accepts a `tracer` option that overrides the global tracer for that call only.
   - `scanAnnouncementsStream` is now exported from `@wraith-protocol/sdk/chains/stellar` (it previously wasn't part of the public API surface, only reachable via a relative import).
   - Reference `@opentelemetry/api`-shaped adapter under `examples/otel/`; stable attribute names documented in `docs/observability.md`.
+- **Package Entry Point Smoke Tests** (issue #205): a dedicated CI job builds the package and imports every `exports` subpath through both its ESM and CommonJS conditions, verifies each entry point's TypeScript declarations resolve, and asserts no entry point's authored source imports a Node-only builtin. Fixtures live in `test/smoke/` and run via `pnpm test:exports` across the supported Node versions.
 
 ### Performance
 
