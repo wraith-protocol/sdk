@@ -1,4 +1,5 @@
 import { describe, test, expect } from 'vitest';
+import { Asset, Operation, scValToNative } from '@stellar/stellar-sdk';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
 import { encodeStealthMetaAddress } from '../../../src/chains/stellar/meta-address';
 import {
@@ -234,13 +235,68 @@ describe('tx-builder: buildBatchSendTx', () => {
     ).toThrow('Memo too long');
   });
 
-  test('throws error when batchSenderContract is provided but not implemented', () => {
+  test('builds a native XLM batch-sender contract invocation', () => {
     const payments: StealthPayment[] = Array.from(
       { length: DEFAULT_BATCH_SENDER_THRESHOLD },
       () => ({
         metaAddress,
         amount: '1',
       }),
+    );
+
+    const result = buildBatchSendTx({
+      payments,
+      sourceAccount,
+      networkPassphrase,
+      batchSenderContract: 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4',
+    });
+    const operation = result.transaction.operations[0] as Operation.InvokeHostFunction;
+    const invocation = operation.func.invokeContract();
+    expect(operation.type).toBe('invokeHostFunction');
+    expect(invocation.functionName().toString()).toBe('batch_send');
+    expect(invocation.args()).toHaveLength(7);
+    expect(scValToNative(invocation.args()[0])).toBe(sourceAccount.accountId());
+    expect(scValToNative(invocation.args()[1])).toMatch(/^C[A-Z2-7]{55}$/);
+    expect(scValToNative(invocation.args()[2])).toBe(1);
+    expect(scValToNative(invocation.args()[3])).toHaveLength(payments.length);
+    expect(scValToNative(invocation.args()[4])[0]).toHaveLength(32);
+    expect(scValToNative(invocation.args()[5])[0]).toHaveLength(1);
+    expect(scValToNative(invocation.args()[6])).toEqual(payments.map(() => 10_000_000n));
+    expect(result.totalFee).toBe(DEFAULT_BASE_FEE);
+    expect(result.usedBatchSender).toBe(true);
+    expect(result.stealthAddresses).toHaveLength(payments.length);
+  });
+
+  test('supports the documented issued-asset batch path', () => {
+    const issuer = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
+    const payments: StealthPayment[] = Array.from(
+      { length: DEFAULT_BATCH_SENDER_THRESHOLD },
+      () => ({
+        metaAddress,
+        amount: '1.25',
+        asset: 'USDC',
+        assetIssuer: issuer,
+      }),
+    );
+
+    const result = buildBatchSendTx({
+      payments,
+      sourceAccount,
+      networkPassphrase,
+      batchSenderContract: 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4',
+    });
+    const operation = result.transaction.operations[0] as Operation.InvokeHostFunction;
+    const invocation = operation.func.invokeContract();
+    expect(scValToNative(invocation.args()[1])).toBe(
+      new Asset('USDC', issuer).contractId(networkPassphrase),
+    );
+    expect(scValToNative(invocation.args()[6])).toEqual(payments.map(() => 12_500_000n));
+  });
+
+  test('rejects an invalid batch-sender contract configuration', () => {
+    const payments: StealthPayment[] = Array.from(
+      { length: DEFAULT_BATCH_SENDER_THRESHOLD },
+      () => ({ metaAddress, amount: '1' }),
     );
 
     expect(() =>
@@ -250,7 +306,28 @@ describe('tx-builder: buildBatchSendTx', () => {
         networkPassphrase,
         batchSenderContract: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
       }),
-    ).toThrow('stealth-batch-sender contract integration not yet implemented');
+    ).toThrow('Invalid batchSenderContract');
+  });
+
+  test('rejects mixed assets in one contract batch', () => {
+    const issuer = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
+    const payments: StealthPayment[] = Array.from(
+      { length: DEFAULT_BATCH_SENDER_THRESHOLD },
+      (_, i) => ({
+        metaAddress,
+        amount: '1',
+        ...(i === 0 ? { asset: 'USDC', assetIssuer: issuer } : {}),
+      }),
+    );
+
+    expect(() =>
+      buildBatchSendTx({
+        payments,
+        sourceAccount,
+        networkPassphrase,
+        batchSenderContract: 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4',
+      }),
+    ).toThrow('same asset');
   });
 
   test('does not use batch sender below threshold', () => {
