@@ -56,6 +56,7 @@
     "test:compat": "node scripts/compat/run.mjs",
     "compat:doc": "node scripts/compat/check.mjs --write",
     "test:watch": "vitest",
+    "test:types": "vitest run --typecheck.only test/scanner/unified.test-d.ts",
     "bench": "vitest bench --run",
     "bench:watch": "vitest bench",
     "clean": "rm -rf dist",

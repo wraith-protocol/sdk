@@ -3,6 +3,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     globals: true,
+    typecheck: {
+      include: ['**/*.test-d.ts'],
+    },
     exclude: [
       '**/node_modules/**',
       '**/reference/**',
