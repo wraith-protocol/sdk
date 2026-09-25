@@ -45,11 +45,16 @@
   "files": [
     "dist"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts' --exclude 'test/leaks/heap-snapshot.test.ts' && pnpm --filter @wraith-protocol/sdk-svelte test",
     "docs": "typedoc",
     "test:exports": "node test/smoke/run.mjs",
+    "test:compat": "node scripts/compat/run.mjs",
+    "compat:doc": "node scripts/compat/check.mjs --write",
     "test:watch": "vitest",
     "bench": "vitest bench --run",
     "bench:watch": "vitest bench",
@@ -160,10 +165,12 @@
     "@solana/web3.js": "^1.98.4",
     "@stellar/stellar-sdk": "^13.1.0",
     "@types/node": "^20.19.43",
+    "esbuild": "^0.27.7",
     "fake-indexeddb": "^6.2.5",
     "fast-check": "^4.8.0",
     "husky": "^9.1.0",
     "prettier": "^3.4.0",
+    "semver": "^7.7.4",
     "size-limit": "^11.0.0",
     "tinybench": "^2.9.0",
     "tsup": "^8.4.0",

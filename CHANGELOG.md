@@ -6,6 +6,12 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
 
 ### Added
 
+- **Supported Runtime and Peer Dependency Matrix** (issue #209): `compat/matrix.json` is now the single source of truth for the runtimes the SDK supports — Node.js, Bun, evergreen browsers and React Native — and for the dependency ranges it accepts (`@stellar/stellar-sdk`, `@solana/web3.js`, `viem`).
+  - [`COMPAT.md`](./COMPAT.md) is generated from that file and documents the unsupported combinations alongside the exact failure message each one produces.
+  - `pnpm test:compat` validates the matrix against `package.json` and `COMPAT.md`, imports every entry point on the running runtime, repeats that against a simulated React Native global scope, bundles every entry point for `platform: browser`, imports every entry point from an install with the optional peers removed, and asserts the npm tarball contains every file the `exports` map points at.
+  - `package.json` now declares `engines.node` (`>=20`), so an unsupported Node.js install warns before the first import.
+  - The new `compat` CI job runs the checks on Node.js 20, 22 and 24 plus Bun, and the full suite and entry point smoke tests now cover Node.js 24 as well.
+- **Solana address derivation without `@solana/web3.js`** (issue #209): `pubKeyToSolanaAddress()` uses the in-tree base58 encoder, so importing the package root or `@wraith-protocol/sdk/chains/solana` no longer requires the optional Solana peer. Only `fetchAnnouncements()` loads `@solana/web3.js`, dynamically on demand.
 - **Stellar `StellarStealthSigner` Interface** (issue #121): `deriveStealthKeys()` now has a signer-based counterpart, `deriveStealthKeysFromSigner()`, that accepts any `StellarStealthSigner` (`{ signMessage(message): Promise<Uint8Array> }`) instead of assuming a synchronous Freighter-shaped ed25519 signature.
   - `FreighterStealthSigner` wraps the existing Freighter-style wallet API; the raw `deriveStealthKeys(signature)` path is unchanged.
   - `WebAuthnPasskeyStealthSigner` is a reference passkey adapter that uses the WebAuthn `prf` extension to derive stable key material across sessions, since raw WebAuthn assertion signatures are non-deterministic.

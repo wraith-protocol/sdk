@@ -1,4 +1,4 @@
-import { PublicKey } from '@solana/web3.js';
+import { base58Encode } from './utils';
 
 export {
   seedToScalar,
@@ -14,5 +14,5 @@ export {
  * Converts a 32-byte ed25519 public key to a base58-encoded Solana address.
  */
 export function pubKeyToSolanaAddress(pubKeyBytes: Uint8Array): string {
-  return new PublicKey(pubKeyBytes).toBase58();
+  return base58Encode(pubKeyBytes);
 }
