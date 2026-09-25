@@ -531,6 +531,92 @@ describe('parallel chunking ordering guarantee', () => {
     expect(scan.startLedger).toBeUndefined();
     expect(scan.pagination).toEqual({ limit: 1000, cursor: 'previous-cursor' });
   });
+
+  test('caps cold-scan parallelism so in-flight chunks stay bounded', async () => {
+    const chunkStarts: number[] = [];
+    let call = 0;
+    fetchSpy = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      call += 1;
+      const body = init?.body ? JSON.parse(init.body.toString()) : undefined;
+      // 1: ledger-window probe, 2: latest-ledger lookup, 3+: chunk pages.
+      if (call === 1) return { json: async () => makeProbeSuccess() } as Response;
+      if (call === 2) return { json: async () => ({ result: { sequence: 100 } }) } as Response;
+      chunkStarts.push(body?.params?.startLedger);
+      return { json: async () => ({ result: { events: [], cursor: undefined } }) } as Response;
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const { MAX_COLD_SCAN_PARALLELISM } = await import(
+      '../../../src/chains/stellar/announcements'
+    );
+
+    await collectStream(
+      fetchAnnouncementsStream('stellar', {
+        fromLedger: 1_000,
+        toLedger: 100_000,
+        parallelism: 10_000, // far above the cap
+        includeV2: false,
+      }),
+    );
+
+    // An unbounded hint must not fan out into unbounded chunk generators.
+    expect(chunkStarts).toHaveLength(MAX_COLD_SCAN_PARALLELISM);
+    expect(new Set(chunkStarts).size).toBe(MAX_COLD_SCAN_PARALLELISM);
+    expect(MAX_COLD_SCAN_PARALLELISM).toBeGreaterThan(1);
+  });
+
+  test('mergeOrdered closes every chunk iterator when the consumer cancels', async () => {
+    const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
+
+    const closed: number[] = [];
+    const iterables = Array.from({ length: 5 }, (_, index) =>
+      (async function* () {
+        try {
+          for (let i = 0; i < 100; i++) {
+            yield { item: index * 100 + i, key: index * 100 + i };
+          }
+        } finally {
+          closed.push(index);
+        }
+      })(),
+    );
+
+    const seen: number[] = [];
+    for await (const item of mergeOrdered(iterables)) {
+      seen.push(item);
+      if (seen.length === 1) break;
+    }
+
+    expect(seen).toEqual([0]);
+    // Every chunk must be returned, not just the one that was in flight.
+    expect([...closed].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  test('mergeOrdered bounds how far each chunk runs ahead of a slow consumer', async () => {
+    const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
+
+    const chunkCount = 4;
+    const produced = new Array<number>(chunkCount).fill(0);
+    const iterables = produced.map((_value, index) =>
+      (async function* () {
+        for (let i = 0; i < 100; i++) {
+          produced[index] += 1;
+          // Interleaved keys so the merge round-robins instead of draining one chunk.
+          yield { item: index, key: i * chunkCount + index };
+        }
+      })(),
+    );
+
+    let consumed = 0;
+    for await (const _item of mergeOrdered(iterables)) {
+      consumed += 1;
+      await sleep(1); // deliberately slow consumer
+      if (consumed === 20) break;
+    }
+
+    // One item buffered per chunk plus the one in flight: no unbounded buffering.
+    expect(Math.max(...produced)).toBeLessThanOrEqual(Math.ceil(consumed / chunkCount) + 2);
+  });
 });
 
 function sleep(ms: number): Promise<void> {

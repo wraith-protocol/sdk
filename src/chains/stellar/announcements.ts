@@ -35,7 +35,9 @@ export interface FetchAnnouncementsOptions {
   /**
    * Number of parallel chunks to fetch for cold scans. Splits the ledger range
    * into N contiguous chunks fetched concurrently, then merged in order.
-   * Default: 1 (sequential). Ignored when cursor is provided.
+   * Default: 1 (sequential). Ignored when cursor is provided. Clamped to
+   * `[1, MAX_COLD_SCAN_PARALLELISM]`, so the caller cannot start an unbounded
+   * number of in-flight pages.
    */
   parallelism?: number;
 }
@@ -141,37 +143,75 @@ async function* fetchAnnouncementsRange(
  * Merges multiple async iterables in order based on a numeric key.
  * @internal
  */
+/**
+ * Merges multiple async iterables in order based on a numeric key.
+ *
+ * Backpressure: exactly one item is buffered per iterator (`pending`), and a
+ * new item is pulled from an iterator only after its previous item was
+ * consumed. Memory is therefore O(number of iterables) regardless of how slow
+ * the consumer is — the upstream chunk generators stay suspended instead of
+ * running ahead.
+ *
+ * Cancellation: wrapping the loop in `try/finally` means breaking out of the
+ * consumer's `for-await` calls `.return()` on every chunk iterator, not just
+ * the one that happened to be in flight. Without that, the remaining chunk
+ * generators stayed suspended with a requested page outstanding.
+ * @internal
+ */
 export async function* mergeOrdered<T>(
   iterables: Array<AsyncIterable<{ item: T; key: number }>>,
 ): AsyncGenerator<T> {
   const iterators = iterables.map((it) => it[Symbol.asyncIterator]());
   const pending: Array<{ value: T; key: number; index: number }> = [];
 
-  // Initialize: pull first item from each iterator
-  for (let i = 0; i < iterators.length; i++) {
-    const result = await iterators[i].next();
-    if (!result.done) {
-      pending.push({ value: result.value.item, key: result.value.key, index: i });
-    }
-  }
-
-  while (pending.length > 0) {
-    // Find the item with the smallest key
-    pending.sort((a, b) => a.key - b.key || a.index - b.index);
-    const [next, ...rest] = pending;
-
-    yield next.value;
-
-    // Pull the next item from the iterator that just yielded
-    const result = await iterators[next.index].next();
-    if (!result.done) {
-      rest.push({ value: result.value.item, key: result.value.key, index: next.index });
+  try {
+    // Initialize: pull first item from each iterator
+    for (let i = 0; i < iterators.length; i++) {
+      const result = await iterators[i].next();
+      if (!result.done) {
+        pending.push({ value: result.value.item, key: result.value.key, index: i });
+      }
     }
 
-    pending.length = 0;
-    pending.push(...rest);
+    while (pending.length > 0) {
+      // Find the item with the smallest key
+      pending.sort((a, b) => a.key - b.key || a.index - b.index);
+      const [next, ...rest] = pending;
+
+      yield next.value;
+
+      // Pull the next item from the iterator that just yielded
+      const result = await iterators[next.index].next();
+      if (!result.done) {
+        rest.push({ value: result.value.item, key: result.value.key, index: next.index });
+      }
+
+      pending.length = 0;
+      pending.push(...rest);
+    }
+  } finally {
+    // Close every chunk iterator, including ones that never yielded and the
+    // one in flight. `.return()` on an already-finished generator is a no-op.
+    await Promise.all(
+      iterators.map((it) =>
+        it.return === undefined
+          ? Promise.resolve()
+          : Promise.resolve(it.return(undefined)).catch(() => undefined),
+      ),
+    );
   }
 }
+
+/**
+ * Hard ceiling on parallel cold-scan chunks.
+ *
+ * `parallelism` is a caller hint, and every chunk keeps a `getEvents` page in
+ * flight and one buffered item per chunk in the ordered merge, so an
+ * unbounded value would mean unbounded pending RPC work and memory. Cold
+ * scans are I/O-bound on a single Soroban endpoint, so more than this many
+ * concurrent pages buys no throughput while multiplying load and buffer size.
+ */
+export const MAX_COLD_SCAN_PARALLELISM = 8;
 
 /**
  * Splits a ledger range into N contiguous chunks.
@@ -250,8 +290,17 @@ export async function* fetchAnnouncementsStream(
     throw new RetentionExceededError(startLedger, ledgerWindow.oldest);
   }
 
-  // Use parallel chunking for cold scans (no cursor) when parallelism > 1
-  const parallelism = opts?.parallelism ?? 1;
+  // Use parallel chunking for cold scans (no cursor) when parallelism > 1.
+  // The requested value is clamped: each chunk keeps one page in flight and
+  // one item buffered in the merge, so an unbounded hint would mean unbounded
+  // pending work. Non-finite / fractional hints fall back to 1.
+  const requestedParallelism = Number.isFinite(opts?.parallelism)
+    ? Math.floor(opts?.parallelism as number)
+    : 1;
+  const parallelism = Math.min(
+    MAX_COLD_SCAN_PARALLELISM,
+    Math.max(1, requestedParallelism),
+  );
   if (!opts?.cursor && parallelism > 1 && toLedger !== undefined) {
     const seen = new Set<string>();
     const chunks = splitRange(startLedger, toLedger, parallelism);
