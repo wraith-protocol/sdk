@@ -1,6 +1,10 @@
 import { describe, test, expect } from 'vitest';
+import * as fc from 'fast-check';
 import { xdr, Address, Keypair } from '@stellar/stellar-sdk';
-import { parseAnnouncementEvent } from '../../../src/chains/stellar/announcements';
+import {
+  AnnouncementParseError,
+  parseAnnouncementEvent,
+} from '../../../src/chains/stellar/announcements';
 import { SCHEME_ID, SCHEME_ID_V2 } from '../../../src/chains/stellar/constants';
 import { encodeSymbolTopic, encodeU32Topic } from '../../../src/chains/stellar/event-filters';
 import { bytesToHex } from '../../../src/chains/stellar/utils';
@@ -69,10 +73,13 @@ describe('parseAnnouncementEvent', () => {
     });
   });
 
-  test('returns null for unsupported topic counts', () => {
-    expect(parseAnnouncementEvent({ topic: [encodeSymbolTopic('announce')] })).toBeNull();
-    expect(
+  test('rejects unsupported topic counts with a typed parse error', () => {
+    expect(() => parseAnnouncementEvent({ topic: [encodeSymbolTopic('announce')] })).toThrow(
+      AnnouncementParseError,
+    );
+    expect(() =>
       parseAnnouncementEvent({
+        id: 'event-42',
         topic: [
           encodeSymbolTopic('announce'),
           encodeU32Topic(1),
@@ -85,7 +92,44 @@ describe('parseAnnouncementEvent', () => {
           [new Uint8Array(32), new Uint8Array([0])],
         ),
       }),
-    ).toBeNull();
+    ).toThrow(/event=event-42.*field=topic/);
+  });
+
+  test('rejects malformed topic entries with field context', () => {
+    expect(() =>
+      parseAnnouncementEvent({
+        topic: [encodeSymbolTopic('announce'), null, encodeU32Topic(1)],
+        value: 'value',
+      } as Record<string, unknown>),
+    ).toThrow(/field=topic/);
+  });
+
+  test('includes endpoint and event context without exposing payload values', () => {
+    expect(() =>
+      parseAnnouncementEvent(
+        { id: 'evt-7', topic: ['not-a-valid-xdr'], value: 'private-payload' },
+        { endpoint: 'https://rpc.example.test/soroban' },
+      ),
+    ).toThrow(/endpoint=https:\/\/rpc\.example\.test\/soroban event=evt-7/);
+    expect(() =>
+      parseAnnouncementEvent(
+        { id: 'evt-7', topic: ['not-a-valid-xdr'], value: 'private-payload' },
+        { endpoint: 'https://rpc.example.test/soroban' },
+      ),
+    ).not.toThrow('private-payload');
+  });
+
+  test('fuzzes malformed event payloads into typed parse errors', () => {
+    fc.assert(
+      fc.property(fc.anything(), (payload) => {
+        try {
+          parseAnnouncementEvent(payload as Record<string, unknown>);
+        } catch (error) {
+          expect(error).toBeInstanceOf(AnnouncementParseError);
+        }
+      }),
+      { numRuns: 250 },
+    );
   });
 });
 

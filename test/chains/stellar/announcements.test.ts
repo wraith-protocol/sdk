@@ -43,6 +43,22 @@ vi.mock('@stellar/stellar-sdk', () => {
 type FetchCall = { url: string; body?: any };
 const calls: FetchCall[] = [];
 
+function rpcEnvelope(body: unknown, id: number | null = null): unknown {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+  const data = body as Record<string, unknown>;
+  if (data.jsonrpc !== undefined) return body;
+  if (
+    !Object.prototype.hasOwnProperty.call(data, 'result') &&
+    !Object.prototype.hasOwnProperty.call(data, 'error')
+  ) {
+    return body;
+  }
+  if (data.error && typeof data.error === 'object' && !Array.isArray(data.error)) {
+    data.error = { code: -1, ...(data.error as Record<string, unknown>) };
+  }
+  return { jsonrpc: '2.0', id, ...data };
+}
+
 function jsonResponse(body: unknown) {
   return Promise.resolve({ json: () => Promise.resolve(body) } as Response);
 }
@@ -55,7 +71,7 @@ function mockFetch(handler: (url: string, body?: any) => unknown) {
       const url = input.toString();
       const body = init?.body ? JSON.parse(init.body.toString()) : undefined;
       calls.push({ url, body });
-      return jsonResponse(handler(url, body));
+      return jsonResponse(rpcEnvelope(handler(url, body), body?.id ?? null));
     }),
   );
 }
@@ -105,6 +121,7 @@ function makeProbeUnknownError() {
 function makeEventsPage(count: number, cursor?: string, startIdx = 0) {
   const events = Array.from({ length: count }, (_, i) => ({
     id: `event-${startIdx + i}`,
+    ledger: 1,
     topic: [`topic0_${startIdx + i}`, `topic1_${startIdx + i}`, `topic2_${startIdx + i}`],
     value: `value_${startIdx + i}`,
   }));
@@ -115,7 +132,7 @@ function mockFetchSequence(responses: unknown[]) {
   let call = 0;
   return vi.fn(async () => {
     const body = responses[call++] ?? responses[responses.length - 1];
-    return { json: async () => body } as Response;
+    return { json: async () => rpcEnvelope(body) } as Response;
   });
 }
 
@@ -135,7 +152,15 @@ describe('fetchAnnouncements Stellar ranges', () => {
       if (body?.id === 0) return sorobanRange();
       return {
         result: {
-          events: [...Array.from({ length: 999 }, () => ({ ledger: 174 })), { ledger: 175 }],
+          events: [
+            ...Array.from({ length: 999 }, (_, i) => ({
+              id: `range-event-${i}`,
+              ledger: 174,
+              topic: ['topic0', 'topic1', 'topic2'],
+              value: 'value',
+            })),
+            { id: 'range-end', ledger: 175, topic: ['topic0', 'topic1', 'topic2'], value: 'value' },
+          ],
           cursor: 'range-cursor',
         },
       };
@@ -148,7 +173,7 @@ describe('fetchAnnouncements Stellar ranges', () => {
 
     expect(scan.startLedger).toBe(150);
     expect(scan.pagination).toEqual({ limit: 1000 });
-    expect(result).toEqual([]);
+    expect(result).toHaveLength(999);
     expect(methodCalls('getEvents')).toHaveLength(2);
   });
 
@@ -173,6 +198,7 @@ describe('fetchAnnouncements Stellar ranges', () => {
 
     mockFetch((url, body) => {
       if (url === sorobanUrl && body?.id === 0) return sorobanRange(1, 8);
+      if (url === sorobanUrl) return emptyEvents();
       if (url === `${horizonUrl}/ledgers?order=desc&limit=1`) {
         return { _embedded: { records: [{ sequence: 8, closed_at: '2026-01-01T00:08:00Z' }] } };
       }
@@ -239,6 +265,20 @@ describe('fetchAnnouncementsStream', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  test('rejects a malformed JSON-RPC envelope with endpoint context', async () => {
+    const endpoint = 'https://malformed-rpc.example.test/';
+    fetchSpy = vi.fn(async () => ({ json: async () => ({ result: { events: [] } }) }) as Response);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(
+      collectStream(fetchAnnouncementsStream('stellar', { sorobanUrl: endpoint })),
+    ).rejects.toMatchObject({
+      name: 'AnnouncementParseError',
+      endpoint,
+      field: 'jsonrpc',
+    });
   });
 
   test('yields announcements from a single page', async () => {
