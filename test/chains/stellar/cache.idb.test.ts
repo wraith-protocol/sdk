@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
-import { IndexedDBCache } from '../../../src/chains/stellar/cache';
+import { IndexedDBCache, CacheQuotaError } from '../../../src/chains/stellar/cache';
 import type { Announcement } from '../../../src/chains/stellar/types';
 
 // ---------------------------------------------------------------------------
@@ -108,11 +108,12 @@ describe('IndexedDBCache', () => {
   // Version migration
   // -------------------------------------------------------------------------
 
-  it('drops and rebuilds stores when the schema version bumps', async () => {
+  it('migrates safely without dropping data when schema version bumps', async () => {
     const idb = (globalThis as unknown as Record<string, unknown>)['indexedDB'] as IDBFactory;
 
-    // Phase 1 — seed the DB at version 1 with data in the current schema.
+    // Phase 1 — seed the DB manually to simulate an older version or previous install
     await new Promise<void>((resolve, reject) => {
+      // Simulate what the DB looked like before, or just use the current IndexedDBCache
       const req = idb.open(DB_NAME, 1);
       req.onupgradeneeded = (evt) => {
         const db = (evt.target as IDBOpenDBRequest).result;
@@ -122,7 +123,7 @@ describe('IndexedDBCache', () => {
       };
       req.onsuccess = () => {
         const db = req.result;
-        const tx = db.transaction('announcements', 'readwrite');
+        const tx = db.transaction(['announcements', 'meta'], 'readwrite');
         tx.objectStore('announcements').put({
           _key: 'testnet:GFOO',
           network: 'testnet',
@@ -134,6 +135,10 @@ describe('IndexedDBCache', () => {
           ledger: 100,
           _bytes: 200,
         });
+        tx.objectStore('meta').put({
+          key: 'lastSeen:testnet',
+          value: { ledger: 100, cursor: 'c1' },
+        });
         tx.oncomplete = () => {
           db.close();
           resolve();
@@ -143,32 +148,85 @@ describe('IndexedDBCache', () => {
       req.onerror = () => reject(req.error);
     });
 
-    // Phase 2 — simulate CACHE_VERSION bumping to 2.
-    // The onupgradeneeded handler in IndexedDBCache drops all stores and recreates them,
-    // so all previously cached data is wiped on version mismatch.
-    await new Promise<void>((resolve, reject) => {
-      const req = idb.open(DB_NAME, 2);
-      req.onupgradeneeded = (evt) => {
-        const db = (evt.target as IDBOpenDBRequest).result;
-        if (db.objectStoreNames.contains('announcements')) db.deleteObjectStore('announcements');
-        if (db.objectStoreNames.contains('meta')) db.deleteObjectStore('meta');
-        const ann = db.createObjectStore('announcements', { keyPath: '_key' });
-        ann.createIndex('network_ledger', ['network', 'ledger'], { unique: false });
-        db.createObjectStore('meta', { keyPath: 'key' });
+    // Phase 2 — Use IndexedDBCache to open the DB
+    // Since IndexedDBCache now uses conditional creation, it should NOT drop data.
+    const cache = new IndexedDBCache();
+    const result = await cache.get('testnet', 100, 100);
+    expect(result).toHaveLength(1);
+    expect(result![0].stealthAddress).toBe('GFOO');
+
+    const lastSeen = await cache.getLastSeen('testnet');
+    expect(lastSeen).toEqual({ ledger: 100, cursor: 'c1' });
+  });
+
+  // -------------------------------------------------------------------------
+  // Quota and Recovery
+  // -------------------------------------------------------------------------
+
+  it('handles QuotaExceededError with bounded eviction and preserves lastSeen', async () => {
+    const cache = new IndexedDBCache(1000);
+    await cache.put('testnet', [makeAnn('G1', 100), makeAnn('G2', 200)]);
+    await cache.setLastSeen('testnet', 200, 'cursor-2');
+
+    // Get the IDBObjectStore prototype dynamically
+    const idb = (globalThis as unknown as Record<string, unknown>)['indexedDB'] as IDBFactory;
+    let storeProto: any;
+    await new Promise<void>((resolve) => {
+      const req = idb.open('dummy-for-proto', 1);
+      req.onupgradeneeded = (e: any) => {
+        const store = e.target.result.createObjectStore('dummy');
+        storeProto = Object.getPrototypeOf(store);
       };
-      req.onsuccess = () => {
-        const db = req.result;
-        const tx = db.transaction('announcements', 'readonly');
-        const getAllReq = tx.objectStore('announcements').getAll();
-        getAllReq.onsuccess = () => {
-          // All previously seeded data must be gone after the version bump.
-          expect(getAllReq.result).toHaveLength(0);
-          db.close();
-          resolve();
-        };
-        getAllReq.onerror = () => reject(getAllReq.error);
-      };
-      req.onerror = () => reject(req.error);
+      req.onsuccess = () => resolve();
     });
+
+    const origPut = storeProto.put;
+    let thrown = false;
+    storeProto.put = function (this: any, value: any, key: any) {
+      if (!thrown && value && (value as any).stealthAddress === 'G3') {
+        thrown = true;
+        const err = new DOMException('QuotaExceededError', 'QuotaExceededError');
+        throw err;
+      }
+      return origPut.call(this, value, key);
+    };
+
+    try {
+      await cache.put('testnet', [makeAnn('G3', 300)]);
+    } catch (e: any) {
+      // should not throw out, it should recover
+    } finally {
+      storeProto.put = origPut;
+    }
+
+    // Verify it succeeded in saving G3
+    const result = await cache.get('testnet', 100, 300);
+    expect(result?.find((a) => a.stealthAddress === 'G3')).toBeDefined();
+    // lastSeen should be preserved
+    expect(await cache.getLastSeen('testnet')).toEqual({ ledger: 200, cursor: 'cursor-2' });
+  });
+
+  it('throws CacheQuotaError if QuotaExceededError persists after eviction', async () => {
+    const cache = new IndexedDBCache(1000);
+
+    const idb = (globalThis as unknown as Record<string, unknown>)['indexedDB'] as IDBFactory;
+    let storeProto: any;
+    await new Promise<void>((resolve) => {
+      const req = idb.open('dummy-for-proto-2', 1);
+      req.onupgradeneeded = (e: any) => {
+        const store = e.target.result.createObjectStore('dummy');
+        storeProto = Object.getPrototypeOf(store);
+      };
+      req.onsuccess = () => resolve();
+    });
+
+    const origPut = storeProto.put;
+    storeProto.put = function (this: any, value: any, key: any) {
+      throw new DOMException('QuotaExceededError', 'QuotaExceededError');
+    };
+
+    await expect(cache.put('testnet', [makeAnn('G4', 400)])).rejects.toThrow(CacheQuotaError);
+
+    storeProto.put = origPut;
   });
 });

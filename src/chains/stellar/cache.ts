@@ -3,6 +3,14 @@ import type { Announcement, Network } from './types';
 /** Current cache schema version. Bump to force a full rebuild on schema changes. */
 const CACHE_VERSION = 1;
 
+/** Thrown when IndexedDB quota is exceeded and eviction cannot free enough space. */
+export class CacheQuotaError extends Error {
+  constructor(message = 'IndexedDB quota exceeded') {
+    super(message);
+    this.name = 'CacheQuotaError';
+  }
+}
+
 /** Maximum byte budget for IndexedDBCache before LRU eviction. */
 const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
 
@@ -155,13 +163,18 @@ export class IndexedDBCache implements AnnouncementCache {
 
       req.onupgradeneeded = (evt) => {
         const db = (evt.target as IDBOpenDBRequest).result;
-        // Drop stale stores on version bump.
-        if (db.objectStoreNames.contains(STORE_ANN)) db.deleteObjectStore(STORE_ANN);
-        if (db.objectStoreNames.contains(STORE_META)) db.deleteObjectStore(STORE_META);
+        const oldVersion = evt.oldVersion;
 
-        const annStore = db.createObjectStore(STORE_ANN, { keyPath: '_key' });
-        annStore.createIndex('network_ledger', ['network', 'ledger'], { unique: false });
-        db.createObjectStore(STORE_META, { keyPath: 'key' });
+        // Migrations
+        if (oldVersion < 1) {
+          if (!db.objectStoreNames.contains(STORE_ANN)) {
+            const annStore = db.createObjectStore(STORE_ANN, { keyPath: '_key' });
+            annStore.createIndex('network_ledger', ['network', 'ledger'], { unique: false });
+          }
+          if (!db.objectStoreNames.contains(STORE_META)) {
+            db.createObjectStore(STORE_META, { keyPath: 'key' });
+          }
+        }
       };
 
       req.onsuccess = () => resolve(req.result);
@@ -197,25 +210,47 @@ export class IndexedDBCache implements AnnouncementCache {
   async put(network: Network, announcements: Announcement[]): Promise<void> {
     if (announcements.length === 0) return;
     const db = await this.openDB();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_ANN, 'readwrite');
-      const store = tx.objectStore(STORE_ANN);
-      for (const ann of announcements) {
-        const record: StoredAnnouncement = {
-          ...ann,
-          _key: `${network}:${ann.stealthAddress}`,
-          network,
-          _bytes: roughBytesForEntry(ann),
-        };
-        store.put(record);
+
+    const doPut = () =>
+      new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_ANN, 'readwrite');
+        const store = tx.objectStore(STORE_ANN);
+        for (const ann of announcements) {
+          const record: StoredAnnouncement = {
+            ...ann,
+            _key: `${network}:${ann.stealthAddress}`,
+            network,
+            _bytes: roughBytesForEntry(ann),
+          };
+          store.put(record);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+
+    try {
+      await doPut();
+    } catch (err: any) {
+      if (err?.name === 'QuotaExceededError') {
+        // Fallback: evict aggressively to 50% of budget
+        await this.evict(this.maxBytes / 2);
+        try {
+          await doPut();
+        } catch (retryErr: any) {
+          if (retryErr?.name === 'QuotaExceededError') {
+            throw new CacheQuotaError();
+          }
+          throw retryErr;
+        }
+      } else {
+        throw err;
       }
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-    await this.evict();
+    }
+
+    await this.evict(this.maxBytes);
   }
 
-  private async evict(): Promise<void> {
+  private async evict(targetBytes = this.maxBytes): Promise<void> {
     const db = await this.openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_ANN, 'readwrite');
@@ -226,13 +261,13 @@ export class IndexedDBCache implements AnnouncementCache {
       req.onsuccess = () => {
         const all: StoredAnnouncement[] = req.result;
         const totalBytes = all.reduce((s, r) => s + (r._bytes ?? 0), 0);
-        if (totalBytes <= this.maxBytes) return;
+        if (totalBytes <= targetBytes) return;
         // Evict oldest ledgers first (LRU by ledger sequence).
         const sorted = all.slice().sort((a, b) => (a.ledger ?? 0) - (b.ledger ?? 0));
         let remaining = totalBytes;
         let i = 0;
         const step = () => {
-          if (remaining <= this.maxBytes || i >= sorted.length) return;
+          if (remaining <= targetBytes || i >= sorted.length) return;
           const rec = sorted[i++];
           remaining -= rec._bytes ?? 0;
           const delReq = store.delete(rec._key);
