@@ -492,9 +492,15 @@ describe('ChainScannerAdapter conformance & custom adapters', () => {
     const results = await collect(scanAll({ adapters: [customChain] }));
 
     expect(results).toHaveLength(2);
-    expect(results[0].chain).toBe('custom-fixture-chain');
+    expect(results[0].chain).toBe('custom');
+    if (results[0].chain === 'custom') {
+      expect(results[0].customChainId).toBe('custom-fixture-chain');
+    }
     expect(results[0].announcement).toEqual({ matchedId: '1', value: 100 });
-    expect(results[1].chain).toBe('custom-fixture-chain');
+    expect(results[1].chain).toBe('custom');
+    if (results[1].chain === 'custom') {
+      expect(results[1].customChainId).toBe('custom-fixture-chain');
+    }
     expect(results[1].announcement).toEqual({ matchedId: '3', value: 300 });
   });
 });

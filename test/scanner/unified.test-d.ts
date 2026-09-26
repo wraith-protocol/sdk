@@ -5,6 +5,10 @@ import type {
   ScanAllInput,
   MatchedAnnouncement,
 } from '../../src/scanner/unified';
+import type { MatchedAnnouncement as EvmMatchedAnnouncement } from '../../src/chains/evm/types';
+import type { MatchedAnnouncement as StellarMatchedAnnouncement } from '../../src/chains/stellar/types';
+import type { MatchedAnnouncement as SolanaMatchedAnnouncement } from '../../src/chains/solana/types';
+import type { MatchedStealthCell as CkbMatchedCell } from '../../src/chains/ckb/types';
 
 interface FooAnnouncement {
   txId: string;
@@ -65,10 +69,10 @@ describe('ChainScannerAdapter / CustomChainInput type safety', () => {
       CustomChainInput<FooAnnouncement, FooKeys, FooMatched>
     >();
 
-    // @ts-expect-error keys must match the adapter's TKeys — a string is not FooKeys
     const mismatchedKeys: CustomChainInput<FooAnnouncement, FooKeys, FooMatched> = {
       adapter: fooAdapter,
       source: (async function* () {})(),
+      // @ts-expect-error keys must match the adapter's TKeys — a string is not FooKeys
       keys: 'not-foo-keys',
     };
   });
@@ -110,21 +114,25 @@ describe('ChainScannerAdapter / CustomChainInput type safety', () => {
   });
 
   test('MatchedAnnouncement discriminates on chain, including the custom-adapter arm', () => {
-    function handle(matched: MatchedAnnouncement) {
-      if (matched.chain === 'evm') {
-        expectTypeOf(matched.announcement).not.toBeAny();
-        expectTypeOf(matched.announcement).not.toBeUnknown();
-      } else if (
-        matched.chain !== 'stellar' &&
-        matched.chain !== 'solana' &&
-        matched.chain !== 'ckb'
-      ) {
-        // Custom-adapter arm: chain is a bare string, announcement is unknown
-        // (not `any`) — callers must narrow before use.
-        expectTypeOf(matched.chain).toBeString();
-        expectTypeOf(matched.announcement).toBeUnknown();
-      }
+    let matched!: MatchedAnnouncement;
+
+    if (matched.chain === 'evm') {
+      const a: EvmMatchedAnnouncement = matched.announcement;
+      void a;
+    } else if (matched.chain === 'stellar') {
+      const a: StellarMatchedAnnouncement = matched.announcement;
+      void a;
+    } else if (matched.chain === 'solana') {
+      const a: SolanaMatchedAnnouncement = matched.announcement;
+      void a;
+    } else if (matched.chain === 'ckb') {
+      const a: CkbMatchedCell = matched.announcement;
+      void a;
+    } else {
+      const customChainId: string = matched.customChainId;
+      const announcement: unknown = matched.announcement;
+      void customChainId;
+      void announcement;
     }
-    expectTypeOf(handle).toBeFunction();
   });
 });

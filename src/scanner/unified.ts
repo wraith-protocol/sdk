@@ -26,6 +26,8 @@ import { adapter as ckbAdapter } from '../chains/ckb/scan';
  */
 export type SupportedChain = 'evm' | 'stellar' | 'solana' | 'ckb';
 
+
+
 /**
  * Timestamp used when a scanner adapter cannot supply a real chain time.
  *
@@ -178,7 +180,9 @@ export type MatchedAnnouncement =
       announcement: CkbMatchedCell;
     }
   | {
-      chain: string;
+      chain: 'custom';
+      /** The custom adapter's own `id`, since `chain` is fixed to the literal 'custom'. */
+      customChainId: string;
       timestamp: number;
       seq: number;
       announcement: unknown;
@@ -338,12 +342,27 @@ export async function* scanAll(input: ScanAllInput): AsyncGenerator<MatchedAnnou
         const entry = iterators.get(idx)!;
         const seq = entry.seq++;
         pending.set(idx, entry.iter.next());
-        yield {
-          chain: entry.chain,
-          timestamp: result.value.timestamp,
-          seq,
-          announcement: result.value.announcement,
-        } as MatchedAnnouncement;
+        const isBuiltIn =
+          entry.chain === 'evm' ||
+          entry.chain === 'stellar' ||
+          entry.chain === 'solana' ||
+          entry.chain === 'ckb';
+        yield (
+          isBuiltIn
+            ? {
+                chain: entry.chain,
+                timestamp: result.value.timestamp,
+                seq,
+                announcement: result.value.announcement,
+              }
+            : {
+                chain: 'custom',
+                customChainId: entry.chain,
+                timestamp: result.value.timestamp,
+                seq,
+                announcement: result.value.announcement,
+              }
+        ) as MatchedAnnouncement;
       }
     }
   } finally {

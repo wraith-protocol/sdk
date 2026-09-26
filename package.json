@@ -51,7 +51,7 @@
     "docs": "typedoc",
     "test:exports": "node test/smoke/run.mjs",
     "test:watch": "vitest",
-    "test:types": "vitest run --typecheck.only test/scanner/unified.test-d.ts",
+    "test:types": "tsc --noEmit --project tsconfig.test-types.json",
     "bench": "vitest bench --run",
     "bench:watch": "vitest bench",
     "clean": "rm -rf dist",
