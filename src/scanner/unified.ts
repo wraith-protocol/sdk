@@ -26,8 +26,6 @@ import { adapter as ckbAdapter } from '../chains/ckb/scan';
  */
 export type SupportedChain = 'evm' | 'stellar' | 'solana' | 'ckb';
 
-
-
 /**
  * Timestamp used when a scanner adapter cannot supply a real chain time.
  *
