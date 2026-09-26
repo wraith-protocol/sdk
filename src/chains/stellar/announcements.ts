@@ -54,6 +54,145 @@ export class RetentionExceededError extends Error {
   }
 }
 
+export interface AnnouncementParseContext {
+  endpoint?: string;
+  eventId?: unknown;
+}
+
+/** A malformed RPC envelope or announcement event payload. */
+export class AnnouncementParseError extends Error {
+  readonly endpoint?: string;
+  readonly eventId?: string;
+  readonly field: string;
+
+  constructor(message: string, field: string, context: AnnouncementParseContext = {}) {
+    const endpoint = context.endpoint ? ` endpoint=${safeEndpoint(context.endpoint)}` : '';
+    const eventId =
+      context.eventId !== undefined ? ` event=${safeContextValue(context.eventId)}` : '';
+    super(`Invalid Stellar RPC payload:${endpoint}${eventId} field=${field}: ${message}`);
+    this.name = 'AnnouncementParseError';
+    this.endpoint = context.endpoint === undefined ? undefined : safeEndpoint(context.endpoint);
+    this.eventId = context.eventId === undefined ? undefined : safeContextValue(context.eventId);
+    this.field = field;
+  }
+}
+
+function safeContextValue(value: unknown): string {
+  return String(value)
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .slice(0, 200);
+}
+
+function safeEndpoint(endpoint: string): string {
+  try {
+    const url = new URL(endpoint);
+    return `${url.origin}${url.pathname}`.slice(0, 300);
+  } catch {
+    return endpoint.split(/[?#]/, 1)[0].slice(0, 300);
+  }
+}
+
+function invalidPayload(
+  message: string,
+  field: string,
+  context: AnnouncementParseContext,
+): AnnouncementParseError {
+  return new AnnouncementParseError(message, field, context);
+}
+
+function assertRpcEnvelope(payload: unknown, endpoint: string): Record<string, unknown> {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw invalidPayload('JSON-RPC response must be an object', 'envelope', { endpoint });
+  }
+
+  const data = payload as Record<string, unknown>;
+  if (data.jsonrpc !== '2.0') {
+    throw invalidPayload('jsonrpc must be "2.0"', 'jsonrpc', { endpoint });
+  }
+  if (
+    !Object.prototype.hasOwnProperty.call(data, 'id') ||
+    (typeof data.id !== 'string' && typeof data.id !== 'number' && data.id !== null)
+  ) {
+    throw invalidPayload('id must be a string, number, or null', 'id', { endpoint });
+  }
+
+  const hasResult = Object.prototype.hasOwnProperty.call(data, 'result');
+  const hasError = Object.prototype.hasOwnProperty.call(data, 'error');
+  if (hasResult === hasError) {
+    throw invalidPayload('response must contain exactly one of result or error', 'envelope', {
+      endpoint,
+    });
+  }
+  if (hasError) {
+    const error = data.error;
+    if (!error || typeof error !== 'object' || Array.isArray(error)) {
+      throw invalidPayload('error must be an object', 'error', { endpoint });
+    }
+    const errorData = error as Record<string, unknown>;
+    if (typeof errorData.code !== 'number' || !Number.isInteger(errorData.code)) {
+      throw invalidPayload('error.code must be an integer', 'error.code', { endpoint });
+    }
+    if (typeof errorData.message !== 'string') {
+      throw invalidPayload('error.message must be a string', 'error.message', { endpoint });
+    }
+  }
+  return data;
+}
+
+function assertEventsResult(
+  data: Record<string, unknown>,
+  endpoint: string,
+): Record<string, unknown>[] | undefined {
+  if (data.error !== undefined) return undefined;
+  const result = data.result;
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    throw invalidPayload('result must be an object', 'result', { endpoint });
+  }
+  const events = (result as Record<string, unknown>).events;
+  if (!Array.isArray(events)) {
+    throw invalidPayload('result.events must be an array', 'result.events', { endpoint });
+  }
+  return events as Record<string, unknown>[];
+}
+
+function rpcErrorMessage(data: Record<string, unknown>): string | undefined {
+  if (!data.error || typeof data.error !== 'object' || Array.isArray(data.error)) return undefined;
+  const message = (data.error as Record<string, unknown>).message;
+  return typeof message === 'string' ? message : undefined;
+}
+
+function resultCursor(data: Record<string, unknown>): string | undefined {
+  if (!data.result || typeof data.result !== 'object' || Array.isArray(data.result)) {
+    return undefined;
+  }
+  const cursor = (data.result as Record<string, unknown>).cursor;
+  return typeof cursor === 'string' ? cursor : undefined;
+}
+
+function assertEvent(event: unknown, endpoint: string): asserts event is Record<string, unknown> {
+  if (!event || typeof event !== 'object' || Array.isArray(event)) {
+    throw invalidPayload('event must be an object', 'event', { endpoint });
+  }
+  const data = event as Record<string, unknown>;
+  const eventId = data.id;
+  const context = { endpoint, eventId };
+  if (eventId !== undefined && typeof eventId !== 'string' && typeof eventId !== 'number') {
+    throw invalidPayload('event id must be a string or number', 'id', context);
+  }
+  if (!Array.isArray(data.topic)) {
+    throw invalidPayload('topic must be an array', 'topic', context);
+  }
+  if (!data.topic.every((topic) => typeof topic === 'string' && topic.length > 0)) {
+    throw invalidPayload('topic entries must be non-empty strings', 'topic', context);
+  }
+  if (typeof data.value !== 'string' || data.value.length === 0) {
+    throw invalidPayload('value must be a non-empty string', 'value', context);
+  }
+  if (!Number.isInteger(data.ledger) || (data.ledger as number) < 0) {
+    throw invalidPayload('ledger must be a non-negative integer', 'ledger', context);
+  }
+}
+
 export interface ChunkRange {
   startLedger: number;
   endLedger: number;
@@ -98,9 +237,10 @@ async function* fetchAnnouncementsRange(
         }),
       });
 
-      const data = await res.json();
-      if (data.error?.message) {
-        const range = parseLedgerRange(data.error.message);
+      const data = assertRpcEnvelope(await res.json(), sorobanUrl);
+      const errorMessage = rpcErrorMessage(data);
+      if (errorMessage) {
+        const range = parseLedgerRange(errorMessage);
         if (range && !groupCursor && startLedger < range.oldest) {
           throw new RetentionExceededError(startLedger, range.oldest);
         }
@@ -108,9 +248,10 @@ async function* fetchAnnouncementsRange(
         break;
       }
 
-      const events = data.result?.events ?? [];
+      const events = assertEventsResult(data, sorobanUrl) ?? [];
 
       for (const event of events) {
+        assertEvent(event, sorobanUrl);
         const ledger = eventLedger(event);
         if (toLedger !== undefined && ledger !== undefined && ledger >= toLedger) {
           hasMore = false;
@@ -121,7 +262,7 @@ async function* fetchAnnouncementsRange(
         if (seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
 
-        const ann = parseAnnouncementEvent(event);
+        const ann = parseAnnouncementEvent(event, { endpoint: sorobanUrl });
         if (ann && ledger !== undefined) {
           yield { announcement: ann, ledger };
         }
@@ -130,7 +271,7 @@ async function* fetchAnnouncementsRange(
       if (!hasMore || events.length < 1000) {
         hasMore = false;
       } else {
-        groupCursor = data.result?.cursor;
+        groupCursor = resultCursor(data);
         if (!groupCursor) hasMore = false;
       }
     }
@@ -305,9 +446,10 @@ export async function* fetchAnnouncementsStream(
         }),
       });
 
-      const data = await res.json();
-      if (data.error?.message) {
-        const range = parseLedgerRange(data.error.message);
+      const data = assertRpcEnvelope(await res.json(), sorobanUrl);
+      const errorMessage = rpcErrorMessage(data);
+      if (errorMessage) {
+        const range = parseLedgerRange(errorMessage);
         if (range && !groupCursor && startLedger < range.oldest) {
           throw new RetentionExceededError(startLedger, range.oldest);
         }
@@ -316,9 +458,10 @@ export async function* fetchAnnouncementsStream(
         break;
       }
 
-      const events = data.result?.events ?? [];
+      const events = assertEventsResult(data, sorobanUrl) ?? [];
 
       for (const event of events) {
+        assertEvent(event, sorobanUrl);
         const ledger = eventLedger(event);
         if (toLedger !== undefined && ledger !== undefined && ledger >= toLedger) {
           hasMore = false;
@@ -329,14 +472,14 @@ export async function* fetchAnnouncementsStream(
         if (seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
 
-        const ann = parseAnnouncementEvent(event);
+        const ann = parseAnnouncementEvent(event, { endpoint: sorobanUrl });
         if (ann) yield ann;
       }
 
       if (!hasMore || events.length < 1000) {
         hasMore = false;
       } else {
-        groupCursor = data.result?.cursor;
+        groupCursor = resultCursor(data);
         if (!groupCursor) hasMore = false;
       }
     }
@@ -362,9 +505,10 @@ async function getSorobanLedgerWindow(
     }),
   });
 
-  const probeData = await probeRes.json();
-  if (probeData.error?.message) {
-    return parseLedgerRange(probeData.error.message) ?? {};
+  const probeData = assertRpcEnvelope(await probeRes.json(), sorobanUrl);
+  const errorMessage = rpcErrorMessage(probeData);
+  if (errorMessage) {
+    return parseLedgerRange(errorMessage) ?? {};
   }
   return {};
 }
@@ -375,8 +519,19 @@ async function getLatestLedger(sorobanUrl: string): Promise<number | undefined> 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getLatestLedger' }),
   });
-  const data = await res.json();
-  return data.result?.sequence;
+  const data = assertRpcEnvelope(await res.json(), sorobanUrl);
+  if (data.error !== undefined) return undefined;
+  const result = data.result;
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    throw invalidPayload('result must be an object', 'result', { endpoint: sorobanUrl });
+  }
+  const sequence = (result as Record<string, unknown>).sequence;
+  if (!Number.isInteger(sequence) || (sequence as number) < 0) {
+    throw invalidPayload('result.sequence must be a non-negative integer', 'result.sequence', {
+      endpoint: sorobanUrl,
+    });
+  }
+  return sequence as number;
 }
 
 async function ledgerForTimestamp(horizonUrl: string, timestamp: Date): Promise<number> {
@@ -451,26 +606,37 @@ function parseLedgerRange(message: string): { oldest: number; latest: number } |
 }
 
 /** @internal Exported for unit tests. */
-export function parseAnnouncementEvent(event: Record<string, unknown>): Announcement | null {
+export function parseAnnouncementEvent(
+  event: Record<string, unknown>,
+  context: AnnouncementParseContext = {},
+): Announcement | null {
+  if (!event || typeof event !== 'object' || Array.isArray(event)) {
+    throw invalidPayload('event must be an object', 'event', context);
+  }
+  const topics = event.topic;
+  const parseContext = { ...context, eventId: context.eventId ?? event.id };
+  if (!Array.isArray(topics)) throw invalidPayload('topic must be an array', 'topic', parseContext);
+  if (topics.length !== 3 && topics.length !== 4) {
+    throw invalidPayload('topic must contain exactly 3 or 4 entries', 'topic', parseContext);
+  }
+  if (!topics.every((topic) => typeof topic === 'string' && topic.length > 0)) {
+    throw invalidPayload('topic entries must be non-empty strings', 'topic', parseContext);
+  }
+  if (typeof event.value !== 'string' || event.value.length === 0) {
+    throw invalidPayload('value must be a non-empty string', 'value', parseContext);
+  }
+
   try {
-    const topics = event.topic as string[] | undefined;
-    if (!topics || topics.length < 3) return null;
-
-    let ann: Announcement | null = null;
-    if (topics.length === 3) {
-      ann = parseV1AnnouncementEvent(event, topics);
-    } else if (topics.length === 4) {
-      ann = parseV2AnnouncementEvent(event, topics);
-    }
-
-    if (ann) {
-      const memo = extractMemo(event as { memo_type?: string; memo?: string });
-      if (memo) ann = { ...ann, memo };
-    }
-
-    return ann;
-  } catch {
-    return null;
+    const ann =
+      topics.length === 3
+        ? parseV1AnnouncementEvent(event, topics)
+        : parseV2AnnouncementEvent(event, topics);
+    if (!ann) return null;
+    const memo = extractMemo(event as { memo_type?: string; memo?: string });
+    return memo ? { ...ann, memo } : ann;
+  } catch (error) {
+    if (error instanceof AnnouncementParseError) throw error;
+    throw invalidPayload('event fields could not be decoded', 'event', parseContext);
   }
 }
 
