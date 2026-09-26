@@ -1,0 +1,6 @@
+{
+  "algorithm": "sha256",
+  "files": {
+    "vectors/stellar.json": "4b0636ef2b57e949f2aae154eed3736ca6b0c557fa04410d1aabe3f2b808755f"
+  }
+}

@@ -1,5 +1,8 @@
-import { describe, test, expect } from 'vitest';
+import { InvalidSignatureError } from '../../../src/errors';
+import { describe, test, expect, afterEach } from 'vitest';
 import { deriveStealthKeys } from '../../../src/chains/stellar/keys';
+import { scalarToBytes } from '../../../src/chains/stellar/scalar';
+import { setTracer, type Tracer, type Span } from '../../../src/telemetry';
 
 const testSig = new Uint8Array(64).fill(0xaa);
 
@@ -45,11 +48,70 @@ describe('deriveStealthKeys', () => {
 
   test('rejects wrong signature length (63 bytes)', () => {
     const short = new Uint8Array(63).fill(0xaa);
-    expect(() => deriveStealthKeys(short)).toThrow('Expected 64-byte');
+    expect(() => deriveStealthKeys(short)).toThrow(InvalidSignatureError);
   });
 
   test('rejects wrong signature length (65 bytes)', () => {
     const long = new Uint8Array(65).fill(0xaa);
-    expect(() => deriveStealthKeys(long)).toThrow('Expected 64-byte');
+    expect(() => deriveStealthKeys(long)).toThrow(InvalidSignatureError);
+  });
+
+  test('domain separation: spending and viewing keys are independent', () => {
+    const keys = deriveStealthKeys(testSig);
+    // These should never be equal due to domain-separated SHA-256
+    const spendingHex = Array.from(keys.spendingKey)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    const viewingHex = Array.from(keys.viewingKey)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    expect(spendingHex).not.toBe(viewingHex);
+  });
+
+  test('derived scalars are properly clamped (bit 254 set)', () => {
+    const keys = deriveStealthKeys(testSig);
+    // In ed25519, clamping sets bit 6 of byte 31 (0x40) → bit 254 of the scalar
+    const bytes = scalarToBytes(keys.spendingScalar);
+    expect(bytes[31] & 0x40).toBe(0x40);
+    // Bits 0,1,2 of byte 0 should be cleared
+    expect(bytes[0] & 0x07).toBe(0);
+  });
+});
+
+function makeRecordingTracer() {
+  const spanNames: string[] = [];
+  const tracer: Tracer = {
+    startSpan(name) {
+      spanNames.push(name);
+      const span: Span = { setAttribute() {}, recordException() {}, end() {} };
+      return span;
+    },
+  };
+  return { tracer, spanNames };
+}
+
+describe('deriveStealthKeys telemetry', () => {
+  afterEach(() => {
+    setTracer(null);
+  });
+
+  test('emits a span via the global tracer', () => {
+    const { tracer, spanNames } = makeRecordingTracer();
+    setTracer(tracer);
+
+    deriveStealthKeys(testSig);
+
+    expect(spanNames).toContain('stellar.deriveStealthKeys');
+  });
+
+  test('honors a per-call tracer override over the global one', () => {
+    const globalTracer = makeRecordingTracer();
+    const override = makeRecordingTracer();
+    setTracer(globalTracer.tracer);
+
+    deriveStealthKeys(testSig, { tracer: override.tracer });
+
+    expect(globalTracer.spanNames).toHaveLength(0);
+    expect(override.spanNames).toContain('stellar.deriveStealthKeys');
   });
 });

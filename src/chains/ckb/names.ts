@@ -1,5 +1,6 @@
 import { blake2b } from '@noble/hashes/blake2b';
 import { toHex, toBytes } from 'viem';
+import { InvalidNameError, InvalidSignatureError, InvalidMetaAddressError } from '../../errors';
 import { getDeployment } from './deployments';
 import { META_ADDRESS_PREFIX } from './constants';
 import type { HexString } from './types';
@@ -14,14 +15,18 @@ const CKB_PERSONALIZATION = new TextEncoder().encode('ckb-default-hash');
  * Validates a .wraith name.
  * Names must be 3-32 characters, lowercase alphanumeric and hyphens only.
  *
- * @throws If the name is invalid.
+ * @throws {InvalidNameError} If the name is invalid.
  */
 function validateName(name: string): void {
   if (name.length < 3 || name.length > 32) {
-    throw new Error(`Name must be between 3 and 32 characters, got ${name.length}`);
+    throw new InvalidNameError(
+      name,
+      `Name must be between 3 and 32 characters, got ${name.length}`,
+    );
   }
   if (!NAME_PATTERN.test(name)) {
-    throw new Error(
+    throw new InvalidNameError(
+      name,
       'Name must contain only lowercase alphanumeric characters and hyphens, and must not start or end with a hyphen',
     );
   }
@@ -34,7 +39,7 @@ function validateName(name: string): void {
  *
  * @param name The .wraith name to hash.
  * @returns The 32-byte hash as a 0x-prefixed hex string.
- * @throws If the name is invalid.
+ * @throws {InvalidNameError} If the name is invalid.
  */
 export function hashName(name: string): HexString {
   validateName(name);
@@ -57,6 +62,7 @@ export function hashName(name: string): HexString {
  * @param params.viewingPubKey The 33-byte compressed viewing public key.
  * @param params.chain Optional chain identifier for deployment lookup (default: "ckb").
  * @returns The type script descriptor and cell data hex.
+ * @throws {InvalidSignatureError} If spendingPubKey or viewingPubKey length is invalid.
  */
 export function buildRegisterName(params: {
   name: string;
@@ -75,10 +81,10 @@ export function buildRegisterName(params: {
   const viewBytes = toBytes(viewingPubKey);
 
   if (spendBytes.length !== 33) {
-    throw new Error(`Spending public key must be 33 bytes (compressed), got ${spendBytes.length}`);
+    throw new InvalidSignatureError(spendingPubKey, 33, spendBytes.length);
   }
   if (viewBytes.length !== 33) {
-    throw new Error(`Viewing public key must be 33 bytes (compressed), got ${viewBytes.length}`);
+    throw new InvalidSignatureError(viewingPubKey, 33, viewBytes.length);
   }
 
   const dataBytes = new Uint8Array(66);
@@ -129,12 +135,15 @@ export function buildResolveName(params: { name: string; chain?: string }): {
  *
  * @param data The 0x-prefixed hex string of the cell data (66 bytes = 132 hex chars).
  * @returns The encoded stealth meta-address in "st:ckb:..." format.
- * @throws If the data is not exactly 66 bytes.
+ * @throws {InvalidMetaAddressError} If the data is not exactly 66 bytes.
  */
 export function metaAddressFromNameData(data: HexString): string {
   const dataBytes = toBytes(data);
   if (dataBytes.length !== 66) {
-    throw new Error(`Name cell data must be exactly 66 bytes, got ${dataBytes.length}`);
+    throw new InvalidMetaAddressError(
+      '',
+      `Name cell data must be exactly 66 bytes, got ${dataBytes.length}`,
+    );
   }
 
   const spendHex = toHex(dataBytes.slice(0, 33)).slice(2);

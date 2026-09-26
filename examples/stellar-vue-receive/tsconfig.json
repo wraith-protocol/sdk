@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "skipLibCheck": true,
+    "paths": {
+      "@wraith-protocol/sdk": ["../../src"],
+      "@wraith-protocol/sdk-vue": ["../../packages/sdk-vue/src"]
+    }
+  },
+  "include": ["src"]
+}

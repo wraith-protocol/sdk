@@ -1,0 +1,7 @@
+{
+  "$comment": "Pins the published npm version treated as vN-1 for the differential harness (differential.ts). Bump referenceVersion by hand whenever a new minor of @wraith-protocol/sdk ships, so it always tracks one minor behind the current line rather than being auto-detected.",
+  "referenceVersion": "1.3.0",
+  "referencePeerDependencies": {
+    "@stellar/stellar-sdk": "^13.1.0"
+  }
+}

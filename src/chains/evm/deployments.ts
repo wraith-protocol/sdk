@@ -1,3 +1,4 @@
+import { UnsupportedAssetError } from '../../errors';
 import type { HexString } from './types';
 
 export interface EVMChainDeployment {
@@ -34,9 +35,7 @@ export const DEPLOYMENTS: Record<string, EVMChainDeployment> = {
 export function getDeployment(chain: string): EVMChainDeployment {
   const deployment = DEPLOYMENTS[chain];
   if (!deployment) {
-    throw new Error(
-      `No EVM deployment for "${chain}". Available: ${Object.keys(DEPLOYMENTS).join(', ')}`,
-    );
+    throw new UnsupportedAssetError('native', chain);
   }
   return deployment;
 }

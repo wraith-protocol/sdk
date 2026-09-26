@@ -1,5 +1,6 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { keccak256, toHex, toBytes } from 'viem';
+import { InvalidSignatureError, KeyDerivationFailedError } from '../../errors';
 import type { HexString, StealthKeys } from './types';
 
 /**
@@ -10,12 +11,15 @@ import type { HexString, StealthKeys } from './types';
  *   - viewingKey  = keccak256(s)  (bytes 32–63)
  *
  * Both keys are validated as non-zero scalars less than the secp256k1 curve order.
+ *
+ * @throws {InvalidSignatureError} If signature is not 65 bytes.
+ * @throws {KeyDerivationFailedError} If derived keys are not valid scalars.
  */
 export function deriveStealthKeys(signature: HexString): StealthKeys {
   const sigBytes = toBytes(signature);
 
   if (sigBytes.length !== 65) {
-    throw new Error(`Expected 65-byte signature, got ${sigBytes.length} bytes`);
+    throw new InvalidSignatureError(signature, 65, sigBytes.length);
   }
 
   const r = sigBytes.slice(0, 32);
@@ -29,10 +33,10 @@ export function deriveStealthKeys(signature: HexString): StealthKeys {
   const n = secp256k1.CURVE.n;
 
   if (spendingScalar === 0n || spendingScalar >= n) {
-    throw new Error('Derived spending key is not a valid secp256k1 scalar');
+    throw new KeyDerivationFailedError('Derived spending key is not a valid secp256k1 scalar');
   }
   if (viewingScalar === 0n || viewingScalar >= n) {
-    throw new Error('Derived viewing key is not a valid secp256k1 scalar');
+    throw new KeyDerivationFailedError('Derived viewing key is not a valid secp256k1 scalar');
   }
 
   const spendingPubKey = toHex(secp256k1.getPublicKey(toBytes(spendingKey), true)) as HexString;

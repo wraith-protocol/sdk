@@ -19,9 +19,12 @@ async function main() {
   const signature = new Uint8Array(64); // wallet.sign(STEALTH_SIGNING_MESSAGE)
   const keys = deriveStealthKeys(signature);
 
-  // 2. Fetch announcements from Soroban RPC
-  const announcements = await fetchAnnouncements('stellar');
+  // 2. Fetch only recent announcements from Soroban RPC and keep the cursor
+  const { announcements, nextCursor } = await fetchAnnouncements('stellar', {
+    fromTimestamp: new Date(Date.now() - 5 * 60 * 1000),
+  });
   console.log(`Found ${announcements.length} total announcements`);
+  console.log(`Next scan cursor: ${nextCursor ?? 'none'}`);
 
   // 3. Scan for payments addressed to us
   const payments = scanAnnouncements(

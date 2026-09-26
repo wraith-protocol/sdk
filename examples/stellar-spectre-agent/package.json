@@ -1,0 +1,17 @@
+{
+  "name": "@wraith-protocol/example-stellar-spectre-agent",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "start": "npx tsx index.ts"
+  },
+  "dependencies": {
+    "@wraith-protocol/sdk": "file:../..",
+    "@wraith-protocol/sdk-agent": "file:../../packages/sdk-agent"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}

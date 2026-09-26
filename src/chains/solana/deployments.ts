@@ -1,3 +1,5 @@
+import { UnsupportedAssetError } from '../../errors';
+
 export interface SolanaChainDeployment {
   cluster: string;
   rpcUrl: string;
@@ -25,9 +27,7 @@ export const DEPLOYMENTS: Record<string, SolanaChainDeployment> = {
 export function getDeployment(chain: string): SolanaChainDeployment {
   const deployment = DEPLOYMENTS[chain];
   if (!deployment) {
-    throw new Error(
-      `No Solana deployment for "${chain}". Available: ${Object.keys(DEPLOYMENTS).join(', ')}`,
-    );
+    throw new UnsupportedAssetError('native', chain);
   }
   return deployment;
 }

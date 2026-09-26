@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "Wraith Stellar React Native Example",
+    "slug": "wraith-stellar-react-native",
+    "sdkVersion": "51.0.0",
+    "platforms": ["ios", "android"],
+    "assetBundlePatterns": ["**/*"]
+  }
+}
