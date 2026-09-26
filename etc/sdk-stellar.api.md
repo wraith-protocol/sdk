@@ -57,6 +57,34 @@ export interface AssetMetadata {
 }
 
 // @public
+export interface AssetMetadataFailure {
+    field: AssetMetadataField;
+    message: string;
+    reason: AssetMetadataFailureReason;
+}
+
+// @public
+export type AssetMetadataFailureReason = 'missing' | 'invalid' | 'rpc-error';
+
+// @public
+export type AssetMetadataField = 'name' | 'symbol' | 'decimals';
+
+// @public
+export type AssetMetadataResult = {
+    status: 'complete';
+    metadata: AssetMetadata;
+    failures: readonly AssetMetadataFailure[];
+} | {
+    status: 'partial';
+    metadata: Partial<AssetMetadata>;
+    failures: readonly AssetMetadataFailure[];
+} | {
+    status: 'unsupported';
+    metadata: Partial<AssetMetadata>;
+    failures: readonly AssetMetadataFailure[];
+};
+
+// @public
 export interface AssetReceivabilityResult {
     hasTrustline: boolean;
     issuerAuthRequired: boolean;
@@ -277,10 +305,10 @@ export const DEFAULT_BATCH_SENDER_THRESHOLD = 10;
 export const DEPLOYMENTS: Record<string, StellarChainDeployment>;
 
 // @public
-export function deriveStealthKeys(signature: Uint8Array): StealthKeys;
+export function deriveStealthKeys(signature: Uint8Array, opts?: KeyDerivationOptions): StealthKeys;
 
 // @public
-export function deriveStealthKeysFromSigner(signer: StellarStealthSigner): Promise<StealthKeys>;
+export function deriveStealthKeysFromSigner(signer: StellarStealthSigner, opts?: KeyDerivationOptions): Promise<StealthKeys>;
 
 // @public
 export function deriveStealthPrivateScalar(spendingScalar: bigint, viewingKey: Uint8Array, ephemeralPubKey: Uint8Array): bigint;
@@ -380,6 +408,9 @@ export interface GetAssetMetadataOptions {
 }
 
 // @public
+export function getAssetMetadataResult(contractId: string, network?: Network, opts?: GetAssetMetadataOptions): Promise<AssetMetadataResult>;
+
+// @public
 export function getDeployment(chain: string): StellarChainDeployment;
 
 // @public
@@ -396,12 +427,8 @@ export function hexToBytes(hex: string): Uint8Array;
 
 // @public (undocumented)
 export interface HorizonClient {
-    get<T = unknown>(path: string, overrides?: {
-        retry?: Partial<RetryPolicy>;
-    }): Promise<T>;
-    post<T = unknown>(path: string, body: URLSearchParams | string, overrides?: {
-        retry?: Partial<RetryPolicy>;
-    }): Promise<T>;
+    get<T = unknown>(path: string, overrides?: HorizonRequestOptions): Promise<T>;
+    post<T = unknown>(path: string, body: URLSearchParams | string, overrides?: HorizonRequestOptions): Promise<T>;
 }
 
 // @public (undocumented)
@@ -409,6 +436,13 @@ export interface HorizonClientConfig {
     fetchImpl?: typeof fetch;
     horizonUrl: string;
     retry?: Partial<RetryPolicy>;
+    timeouts?: RequestTimeouts;
+}
+
+// @public
+export interface HorizonRequestOptions {
+    retry?: Partial<RetryPolicy>;
+    timeouts?: RequestTimeouts;
 }
 
 // @public
@@ -434,6 +468,11 @@ export class IndexedDBCache implements AnnouncementCache {
 
 // @public
 export function isStealthMultisigReady(tx: Transaction): boolean;
+
+// @public
+export interface KeyDerivationOptions {
+    tracer?: Tracer;
+}
 
 // @public
 export const L: bigint;
@@ -505,6 +544,12 @@ export function prepareStealthAccountForAsset(accountBalances: Array<{
 // @public
 export function pubKeyToStellarAddress(pubKeyBytes: Uint8Array): string;
 
+// @public
+export interface RequestTimeouts {
+    connectMs?: number;
+    requestMs?: number;
+}
+
 // @public (undocumented)
 export class RetentionExceededError extends Error {
     constructor(requestedLedger: number, oldestAvailableLedger: number);
@@ -539,7 +584,7 @@ export interface RpcClient {
         reason: string;
     }) => void): void;
     // (undocumented)
-    request<T = unknown>(method: string, path: string, body?: unknown): Promise<T>;
+    request<T = unknown>(method: string, path: string, body?: unknown, opts?: RpcRequestOptions): Promise<T>;
 }
 
 // @public (undocumented)
@@ -561,6 +606,8 @@ export interface RpcClientConfig {
         baseDelayMs: number;
         maxDelayMs: number;
     };
+    timeouts?: RequestTimeouts;
+    tracer?: Tracer;
 }
 
 // @public (undocumented)
@@ -569,11 +616,23 @@ export interface RpcEndpoint {
     url: string;
 }
 
+// @public
+export interface RpcRequestOptions {
+    timeouts?: RequestTimeouts;
+    tracer?: Tracer;
+}
+
 // @public @deprecated
 export function scanAnnouncements(announcements: Announcement[], viewingKey: Uint8Array, spendingPubKey: Uint8Array, spendingScalar: bigint): MatchedAnnouncement[];
 
 // @public
 export function scanAnnouncementsLegacySharedSecretTag(announcements: Announcement[], viewingKey: Uint8Array, spendingPubKey: Uint8Array, spendingScalar: bigint): MatchedAnnouncement[];
+
+// @public
+export function scanAnnouncementsStream(source: AsyncIterable<Announcement>, viewingKey: Uint8Array, spendingPubKey: Uint8Array, spendingScalar: bigint, opts?: {
+    window?: number;
+    tracer?: Tracer;
+}): AsyncGenerator<MatchedAnnouncement>;
 
 // @public
 export const SCHEME_ID = 1;
@@ -605,6 +664,13 @@ export interface SorobanEventFilter {
 
 // @public
 export type SorobanTopicMatcher = string[];
+
+// @public
+export interface Span {
+    end(): void;
+    recordException(error: unknown): void;
+    setAttribute(key: string, value: string | number | boolean): void;
+}
 
 // @public
 export const STEALTH_SIGNING_MESSAGE = "Sign this message to generate your Wraith stealth keys.\n\nChain: Stellar\nNote: This signature is used for key derivation only and does not authorize any transaction.";
@@ -691,6 +757,11 @@ export interface SwapAndStealthResult {
 
 // @public
 export const TEXT_MEMO_MAX_BYTES = 28;
+
+// @public
+export interface Tracer {
+    startSpan(name: string, attributes?: Record<string, string | number | boolean>): Span;
+}
 
 // @public
 export interface TypedMemo {

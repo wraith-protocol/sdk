@@ -4,41 +4,8 @@
 
 ```ts
 
-// @public (undocumented)
-export interface AgentConfig {
-    // (undocumented)
-    chain: Chain | Chain[];
-    // (undocumented)
-    message?: string;
-    // (undocumented)
-    name: string;
-    // (undocumented)
-    signature: string;
-    // (undocumented)
-    wallet: string;
-}
-
-// @public (undocumented)
-export interface AgentInfo {
-    // (undocumented)
-    addresses: Record<Chain, string>;
-    // (undocumented)
-    chains: Chain[];
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    metaAddresses: Record<Chain, string>;
-    // (undocumented)
-    name: string;
-}
-
-// @public (undocumented)
-export interface Balance {
-    // (undocumented)
-    native: string;
-    // (undocumented)
-    tokens: Record<string, string>;
-}
+// @public
+export function assertWalletNetwork(adapter: WalletAdapter, expectedNetwork: string): Promise<void>;
 
 // @public
 export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature> {
@@ -46,36 +13,18 @@ export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature
     readonly chain: TChain;
     // (undocumented)
     getAddress(): Promise<string>;
+    getNetwork?(): Promise<string>;
     // (undocumented)
     signMessage(message: Uint8Array): Promise<TSignature>;
 }
 
-// @public (undocumented)
-export enum Chain {
-    // (undocumented)
-    All = "all",
-    // (undocumented)
-    Base = "base",
-    // (undocumented)
-    Ethereum = "ethereum",
-    // (undocumented)
-    Horizen = "horizen",
-    // (undocumented)
-    Polygon = "polygon",
-    // (undocumented)
-    Solana = "solana",
-    // (undocumented)
-    Stellar = "stellar"
-}
-
-// @public (undocumented)
-export interface ChatResponse {
-    // (undocumented)
-    conversationId: string;
-    // (undocumented)
-    response: string;
-    // (undocumented)
-    toolCalls?: ToolCall[];
+// @public
+export interface ChainScannerAdapter<TItem = any, TKeys = any, TMatched = any, TMetaAddress = any> {
+    decodeMetaAddress(metaAddress: string): TMetaAddress;
+    encodeMetaAddress(spendingPubKey: any, viewingPubKey: any): string;
+    id: string;
+    scan(source: AsyncIterable<TItem>, keys: TKeys): AsyncGenerator<TMatched>;
+    timestampOf?(matched: TMatched): number | undefined;
 }
 
 // @public (undocumented)
@@ -85,13 +34,13 @@ export interface CkbChainInput {
     // (undocumented)
     source: AsyncIterable<StealthCell>;
     // (undocumented)
-    spendingKey: HexString_2;
+    spendingKey: HexString;
     // (undocumented)
-    spendingPubKey: HexString_2;
-    // Warning: (ae-forgotten-export) The symbol "HexString_2" needs to be exported by the entry point index.d.ts
+    spendingPubKey: HexString;
+    // Warning: (ae-forgotten-export) The symbol "HexString" needs to be exported by the entry point index.d.ts
     //
     // (undocumented)
-    viewingKey: HexString_2;
+    viewingKey: HexString;
 }
 
 // @public (undocumented)
@@ -100,19 +49,9 @@ export class ContractRevertError extends WraithContractError {
     // (undocumented)
     readonly code = "WRAITH/CONTRACT/CONTRACT_REVERT";
     // (undocumented)
+    describe(): string;
+    // (undocumented)
     readonly reason: string;
-}
-
-// @public (undocumented)
-export interface Conversation {
-    // (undocumented)
-    createdAt: string;
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    title: string;
-    // (undocumented)
-    updatedAt: string;
 }
 
 // @public
@@ -123,6 +62,13 @@ export function createSolanaWalletAdapter(wallet: SolanaWalletAdapterLike): Sola
 
 // @public
 export function createViemWalletAdapter(client: ViemWalletClient): ViemWalletAdapter;
+
+// @public
+export interface CustomChainInput<TItem = any, TKeys = any, TMatched = any> {
+    adapter: ChainScannerAdapter<TItem, TKeys, TMatched, any>;
+    keys: TKeys;
+    source: AsyncIterable<TItem>;
+}
 
 // Warning: (ae-forgotten-export) The symbol "StealthKeys$1" needs to be exported by the entry point index.d.ts
 //
@@ -147,6 +93,16 @@ export class ECDHFailedError extends WraithCryptoError {
     constructor(reason: string);
     // (undocumented)
     readonly code = "WRAITH/CRYPTO/ECDH_FAILED";
+    // (undocumented)
+    describe(): string;
+}
+
+// @public
+export interface Eip1193EventProvider {
+    // (undocumented)
+    on(event: string, listener: (...args: any[]) => void): unknown;
+    // (undocumented)
+    removeListener(event: string, listener: (...args: any[]) => void): unknown;
 }
 
 // @public (undocumented)
@@ -156,17 +112,17 @@ export interface EvmChainInput {
     // (undocumented)
     source: AsyncIterable<Announcement>;
     // (undocumented)
-    spendingKey: HexString;
+    spendingKey: HexString_2;
     // (undocumented)
-    spendingPubKey: HexString;
-    // Warning: (ae-forgotten-export) The symbol "HexString" needs to be exported by the entry point index.d.ts
+    spendingPubKey: HexString_2;
+    // Warning: (ae-forgotten-export) The symbol "HexString_2" needs to be exported by the entry point index.d.ts
     //
     // (undocumented)
-    viewingKey: HexString;
+    viewingKey: HexString_2;
 }
 
 // @public
-export type EvmWalletAdapter = BaseWalletAdapter<'evm', HexString>;
+export type EvmWalletAdapter = BaseWalletAdapter<'evm', HexString_2>;
 
 // @public
 export class FreighterWalletAdapter implements StellarWalletAdapter {
@@ -175,6 +131,7 @@ export class FreighterWalletAdapter implements StellarWalletAdapter {
     readonly chain: "stellar";
     // (undocumented)
     getAddress(): Promise<string>;
+    getNetwork(): Promise<string>;
     // (undocumented)
     signMessage(message: Uint8Array): Promise<Uint8Array>;
 }
@@ -188,6 +145,14 @@ export interface FreighterWalletApi {
             message?: string;
         };
     }>;
+    getNetwork?(): Promise<{
+        network?: string;
+        networkPassphrase?: string;
+        error?: string | {
+            code?: number;
+            message?: string;
+        };
+    }>;
     // (undocumented)
     signMessage(message: string): Promise<{
         signedMessage?: Uint8Array | string;
@@ -197,6 +162,22 @@ export interface FreighterWalletApi {
     }>;
 }
 
+// @public
+export interface FreighterWalletWatcher {
+    // (undocumented)
+    stop(): void;
+    // (undocumented)
+    watch(callback: (state: {
+        address: string;
+        network: string;
+        networkPassphrase: string;
+        error?: unknown;
+    }) => void): unknown;
+}
+
+// @public
+export function getTracer(): Tracer;
+
 // @public (undocumented)
 export function installReactNativePolyfills(): void;
 
@@ -205,6 +186,8 @@ export class InsufficientAuthError extends WraithContractError {
     constructor(required?: string, actual?: string);
     // (undocumented)
     readonly code = "WRAITH/CONTRACT/INSUFFICIENT_AUTH";
+    // (undocumented)
+    describe(): string;
 }
 
 // @public (undocumented)
@@ -212,6 +195,8 @@ export class InsufficientBalanceError extends WraithBuilderError {
     constructor(required: string | bigint, actual: string | bigint, asset?: string);
     // (undocumented)
     readonly code = "WRAITH/BUILDER/INSUFFICIENT_BALANCE";
+    // (undocumented)
+    describe(): string;
 }
 
 // @public (undocumented)
@@ -219,6 +204,8 @@ export class InvalidMetaAddressError extends WraithInputError {
     constructor(metaAddress: string, reason?: string);
     // (undocumented)
     readonly code = "WRAITH/INPUT/INVALID_META_ADDRESS";
+    // (undocumented)
+    describe(): string;
 }
 
 // @public (undocumented)
@@ -226,6 +213,8 @@ export class InvalidNameError extends WraithInputError {
     constructor(name: string, reason?: string);
     // (undocumented)
     readonly code = "WRAITH/INPUT/INVALID_NAME";
+    // (undocumented)
+    describe(): string;
 }
 
 // @public (undocumented)
@@ -233,6 +222,8 @@ export class InvalidScalarError extends WraithInputError {
     constructor(scalar: string | bigint, reason?: string);
     // (undocumented)
     readonly code = "WRAITH/INPUT/INVALID_SCALAR";
+    // (undocumented)
+    describe(): string;
 }
 
 // @public (undocumented)
@@ -240,28 +231,8 @@ export class InvalidSignatureError extends WraithInputError {
     constructor(signature: string | Uint8Array, expectedLength?: number, actualLength?: number);
     // (undocumented)
     readonly code = "WRAITH/INPUT/INVALID_SIGNATURE";
-}
-
-// @public (undocumented)
-export interface Invoice {
     // (undocumented)
-    agentName: string;
-    // (undocumented)
-    amount: string;
-    // (undocumented)
-    asset: string;
-    // (undocumented)
-    createdAt: string;
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    memo: string;
-    // (undocumented)
-    paymentLink: string;
-    // (undocumented)
-    status: 'pending' | 'paid';
-    // (undocumented)
-    txHash: string | null;
+    describe(): string;
 }
 
 // @public (undocumented)
@@ -269,6 +240,8 @@ export class KeyDerivationFailedError extends WraithCryptoError {
     constructor(reason: string);
     // (undocumented)
     readonly code = "WRAITH/CRYPTO/KEY_DERIVATION_FAILED";
+    // (undocumented)
+    describe(): string;
 }
 
 // @public (undocumented)
@@ -292,6 +265,11 @@ export type MatchedAnnouncement = {
     timestamp: number;
     seq: number;
     announcement: MatchedStealthCell;
+} | {
+    chain: string;
+    timestamp: number;
+    seq: number;
+    announcement: any;
 };
 
 // @public (undocumented)
@@ -299,6 +277,8 @@ export class NameAlreadyRegisteredError extends WraithContractError {
     constructor(name: string, owner?: string);
     // (undocumented)
     readonly code = "WRAITH/CONTRACT/NAME_ALREADY_REGISTERED";
+    // (undocumented)
+    describe(): string;
 }
 
 // @public (undocumented)
@@ -306,54 +286,23 @@ export class NameNotFoundError extends WraithContractError {
     constructor(name: string);
     // (undocumented)
     readonly code = "WRAITH/CONTRACT/NAME_NOT_FOUND";
+    // (undocumented)
+    describe(): string;
 }
 
-// @public (undocumented)
-interface Notification_2 {
-    // (undocumented)
-    body: string;
-    // (undocumented)
-    createdAt: string;
-    // (undocumented)
-    id: number;
-    // (undocumented)
-    read: boolean;
-    // (undocumented)
-    title: string;
-    // (undocumented)
-    type: string;
-}
-export { Notification_2 as Notification }
+// @public
+export const NOOP_TRACER: Tracer;
 
-// @public (undocumented)
-export interface Payment {
-    // (undocumented)
-    balance: string;
-    // (undocumented)
-    ephemeralPubKey: string;
-    // (undocumented)
-    stealthAddress: string;
-}
-
-// @public (undocumented)
-export interface PrivacyReport {
-    // (undocumented)
-    bestPractices: string[];
-    // (undocumented)
-    issues: Array<{
-        severity: 'info' | 'low' | 'medium' | 'high' | 'critical';
-        issue: string;
-        recommendation: string;
-    }>;
-    // (undocumented)
-    score: number;
-}
+// @public
+export function normalizeWalletError(error: unknown, chain?: WalletAdapterChain): WraithWalletError;
 
 // @public (undocumented)
 export class RetentionExceededError extends WraithNetworkError {
     constructor(limit: number, actual: number);
     // (undocumented)
     readonly code = "WRAITH/NETWORK/RETENTION_EXCEEDED";
+    // (undocumented)
+    describe(): string;
 }
 
 // @public (undocumented)
@@ -362,21 +311,60 @@ export class RPCRequestError extends WraithNetworkError {
     // (undocumented)
     readonly code = "WRAITH/NETWORK/RPC_REQUEST";
     // (undocumented)
+    describe(): string;
+    // (undocumented)
     readonly statusCode: number;
 }
 
 // @public (undocumented)
 export class RPCRetryExhaustedError extends WraithNetworkError {
-    constructor(url: string, attempts: number, lastError?: string);
+    constructor(url: string, attempts: number, lastError?: string, options?: {
+        cause?: unknown;
+    });
     // (undocumented)
     readonly code = "WRAITH/NETWORK/RPC_RETRY_EXHAUSTED";
+    // (undocumented)
+    describe(): string;
 }
+
+// @public
+export interface RPCTimeoutDetails {
+    attempt: number;
+    endpoint: string;
+    phase: RPCTimeoutPhase;
+    timeoutMs: number;
+    url: string;
+}
+
+// @public
+export class RPCTimeoutError extends WraithNetworkError implements RPCTimeoutDetails {
+    constructor(details: RPCTimeoutDetails);
+    // (undocumented)
+    readonly attempt: number;
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/RPC_TIMEOUT";
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly endpoint: string;
+    // (undocumented)
+    readonly phase: RPCTimeoutPhase;
+    // (undocumented)
+    readonly timeoutMs: number;
+    // (undocumented)
+    readonly url: string;
+}
+
+// @public
+export type RPCTimeoutPhase = 'connect' | 'request';
 
 // @public (undocumented)
 export function scanAll(input: ScanAllInput): AsyncGenerator<MatchedAnnouncement>;
 
 // @public (undocumented)
 export interface ScanAllInput {
+    // (undocumented)
+    adapters?: Array<CustomChainInput<any, any, any> | any>;
     // (undocumented)
     ckb?: CkbChainInput;
     // (undocumented)
@@ -387,23 +375,8 @@ export interface ScanAllInput {
     stellar?: StellarChainInput;
 }
 
-// @public (undocumented)
-export interface Schedule {
-    // (undocumented)
-    amount: string;
-    // (undocumented)
-    asset: string;
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    interval: 'daily' | 'weekly' | 'monthly';
-    // (undocumented)
-    nextRun: string;
-    // (undocumented)
-    recipient: string;
-    // (undocumented)
-    status: 'active' | 'paused' | 'cancelled';
-}
+// @public
+export function setTracer(tracer?: Tracer | null): void;
 
 // @public (undocumented)
 export interface SolanaChainInput {
@@ -443,6 +416,21 @@ export interface SolanaWalletAdapterLike {
     signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
 }
 
+// @public
+export interface SolanaWalletEventEmitter {
+    // (undocumented)
+    off(event: 'connect' | 'disconnect', listener: (...args: any[]) => void): unknown;
+    // (undocumented)
+    on(event: 'connect' | 'disconnect', listener: (...args: any[]) => void): unknown;
+}
+
+// @public
+export interface Span {
+    end(): void;
+    recordException(error: unknown): void;
+    setAttribute(key: string, value: string | number | boolean): void;
+}
+
 // @public (undocumented)
 export interface StellarChainInput {
     // Warning: (ae-forgotten-export) The symbol "Announcement$1" needs to be exported by the entry point index.d.ts
@@ -460,32 +448,24 @@ export interface StellarChainInput {
 // @public
 export type StellarWalletAdapter = BaseWalletAdapter<'stellar', Uint8Array>;
 
-// @public (undocumented)
+// @public
 export type SupportedChain = 'evm' | 'stellar' | 'solana' | 'ckb';
 
-// @public (undocumented)
-export interface ToolCall {
-    // (undocumented)
-    detail?: string;
-    // (undocumented)
-    name: string;
-    // (undocumented)
-    status: string;
+// @public
+export interface Tracer {
+    startSpan(name: string, attributes?: Record<string, string | number | boolean>): Span;
 }
 
-// @public (undocumented)
-export interface TxResult {
-    // (undocumented)
-    txHash: string;
-    // (undocumented)
-    txLink: string;
-}
+// @public
+export const UNKNOWN_TIMESTAMP = 0;
 
 // @public (undocumented)
 export class UnsupportedAssetError extends WraithBuilderError {
     constructor(asset: string, chain?: string);
     // (undocumented)
     readonly code = "WRAITH/BUILDER/UNSUPPORTED_ASSET";
+    // (undocumented)
+    describe(): string;
 }
 
 // @public
@@ -495,8 +475,9 @@ export class ViemWalletAdapter implements EvmWalletAdapter {
     readonly chain: "evm";
     // (undocumented)
     getAddress(): Promise<string>;
+    getNetwork(): Promise<string>;
     // (undocumented)
-    signMessage(message: Uint8Array): Promise<HexString>;
+    signMessage(message: Uint8Array): Promise<HexString_2>;
 }
 
 // @public
@@ -507,6 +488,7 @@ export interface ViemWalletClient {
     } | null;
     // (undocumented)
     getAddresses?: () => Promise<readonly string[]>;
+    getChainId?: () => Promise<number>;
     // (undocumented)
     signMessage(args: {
         account?: {
@@ -515,7 +497,7 @@ export interface ViemWalletClient {
         message: {
             raw: Uint8Array;
         };
-    }): Promise<HexString>;
+    }): Promise<HexString_2>;
 }
 
 // @public (undocumented)
@@ -523,6 +505,8 @@ export class ViewTagMismatchError extends WraithCryptoError {
     constructor(expectedTag: number, actualTag: number);
     // (undocumented)
     readonly code = "WRAITH/CRYPTO/VIEW_TAG_MISMATCH";
+    // (undocumented)
+    describe(): string;
 }
 
 // @public
@@ -531,71 +515,115 @@ export type WalletAdapter = StellarWalletAdapter | EvmWalletAdapter | SolanaChai
 // @public
 export type WalletAdapterChain = 'stellar' | 'evm' | 'solana';
 
-// @public (undocumented)
-export class Wraith {
-    constructor(config: WraithConfig);
-    // (undocumented)
-    agent(agentId: string): WraithAgent;
-    createAgent(config: AgentConfig): Promise<WraithAgent>;
-    getAgentByName(name: string): Promise<WraithAgent>;
-    getAgentByWallet(walletAddress: string): Promise<WraithAgent>;
-    listAgents(): Promise<AgentInfo[]>;
-    // @internal
-    _request<T>(method: string, path: string, body?: unknown): Promise<T>;
+// @public
+export interface WalletErrorDetails {
+    cause?: unknown;
+    chain?: string;
+    providerCode?: number | string;
+    reason?: string;
 }
 
-// @public (undocumented)
-export class WraithAgent {
-    constructor(wraith: Wraith, info: AgentInfo);
+// @public
+export type WalletEvent = {
+    readonly type: 'accountChanged';
+    readonly chain: WalletAdapterChain;
+    readonly address: string;
+} | {
+    readonly type: 'networkChanged';
+    readonly chain: WalletAdapterChain;
+    readonly network: string;
+} | {
+    readonly type: 'disconnect';
+    readonly chain: WalletAdapterChain;
+    readonly error: WalletNotConnectedError;
+};
+
+// @public
+export type WalletEventListener = (event: WalletEvent) => void;
+
+// @public
+export type WalletEventSource = {
+    readonly chain: 'evm';
+    readonly provider: Eip1193EventProvider;
+} | {
+    readonly chain: 'solana';
+    readonly wallet: SolanaWalletEventEmitter;
+} | {
+    readonly chain: 'stellar';
+    readonly watcher: FreighterWalletWatcher;
+};
+
+// @public
+export class WalletNotConnectedError extends WraithWalletError {
+    constructor(details?: WalletErrorDetails);
     // (undocumented)
-    chat(message: string, conversationId?: string): Promise<ChatResponse>;
+    readonly code = "WRAITH/WALLET/NOT_CONNECTED";
     // (undocumented)
-    clearNotifications(): Promise<void>;
-    // (undocumented)
-    deleteConversation(conversationId: string): Promise<void>;
-    // (undocumented)
-    exportKey(signature: string, message: string): Promise<{
-        secret: string;
-    }>;
-    // (undocumented)
-    getBalance(): Promise<Balance>;
-    // (undocumented)
-    getConversations(): Promise<Conversation[]>;
-    // (undocumented)
-    getMessages(conversationId: string): Promise<Array<{
-        role: string;
-        text: string;
-    }>>;
-    // (undocumented)
-    getNotifications(): Promise<{
-        notifications: Notification_2[];
-        unreadCount: number;
-    }>;
-    // (undocumented)
-    getStatus(): Promise<any>;
-    // (undocumented)
-    readonly info: AgentInfo;
-    // (undocumented)
-    markNotificationsRead(): Promise<void>;
-    // (undocumented)
-    scanPayments(): Promise<Payment[]>;
+    describe(): string;
 }
+
+// @public
+export class WalletRequestFailedError extends WraithWalletError {
+    constructor(details?: WalletErrorDetails);
+    // (undocumented)
+    readonly code = "WRAITH/WALLET/REQUEST_FAILED";
+    // (undocumented)
+    describe(): string;
+}
+
+// @public
+export class WalletUnavailableError extends WraithWalletError {
+    constructor(details?: WalletErrorDetails);
+    // (undocumented)
+    readonly code = "WRAITH/WALLET/UNAVAILABLE";
+    // (undocumented)
+    describe(): string;
+}
+
+// @public
+export class WalletUserRejectedError extends WraithWalletError {
+    constructor(details?: WalletErrorDetails);
+    // (undocumented)
+    readonly code = "WRAITH/WALLET/USER_REJECTED";
+    // (undocumented)
+    describe(): string;
+}
+
+// @public
+export interface WalletWrongNetworkDetails extends WalletErrorDetails {
+    actualNetwork?: string;
+    expectedNetwork?: string;
+}
+
+// @public
+export class WalletWrongNetworkError extends WraithWalletError {
+    constructor(details?: WalletWrongNetworkDetails);
+    // (undocumented)
+    readonly code = "WRAITH/WALLET/WRONG_NETWORK";
+    // (undocumented)
+    describe(): string;
+}
+
+// @public
+export function watchWalletEvents(source: WalletEventSource, listener: WalletEventListener): () => void;
+
+// @public
+export function withNormalizedWalletErrors(adapter: StellarWalletAdapter): StellarWalletAdapter;
+
+// @public (undocumented)
+export function withNormalizedWalletErrors(adapter: EvmWalletAdapter): EvmWalletAdapter;
+
+// @public (undocumented)
+export function withNormalizedWalletErrors(adapter: SolanaChainWalletAdapter): SolanaChainWalletAdapter;
+
+// @public (undocumented)
+export function withNormalizedWalletErrors(adapter: WalletAdapter): WalletAdapter;
+
+// @public
+export function withSpan<T>(name: string, attributes: Record<string, string | number | boolean> | undefined, fn: (span: Span) => T, tracer?: Tracer): T;
 
 // @public (undocumented)
 export abstract class WraithBuilderError extends WraithError {
-}
-
-// @public (undocumented)
-export interface WraithConfig {
-    // (undocumented)
-    ai?: {
-        provider: 'gemini' | 'openai' | 'claude';
-        apiKey: string;
-    };
-    // (undocumented)
-    apiKey: string;
-    // (undocumented)
-    baseUrl?: string;
 }
 
 // @public (undocumented)
@@ -613,6 +641,7 @@ export abstract class WraithError extends Error {
     abstract readonly code: string;
     // (undocumented)
     readonly context?: Record<string, any> | undefined;
+    describe(): string;
     // (undocumented)
     readonly docsLink: string;
     // (undocumented)
@@ -633,12 +662,17 @@ export abstract class WraithInputError extends WraithError {
 export abstract class WraithNetworkError extends WraithError {
 }
 
+// @public
+export abstract class WraithWalletError extends WraithError {
+    constructor(message: string, details?: WalletErrorDetails, extra?: Record<string, unknown>);
+}
+
 // Warnings were encountered during analysis:
 //
-// dist/index.d.ts:207:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
-// dist/index.d.ts:212:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
-// dist/index.d.ts:217:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
-// dist/index.d.ts:222:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
+// dist/unified-B4T6tz3t.d.ts:166:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
+// dist/unified-B4T6tz3t.d.ts:171:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
+// dist/unified-B4T6tz3t.d.ts:176:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
+// dist/unified-B4T6tz3t.d.ts:181:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 
