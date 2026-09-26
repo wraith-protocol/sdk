@@ -254,14 +254,17 @@ describe('tx-builder: buildBatchSendTx', () => {
     const invocation = operation.func.invokeContract();
     expect(operation.type).toBe('invokeHostFunction');
     expect(invocation.functionName().toString()).toBe('batch_send');
-    expect(invocation.args()).toHaveLength(7);
+    expect(invocation.args()).toHaveLength(3);
     expect(scValToNative(invocation.args()[0])).toBe(sourceAccount.accountId());
-    expect(scValToNative(invocation.args()[1])).toMatch(/^C[A-Z2-7]{55}$/);
-    expect(scValToNative(invocation.args()[2])).toBe(1);
-    expect(scValToNative(invocation.args()[3])).toHaveLength(payments.length);
-    expect(scValToNative(invocation.args()[4])[0]).toHaveLength(32);
-    expect(scValToNative(invocation.args()[5])[0]).toHaveLength(1);
-    expect(scValToNative(invocation.args()[6])).toEqual(payments.map(() => 10_000_000n));
+    expect(scValToNative(invocation.args()[1])).toHaveLength(payments.length);
+    expect(scValToNative(invocation.args()[1])[0]).toMatchObject({
+      amount: 10_000_000n,
+      scheme_id: 1,
+    });
+    expect(scValToNative(invocation.args()[1])[0].stealth_address).toMatch(/^G[A-Z2-7]{55}$/);
+    expect(scValToNative(invocation.args()[1])[0].ephemeral_pub_key).toHaveLength(32);
+    expect(scValToNative(invocation.args()[1])[0].metadata).toHaveLength(1);
+    expect(scValToNative(invocation.args()[2])).toMatch(/^C[A-Z2-7]{55}$/);
     expect(result.totalFee).toBe(DEFAULT_BASE_FEE);
     expect(result.usedBatchSender).toBe(true);
     expect(result.stealthAddresses).toHaveLength(payments.length);
@@ -287,10 +290,12 @@ describe('tx-builder: buildBatchSendTx', () => {
     });
     const operation = result.transaction.operations[0] as Operation.InvokeHostFunction;
     const invocation = operation.func.invokeContract();
-    expect(scValToNative(invocation.args()[1])).toBe(
+    expect(scValToNative(invocation.args()[2])).toBe(
       new Asset('USDC', issuer).contractId(networkPassphrase),
     );
-    expect(scValToNative(invocation.args()[6])).toEqual(payments.map(() => 12_500_000n));
+    expect(
+      scValToNative(invocation.args()[1]).map((transfer: { amount: bigint }) => transfer.amount),
+    ).toEqual(payments.map(() => 12_500_000n));
   });
 
   test('rejects an invalid batch-sender contract configuration', () => {

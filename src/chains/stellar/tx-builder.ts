@@ -126,24 +126,30 @@ export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSend
 
     const tokenContract = firstAsset.contractId(networkPassphrase);
     const contract = new Contract(batchSenderContract);
-    const addresses = xdr.ScVal.scvVec(
-      stealthAddresses.map((stealth: GeneratedStealthAddress) =>
-        new Address(stealth.stealthAddress).toScVal(),
-      ),
-    );
-    const ephemeralKeys = xdr.ScVal.scvVec(
-      stealthAddresses.map((stealth: GeneratedStealthAddress) =>
-        xdr.ScVal.scvBytes(Buffer.from(stealth.ephemeralPubKey)),
-      ),
-    );
-    const metadatas = xdr.ScVal.scvVec(
-      stealthAddresses.map((stealth: GeneratedStealthAddress) =>
-        xdr.ScVal.scvBytes(Buffer.from([stealth.viewTag])),
-      ),
-    );
-    const amounts = xdr.ScVal.scvVec(
-      payments.map((payment: { amount: string }) =>
-        nativeToScVal(toStroops(payment.amount), { type: 'i128' }),
+    const transfers = xdr.ScVal.scvVec(
+      stealthAddresses.map((stealth: GeneratedStealthAddress, index: number) =>
+        xdr.ScVal.scvMap([
+          new xdr.ScMapEntry({
+            key: xdr.ScVal.scvSymbol('stealth_address'),
+            val: new Address(stealth.stealthAddress).toScVal(),
+          }),
+          new xdr.ScMapEntry({
+            key: xdr.ScVal.scvSymbol('amount'),
+            val: nativeToScVal(toStroops(payments[index].amount), { type: 'i128' }),
+          }),
+          new xdr.ScMapEntry({
+            key: xdr.ScVal.scvSymbol('scheme_id'),
+            val: nativeToScVal(SCHEME_ID, { type: 'u32' }),
+          }),
+          new xdr.ScMapEntry({
+            key: xdr.ScVal.scvSymbol('ephemeral_pub_key'),
+            val: xdr.ScVal.scvBytes(Buffer.from(stealth.ephemeralPubKey)),
+          }),
+          new xdr.ScMapEntry({
+            key: xdr.ScVal.scvSymbol('metadata'),
+            val: xdr.ScVal.scvBytes(Buffer.from([stealth.viewTag])),
+          }),
+        ]),
       ),
     );
 
@@ -151,12 +157,8 @@ export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSend
       contract.call(
         'batch_send',
         new Address(accountId).toScVal(),
+        transfers,
         new Address(tokenContract).toScVal(),
-        nativeToScVal(SCHEME_ID, { type: 'u32' }),
-        addresses,
-        ephemeralKeys,
-        metadatas,
-        amounts,
       ),
     );
   } else {
