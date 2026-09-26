@@ -53,7 +53,12 @@ describe('custom adapter timestamps', () => {
       adapters: [{ adapter, source: streamOf(items), keys: {} }],
     });
 
-    expect(results.map((r) => r.chain)).toEqual(['fake', 'fake', 'fake']);
+    expect(results.map((r) => r.chain)).toEqual(['custom', 'custom', 'custom']);
+    expect(results.map((r) => (r.chain === 'custom' ? r.customChainId : undefined))).toEqual([
+      'fake',
+      'fake',
+      'fake',
+    ]);
     expect(results.map((r) => (r.announcement as FakeItem).id)).toEqual(['a', 'b', 'c']);
     expect(results.map((r) => r.timestamp)).toEqual([1_700_000_100, 1_700_000_200, 1_700_000_300]);
     // seq is the per-chain arrival counter and must stay monotonic alongside it.
@@ -153,7 +158,8 @@ describe('custom adapter timestamps', () => {
       ],
     });
 
-    const byChain = (chain: string) => results.filter((r) => r.chain === chain);
+    const byChain = (customChainId: string) =>
+      results.filter((r) => r.chain === 'custom' && r.customChainId === customChainId);
     expect(byChain('left').map((r) => r.timestamp)).toEqual([10, 20]);
     expect(byChain('right').map((r) => r.timestamp)).toEqual([100, 200]);
     expect(byChain('left').map((r) => r.seq)).toEqual([0, 1]);
