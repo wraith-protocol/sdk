@@ -274,6 +274,10 @@ export interface StealthPayment {
   metaAddress: string;
   /** Amount in XLM (string to preserve precision) */
   amount: string;
+  /** Asset code ("native"/"XLM" or an issued asset code). Defaults to native XLM. */
+  asset?: string;
+  /** Issuer account for an issued asset. Required when asset is not native/XLM. */
+  assetIssuer?: string;
 }
 
 /** Parameters for building a batch send transaction. */

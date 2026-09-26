@@ -669,10 +669,10 @@ export abstract class WraithWalletError extends WraithError {
 
 // Warnings were encountered during analysis:
 //
-// dist/unified-CssjVK0G.d.ts:166:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
-// dist/unified-CssjVK0G.d.ts:171:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
-// dist/unified-CssjVK0G.d.ts:176:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
-// dist/unified-CssjVK0G.d.ts:181:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
+// dist/unified-B4T6tz3t.d.ts:166:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
+// dist/unified-B4T6tz3t.d.ts:171:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
+// dist/unified-B4T6tz3t.d.ts:176:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
+// dist/unified-B4T6tz3t.d.ts:181:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 

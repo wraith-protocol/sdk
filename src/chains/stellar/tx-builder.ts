@@ -73,7 +73,17 @@ export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSend
     batchSenderContract !== undefined && payments.length >= batchSenderThreshold;
 
   // Load Stellar SDK dynamically (peer dependency)
-  const { TransactionBuilder, Operation, Memo, Asset } = require('@stellar/stellar-sdk');
+  const {
+    TransactionBuilder,
+    Operation,
+    Memo,
+    Asset,
+    Contract,
+    Address,
+    StrKey,
+    nativeToScVal,
+    xdr,
+  } = require('@stellar/stellar-sdk');
 
   // Calculate total fee with scaling
   // Fee scales with operation count to ensure timely inclusion
@@ -98,13 +108,58 @@ export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSend
   }
 
   if (useBatchSender && batchSenderContract) {
-    // Use stealth-batch-sender contract for large batches
-    // This would call a Soroban contract that handles the batch efficiently
-    // For now, this is a placeholder - the actual contract implementation
-    // would be added when the contract is deployed
-    throw new Error(
-      'stealth-batch-sender contract integration not yet implemented. ' +
-        'Please provide batchSenderContract only when the contract is deployed.',
+    if (!StrKey.isValidContract(batchSenderContract)) {
+      throw new Error(`Invalid batchSenderContract: expected a Soroban contract address`);
+    }
+
+    const accountId = sourceAccount.accountId();
+    const assets = payments.map((payment) => resolvePaymentAsset({ Asset, StrKey }, payment));
+    const firstAsset = assets[0];
+    if (
+      assets.some(
+        (asset: any) =>
+          asset.contractId(networkPassphrase) !== firstAsset.contractId(networkPassphrase),
+      )
+    ) {
+      throw new Error('Batch sender payments must all use the same asset');
+    }
+
+    const tokenContract = firstAsset.contractId(networkPassphrase);
+    const contract = new Contract(batchSenderContract);
+    const transfers = xdr.ScVal.scvVec(
+      stealthAddresses.map((stealth: GeneratedStealthAddress, index: number) =>
+        xdr.ScVal.scvMap([
+          new xdr.ScMapEntry({
+            key: xdr.ScVal.scvSymbol('stealth_address'),
+            val: new Address(stealth.stealthAddress).toScVal(),
+          }),
+          new xdr.ScMapEntry({
+            key: xdr.ScVal.scvSymbol('amount'),
+            val: nativeToScVal(toStroops(payments[index].amount), { type: 'i128' }),
+          }),
+          new xdr.ScMapEntry({
+            key: xdr.ScVal.scvSymbol('scheme_id'),
+            val: nativeToScVal(SCHEME_ID, { type: 'u32' }),
+          }),
+          new xdr.ScMapEntry({
+            key: xdr.ScVal.scvSymbol('ephemeral_pub_key'),
+            val: xdr.ScVal.scvBytes(Buffer.from(stealth.ephemeralPubKey)),
+          }),
+          new xdr.ScMapEntry({
+            key: xdr.ScVal.scvSymbol('metadata'),
+            val: xdr.ScVal.scvBytes(Buffer.from([stealth.viewTag])),
+          }),
+        ]),
+      ),
+    );
+
+    builder = builder.addOperation(
+      contract.call(
+        'batch_send',
+        new Address(accountId).toScVal(),
+        transfers,
+        new Address(tokenContract).toScVal(),
+      ),
     );
   } else {
     // Build individual payment operations
@@ -115,7 +170,7 @@ export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSend
       builder = builder.addOperation(
         Operation.payment({
           destination: stealth.stealthAddress,
-          asset: Asset.native(),
+          asset: resolvePaymentAsset({ Asset, StrKey }, payment),
           amount: payment.amount,
         }),
       );
@@ -134,6 +189,27 @@ export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSend
     totalFee,
     usedBatchSender: useBatchSender,
   };
+}
+
+function resolvePaymentAsset(
+  sdk: { Asset: any; StrKey: any },
+  payment: { asset?: string; assetIssuer?: string },
+): any {
+  const { Asset, StrKey } = sdk;
+  const asset = payment.asset;
+  if (!asset || asset === 'native' || asset === 'XLM') return Asset.native();
+  if (!payment.assetIssuer || !StrKey.isValidEd25519PublicKey(payment.assetIssuer)) {
+    throw new Error(`assetIssuer is required and must be a valid account for asset "${asset}"`);
+  }
+  return new Asset(asset, payment.assetIssuer);
+}
+
+function toStroops(amount: string): bigint {
+  if (!/^\d+(?:\.\d{1,7})?$/.test(amount) || amount === '0') {
+    throw new Error(`Invalid payment amount: ${amount}`);
+  }
+  const [whole, fraction = ''] = amount.split('.');
+  return BigInt(whole) * 10_000_000n + BigInt(fraction.padEnd(7, '0'));
 }
 
 /**
