@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createRpcClient, type RpcClientConfig } from '../../../src/chains/stellar/rpc';
 import { RPCRetryExhaustedError, RPCRequestError } from '../../../src/errors';
+import { type Tracer, type Span } from '../../../src/telemetry';
 
 function mockFetch(
   responses: Map<string, { status: number; body: unknown; delay?: number }>,
@@ -285,5 +286,57 @@ describe('createRpcClient', () => {
 
     const result = await client.request('POST', '/rpc', { test: true });
     expect(result).toEqual({ received: true });
+  });
+});
+
+function makeRecordingTracer() {
+  const spanNames: string[] = [];
+  const tracer: Tracer = {
+    startSpan(name) {
+      spanNames.push(name);
+      const span: Span = { setAttribute() {}, recordException() {}, end() {} };
+      return span;
+    },
+  };
+  return { tracer, spanNames };
+}
+
+describe('createRpcClient telemetry', () => {
+  const primaryUrl = 'https://rpc-primary.test';
+
+  it('emits a request span covering the whole call, including retries', async () => {
+    const { tracer, spanNames } = makeRecordingTracer();
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+
+    const client = createRpcClient({
+      endpoints: [{ url: primaryUrl }],
+      fetchImpl,
+      tracer,
+    });
+
+    await client.request('GET', '/health');
+
+    expect(spanNames).toEqual(['stellar.rpc.request']);
+  });
+
+  it('a per-call tracer override takes precedence over the client tracer', async () => {
+    const clientTracer = makeRecordingTracer();
+    const override = makeRecordingTracer();
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+
+    const client = createRpcClient({
+      endpoints: [{ url: primaryUrl }],
+      fetchImpl,
+      tracer: clientTracer.tracer,
+    });
+
+    await client.request('GET', '/health', undefined, { tracer: override.tracer });
+
+    expect(clientTracer.spanNames).toHaveLength(0);
+    expect(override.spanNames).toEqual(['stellar.rpc.request']);
   });
 });

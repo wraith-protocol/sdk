@@ -5,6 +5,20 @@
 ```ts
 
 // @public
+const adapter: {
+    id: string;
+    scan: (source: AsyncIterable<Announcement>, keys: {
+        viewingKey: HexString;
+        spendingPubKey: HexString;
+        spendingKey: HexString;
+    }) => AsyncGenerator<MatchedAnnouncement>;
+    decodeMetaAddress: typeof decodeStealthMetaAddress;
+    encodeMetaAddress: typeof encodeStealthMetaAddress;
+};
+export { adapter }
+export { adapter as evmAdapter }
+
+// @public
 export interface Announcement {
     // (undocumented)
     caller: HexString;

@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20, 22]
+        node-version: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -26,6 +26,66 @@ jobs:
       - run: pnpm build
       - run: pnpm api:check
       - run: pnpm test
+
+  entrypoints:
+    name: Package entry point smoke tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test:exports
+
+  compat:
+    name: Compatibility matrix (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      # A runtime that cannot install the SDK should not mask one that can.
+      fail-fast: false
+      matrix:
+        include:
+          - name: Node 20
+            node-version: 20
+            command: pnpm test:compat
+          - name: Node 22
+            node-version: 22
+            command: pnpm test:compat
+          - name: Node 24
+            node-version: 24
+            command: pnpm test:compat
+          - name: Bun 1.x
+            node-version: 22
+            bun: true
+            # The runtime checks import the built package under Bun, which is
+            # the part of the matrix that is runtime-specific. The bundle and
+            # tarball checks are runtime-independent and run on Node above.
+            command: bun scripts/compat/verify-imports.mjs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: oven-sh/setup-bun@v2
+        if: matrix.bun
+        with:
+          bun-version: 1.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: ${{ matrix.command }}
 
   differential:
     name: Differential (test-vectors vs vN-1)
@@ -72,6 +132,52 @@ jobs:
       - name: Run differential harness
         if: steps.should-run.outputs.run == 'true'
         run: pnpm --filter @wraith-protocol/test-vectors differential
+
+  bundle-size:
+    name: Bundle size (size-limit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            src:
+              - 'src/**'
+
+      - name: Determine whether to run
+        id: should-run
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ] || [ "${{ steps.filter.outputs.src }}" = "true" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.should-run.outputs.run == 'true'
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        if: steps.should-run.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.should-run.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build SDK
+        if: steps.should-run.outputs.run == 'true'
+        run: pnpm build
+
+      - name: Check bundle sizes
+        if: steps.should-run.outputs.run == 'true'
+        run: pnpm size
 
   slow-tests:
     name: Property fuzz (nightly)

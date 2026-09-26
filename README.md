@@ -20,6 +20,17 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for the SDK semver policy, deprecation 
 
 See [MIGRATING.md](./MIGRATING.md) for breaking changes and migration steps when upgrading to a new major version.
 
+## Compatibility
+
+Supported runtimes (Node.js, Bun, browsers, React Native), optional peer dependency ranges, and the failure messages for unsupported combinations are published in [COMPAT.md](./COMPAT.md). That page and `package.json` are both generated from [`compat/matrix.json`](./compat/matrix.json) and checked by CI:
+
+```bash
+pnpm build
+pnpm test:compat
+```
+
+Only `@stellar/stellar-sdk` and `@solana/web3.js` are optional peers, and each is needed by a single chain entry point. `@wraith-protocol/sdk/chains/stellar` requires `@stellar/stellar-sdk` to be installed; everything else imports without the optional peers.
+
 ## Entry Points
 
 | Import                                | Purpose                                              |

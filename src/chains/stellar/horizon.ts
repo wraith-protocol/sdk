@@ -1,4 +1,5 @@
 import { RPCRequestError, RPCRetryExhaustedError } from '../../errors';
+import { AttemptDeadline, resolveTimeouts, type RequestTimeouts } from './timeouts';
 
 /** HTTP statuses that trigger a retry by default. */
 const DEFAULT_RETRYABLE_STATUSES = [429, 500, 502, 503, 504];
@@ -21,16 +22,29 @@ export interface HorizonClientConfig {
   retry?: Partial<RetryPolicy>;
   /** Optional custom fetch implementation (for testing). */
   fetchImpl?: typeof fetch;
+  /**
+   * Connect and request timeouts for each attempt. A timed-out attempt is aborted and retried
+   * under the retry policy. Defaults to 10 s for the headers and 30 s in total.
+   */
+  timeouts?: RequestTimeouts;
+}
+
+/** Per-call overrides for {@link HorizonClient.get} and {@link HorizonClient.post}. */
+export interface HorizonRequestOptions {
+  /** Overrides the client's retry policy for this call only. */
+  retry?: Partial<RetryPolicy>;
+  /** Overrides the client's timeouts for this call only. */
+  timeouts?: RequestTimeouts;
 }
 
 export interface HorizonClient {
   /** Perform a GET request to the given path. */
-  get<T = unknown>(path: string, overrides?: { retry?: Partial<RetryPolicy> }): Promise<T>;
+  get<T = unknown>(path: string, overrides?: HorizonRequestOptions): Promise<T>;
   /** Perform a POST request to the given path. */
   post<T = unknown>(
     path: string,
     body: URLSearchParams | string,
-    overrides?: { retry?: Partial<RetryPolicy> },
+    overrides?: HorizonRequestOptions,
   ): Promise<T>;
 }
 
@@ -80,19 +94,27 @@ export function createHorizonClient(config: HorizonClientConfig): HorizonClient 
   const baseUrl = config.horizonUrl.replace(/\/$/, '');
   const defaultPolicy = resolveRetryPolicy(config.retry);
   const fetchImpl = config.fetchImpl ?? globalThis.fetch;
+  const defaultTimeouts = resolveTimeouts(config.timeouts);
 
   async function request<T>(
     method: string,
     path: string,
     body?: URLSearchParams | string,
-    overrides?: { retry?: Partial<RetryPolicy> },
+    overrides?: HorizonRequestOptions,
   ): Promise<T> {
     const policy = resolveRetryPolicy({ ...defaultPolicy, ...overrides?.retry });
+    const timeouts = resolveTimeouts(defaultTimeouts, overrides?.timeouts);
     const url = `${baseUrl}${path}`;
 
     let lastError: Error | undefined;
 
     for (let attempt = 0; attempt <= policy.maxRetries; attempt++) {
+      const deadline = new AttemptDeadline(timeouts, {
+        url,
+        endpoint: baseUrl,
+        attempt: attempt + 1,
+      });
+
       try {
         const init: RequestInit = {
           method,
@@ -103,13 +125,14 @@ export function createHorizonClient(config: HorizonClientConfig): HorizonClient 
           ...(body ? { body } : {}),
         };
 
-        const response = await fetchImpl(url, init);
+        const response = await deadline.send(fetchImpl, url, init);
 
         if (response.ok) {
-          return (await response.json()) as T;
+          return (await deadline.read(response.json())) as T;
         }
 
         if (policy.retryableStatuses.includes(response.status)) {
+          deadline.dispose();
           if (policy.maxRetries > 0 && attempt < policy.maxRetries) {
             const delay = calculateDelay(attempt, policy, response);
             lastError = new RPCRequestError(url, response.status);
@@ -121,9 +144,10 @@ export function createHorizonClient(config: HorizonClientConfig): HorizonClient 
           }
         }
 
-        const data = await response.json().catch(() => ({}));
+        const data = await deadline.read(response.json()).catch(() => ({}));
         throw new RPCRequestError(url, response.status, JSON.stringify(data));
       } catch (err) {
+        deadline.dispose();
         if (err instanceof RPCRequestError) throw err;
 
         lastError = err instanceof Error ? err : new Error(String(err));
@@ -133,20 +157,24 @@ export function createHorizonClient(config: HorizonClientConfig): HorizonClient 
           await sleep(delay);
           continue;
         }
+      } finally {
+        deadline.dispose();
       }
     }
 
-    throw new RPCRetryExhaustedError(url, policy.maxRetries, lastError?.message);
+    throw new RPCRetryExhaustedError(url, policy.maxRetries, lastError?.message, {
+      cause: lastError,
+    });
   }
 
   return {
-    get<T>(path: string, overrides?: { retry?: Partial<RetryPolicy> }): Promise<T> {
+    get<T>(path: string, overrides?: HorizonRequestOptions): Promise<T> {
       return request<T>('GET', path, undefined, overrides);
     },
     post<T>(
       path: string,
       body: URLSearchParams | string,
-      overrides?: { retry?: Partial<RetryPolicy> },
+      overrides?: HorizonRequestOptions,
     ): Promise<T> {
       return request<T>('POST', path, body, overrides);
     },

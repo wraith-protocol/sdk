@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Wraith, Chain } from '@wraith-protocol/sdk';
+import { Wraith, Chain } from '@wraith-protocol/sdk-agent';
 
 function getEnv(name: string): string {
   const value = process.env[name];

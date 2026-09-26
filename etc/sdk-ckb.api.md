@@ -4,6 +4,18 @@
 
 ```ts
 
+// Warning: (ae-forgotten-export) The symbol "ChainScannerAdapter" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "StealthCell" needs to be exported by the entry point index.d.ts
+//
+// @public
+const adapter: ChainScannerAdapter<StealthCell, {
+    viewingKey: HexString;
+    spendingPubKey: HexString;
+    spendingKey: HexString;
+}, MatchedStealthCell>;
+export { adapter }
+export { adapter as ckbAdapter }
+
 // @public
 export function blake160(data: Uint8Array): Uint8Array;
 
@@ -91,8 +103,6 @@ export function deriveStealthPrivateKey(spendingKey: HexString, ephemeralPubKey:
 // @public
 export function encodeStealthMetaAddress(spendingPubKey: HexString, viewingPubKey: HexString): string;
 
-// Warning: (ae-forgotten-export) The symbol "StealthCell" needs to be exported by the entry point index.d.ts
-//
 // @public
 export function fetchStealthCells(chain?: string): Promise<StealthCell[]>;
 

@@ -16,6 +16,12 @@ export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature
   readonly chain: TChain;
   signMessage(message: Uint8Array): Promise<TSignature>;
   getAddress(): Promise<string>;
+  /**
+   * Optional: the wallet's active network, as `eip155:<chainId>` for EVM
+   * wallets or the network passphrase for Stellar wallets. Adapters that
+   * cannot see the wallet's network (such as Solana wallet-adapter) omit it.
+   */
+  getNetwork?(): Promise<string>;
 }
 
 /** Wallet adapter for Stellar-compatible ed25519 wallets. */

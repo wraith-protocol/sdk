@@ -8,7 +8,7 @@ All custom errors extend a base `WraithError` class, which extends the native Ja
 
 ## The Error Hierarchy
 
-All custom exceptions are organized under five major categories:
+All custom exceptions are organized under six major categories:
 
 ```
 WraithError (Abstract Base)
@@ -24,15 +24,22 @@ WraithError (Abstract Base)
 ├── WraithNetworkError
 │   ├── RPCRequestError
 │   ├── RPCRetryExhaustedError
+│   ├── RPCTimeoutError
 │   └── RetentionExceededError
 ├── WraithContractError
 │   ├── NameNotFoundError
 │   ├── NameAlreadyRegisteredError
 │   ├── InsufficientAuthError
 │   └── ContractRevertError
-└── WraithBuilderError
-    ├── InsufficientBalanceError
-    └── UnsupportedAssetError
+├── WraithBuilderError
+│   ├── InsufficientBalanceError
+│   └── UnsupportedAssetError
+└── WraithWalletError
+    ├── WalletNotConnectedError
+    ├── WalletUserRejectedError
+    ├── WalletWrongNetworkError
+    ├── WalletUnavailableError
+    └── WalletRequestFailedError
 ```
 
 ---
@@ -71,11 +78,14 @@ Thrown when low-level mathematical operations or elliptic curve calculations fai
 
 Thrown when HTTP queries to Wraith APIs, Horizon/Soroban endpoints, Solana clusters, or CKB indexers fail.
 
-| Error Class              | Stable Code                            | Context Fields                      | Description                                                               |
-| :----------------------- | :------------------------------------- | :---------------------------------- | :------------------------------------------------------------------------ |
-| `RPCRequestError`        | `"WRAITH/NETWORK/RPC_REQUEST"`         | `url`, `statusCode`, `responseText` | Thrown when an HTTP/RPC endpoint returns a non-2xx status code.           |
-| `RPCRetryExhaustedError` | `"WRAITH/NETWORK/RPC_RETRY_EXHAUSTED"` | `url`, `attempts`, `lastError`      | Thrown when all query retry strategies have timed out or failed.          |
-| `RetentionExceededError` | `"WRAITH/NETWORK/RETENTION_EXCEEDED"`  | `limit`, `actual`                   | Thrown when querying historical logs beyond maximum retention boundaries. |
+| Error Class              | Stable Code                            | Context Fields                                     | Description                                                                   |
+| :----------------------- | :------------------------------------- | :------------------------------------------------- | :---------------------------------------------------------------------------- |
+| `RPCRequestError`        | `"WRAITH/NETWORK/RPC_REQUEST"`         | `url`, `statusCode`, `responseText`                | Thrown when an HTTP/RPC endpoint returns a non-2xx status code.               |
+| `RPCRetryExhaustedError` | `"WRAITH/NETWORK/RPC_RETRY_EXHAUSTED"` | `url`, `attempts`, `lastError`                     | Thrown when all query retry strategies have timed out or failed.              |
+| `RPCTimeoutError`        | `"WRAITH/NETWORK/RPC_TIMEOUT"`         | `url`, `endpoint`, `attempt`, `phase`, `timeoutMs` | Thrown when a Horizon/Soroban attempt exceeds its connect or request timeout. |
+| `RetentionExceededError` | `"WRAITH/NETWORK/RETENTION_EXCEEDED"`  | `limit`, `actual`                                  | Thrown when querying historical logs beyond maximum retention boundaries.     |
+
+When the Horizon or Soroban RPC client gives up, `RPCRetryExhaustedError.cause` holds the last attempt's error, such as an `RPCTimeoutError`. See [Stellar Horizon and RPC request timeouts](./chains/stellar-request-timeouts.md).
 
 ### 4. Smart Contract Errors (`WraithContractError`)
 
@@ -96,6 +106,18 @@ Thrown during local transaction preparation before submission.
 | :------------------------- | :-------------------------------------- | :---------------------------- | :----------------------------------------------------------------------------------------- |
 | `InsufficientBalanceError` | `"WRAITH/BUILDER/INSUFFICIENT_BALANCE"` | `required`, `actual`, `asset` | Thrown when the local wallet balance is insufficient to pay for private transfers or fees. |
 | `UnsupportedAssetError`    | `"WRAITH/BUILDER/UNSUPPORTED_ASSET"`    | `asset`, `chain`              | Thrown when trying to build transactions for an asset or chain not supported by the SDK.   |
+
+### 6. Wallet Errors (`WraithWalletError`)
+
+Produced by `normalizeWalletError()`, `withNormalizedWalletErrors()`, `assertWalletNetwork()` and the wallet adapters' `getNetwork()`. They give viem, Solana wallet-adapter and Freighter failures one set of classes; the provider's original error is kept on `cause`. See [wallet-adapters.md](./wallet-adapters.md) for how each provider's errors map onto them.
+
+| Error Class                | Stable Code                      | Context Fields                                                        | Description                                                                                         |
+| :------------------------- | :------------------------------- | :-------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------- |
+| `WalletNotConnectedError`  | `"WRAITH/WALLET/NOT_CONNECTED"`  | `chain`, `reason`, `providerCode`                                     | The wallet is not connected, is locked, has not authorised the site, or disconnected.               |
+| `WalletUserRejectedError`  | `"WRAITH/WALLET/USER_REJECTED"`  | `chain`, `reason`, `providerCode`                                     | The user declined the request or closed the wallet window.                                          |
+| `WalletWrongNetworkError`  | `"WRAITH/WALLET/WRONG_NETWORK"`  | `chain`, `reason`, `providerCode`, `expectedNetwork`, `actualNetwork` | The wallet is on a different network than the request needs, or does not know the requested chain.  |
+| `WalletUnavailableError`   | `"WRAITH/WALLET/UNAVAILABLE"`    | `chain`, `reason`, `providerCode`                                     | No usable wallet: not installed, not ready in this environment, or unable to perform the operation. |
+| `WalletRequestFailedError` | `"WRAITH/WALLET/REQUEST_FAILED"` | `chain`, `reason`, `providerCode`                                     | Any other wallet failure. The provider's code and message are kept for inspection.                  |
 
 ---
 
@@ -165,3 +187,31 @@ console.log(JSON.stringify(error, null, 2));
   }
 }
 ```
+
+---
+
+## Actionable Fix Hints with `describe()`
+
+Every `WraithError` instance exposes a `describe(): string` method in addition to `message`, `code`, `context`, and `docsLink`. Where `message` is a compact, log-friendly summary, `describe()` returns a longer, human-readable hint — templated from the error's `context` — that suggests one or two concrete next steps, plus a link to the relevant docs anchor. This means console output and error toasts can surface useful guidance without a round-trip to the docs site.
+
+`WraithError` defines a generic fallback `describe()`, and every concrete subclass overrides it with a hint tailored to that specific failure mode.
+
+### Example
+
+```ts
+import { InsufficientBalanceError } from '@wraith-protocol/sdk';
+
+try {
+  // ... build a transaction
+} catch (err) {
+  if (err instanceof InsufficientBalanceError) {
+    console.error(err.message); // compact summary, e.g. for log lines
+    console.error(err.describe());
+    // "Not enough balance of XLM to build this transaction — need 100, have 50.
+    //  Try: fund the account, reduce the amount, or account for network fees
+    //  separately from the transfer amount. See https://docs.wraith.dev/sdk/errors#insufficient-balance."
+  }
+}
+```
+
+This makes `describe()` well suited for error toasts and CLI output, where a developer (or end user) needs to know what to try next without leaving the app.

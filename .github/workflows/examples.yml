@@ -21,6 +21,7 @@ jobs:
           - multichain-scan
           - stellar-nextjs-app-router
           - stellar-chrome-extension
+          - otel
     steps:
       - uses: actions/checkout@v4
 

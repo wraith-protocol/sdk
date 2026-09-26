@@ -12,6 +12,7 @@ Five self-contained examples demonstrating the `@wraith-protocol/sdk` across dif
 | `stellar-spectre-agent/`    | Connect to the Wraith managed agent platform — create/retrieve an agent, chat, check balance, scan payments, send via natural language | Agent     |
 | `multichain-scan/`          | Scan for stealth payments on all 4 chains (Stellar, EVM, Solana, CKB) in parallel via `Promise.all`                                    | CLI       |
 | `stellar-chrome-extension/` | MV3 Chrome extension — scans Stellar in the background service worker, notifies on incoming stealth payments, no webapp required       | Extension |
+| `otel/`                     | Adapts the SDK's `Tracer`/`Span` interface to an OpenTelemetry-shaped tracer and scans a canned announcement batch                     | CLI       |
 
 ## Running an Example
 

@@ -4,6 +4,8 @@ import { toHex, toBytes } from 'viem';
 import { blake160 } from './blake';
 import { deriveStealthPrivateKey } from './spend';
 import type { HexString, StealthCell, MatchedStealthCell } from './types';
+import { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
+import type { ChainScannerAdapter } from '../../scanner/unified';
 
 /**
  * Checks whether a stealth cell belongs to the recipient.
@@ -82,3 +84,44 @@ export function scanStealthCells(
 
   return matched;
 }
+
+/**
+ * CKB ChainScannerAdapter implementation.
+ */
+export const adapter: ChainScannerAdapter<
+  StealthCell,
+  { viewingKey: HexString; spendingPubKey: HexString; spendingKey: HexString },
+  MatchedStealthCell
+> = {
+  id: 'ckb',
+  scan: async function* (source, keys) {
+    const iter = source[Symbol.asyncIterator]();
+    try {
+      while (true) {
+        const batch: StealthCell[] = [];
+        for (let i = 0; i < 64; i++) {
+          const next = await iter.next();
+          if (next.done) break;
+          batch.push(next.value);
+        }
+        if (batch.length === 0) break;
+        const matches = scanStealthCells(
+          batch,
+          keys.viewingKey,
+          keys.spendingPubKey,
+          keys.spendingKey,
+        );
+        for (const match of matches) {
+          yield match;
+        }
+        if (batch.length < 64) break;
+      }
+    } finally {
+      await iter.return?.(undefined);
+    }
+  },
+  decodeMetaAddress: decodeStealthMetaAddress,
+  encodeMetaAddress: encodeStealthMetaAddress,
+};
+
+export const ckbAdapter = adapter;

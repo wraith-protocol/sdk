@@ -4,6 +4,7 @@ import { generateStealthAddress } from './stealth';
 import { decodeStealthMetaAddress } from './meta-address';
 import { getDeployment } from './deployments';
 import { SCHEME_ID } from './constants';
+import { base58Decode, base58Encode } from './utils';
 import type { GeneratedStealthAddress } from './types';
 
 /** A serialized Solana instruction ready to add to a Transaction. */
@@ -338,39 +339,4 @@ function derivePDA(name: string, programId: string): string {
   }
 
   throw new InvalidNameError(name, 'Could not find valid PDA bump for name');
-}
-
-function base58Decode(str: string): Uint8Array {
-  const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  let result = 0n;
-  for (const char of str) {
-    const idx = ALPHABET.indexOf(char);
-    if (idx === -1) throw new InvalidMetaAddressError(str, `Invalid base58 character: ${char}`);
-    result = result * 58n + BigInt(idx);
-  }
-  const hex = result.toString(16).padStart(64, '0');
-  const bytes = new Uint8Array(32);
-  for (let i = 0; i < 32; i++) {
-    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
-}
-
-function base58Encode(buf: Uint8Array): string {
-  const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  let num = 0n;
-  for (const byte of buf) {
-    num = num * 256n + BigInt(byte);
-  }
-  const chars: string[] = [];
-  while (num > 0n) {
-    const rem = Number(num % 58n);
-    chars.unshift(ALPHABET[rem]);
-    num = num / 58n;
-  }
-  for (const byte of buf) {
-    if (byte === 0) chars.unshift('1');
-    else break;
-  }
-  return chars.join('');
 }

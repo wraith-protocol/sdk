@@ -2,6 +2,8 @@
 
 Wraith is designed around ESM, `fetch`, `TextEncoder`, `TextDecoder`, and Web Crypto. That makes the core SDK a good fit for edge runtimes such as Bun, Deno, Cloudflare Workers, and Vercel Edge.
 
+> The canonical list of tested runtimes and supported dependency ranges lives in [COMPAT.md](../COMPAT.md). Bun and evergreen browsers are covered by CI (`pnpm test:compat`); Deno and edge runtimes are documented from static review.
+
 ## Bun
 
 Install and run the repository tests with Bun:

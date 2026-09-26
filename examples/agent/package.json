@@ -1,0 +1,17 @@
+{
+  "name": "@wraith-protocol/example-agent",
+  "private": true,
+  "type": "module",
+  "main": "client.ts",
+  "scripts": {
+    "start": "npx tsx client.ts"
+  },
+  "dependencies": {
+    "@wraith-protocol/sdk": "file:../..",
+    "@wraith-protocol/sdk-agent": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}

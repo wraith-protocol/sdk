@@ -20,7 +20,7 @@ export default defineConfig({
     testTimeout: 1200000, // 20 minutes for high-run nightly fuzz tests
   },
   benchmark: {
-    include: ['test/chains/**/bench/**/*.bench.ts'],
+    include: ['test/chains/**/bench/**/*.bench.ts', 'test/bench/**/*.bench.ts'],
     outputFile: './bench/results.json',
   },
 });

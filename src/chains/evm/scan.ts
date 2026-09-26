@@ -1,8 +1,10 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { keccak256, toHex, toBytes, getAddress } from 'viem';
 import { deriveStealthPrivateKey } from './spend';
+import { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
 import { SCHEME_ID } from './constants';
 import type { HexString, Announcement, MatchedAnnouncement } from './types';
+import type { ChainScannerAdapter } from '../../scanner/unified';
 
 /**
  * Checks whether a single announcement belongs to the recipient.
@@ -90,3 +92,43 @@ export function scanAnnouncements(
 
   return matched;
 }
+
+/**
+ * EVM ChainScannerAdapter implementation.
+ */
+export const adapter = {
+  id: 'evm',
+  scan: async function* (
+    source: AsyncIterable<Announcement>,
+    keys: { viewingKey: HexString; spendingPubKey: HexString; spendingKey: HexString },
+  ): AsyncGenerator<MatchedAnnouncement> {
+    const iter = source[Symbol.asyncIterator]();
+    try {
+      while (true) {
+        const batch: Announcement[] = [];
+        for (let i = 0; i < 64; i++) {
+          const next = await iter.next();
+          if (next.done) break;
+          batch.push(next.value);
+        }
+        if (batch.length === 0) break;
+        const matches = scanAnnouncements(
+          batch,
+          keys.viewingKey,
+          keys.spendingPubKey,
+          keys.spendingKey,
+        );
+        for (const match of matches) {
+          yield match;
+        }
+        if (batch.length < 64) break;
+      }
+    } finally {
+      await iter.return?.(undefined);
+    }
+  },
+  decodeMetaAddress: decodeStealthMetaAddress,
+  encodeMetaAddress: encodeStealthMetaAddress,
+};
+
+export const evmAdapter = adapter;

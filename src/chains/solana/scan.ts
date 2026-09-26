@@ -4,6 +4,8 @@ import { pubKeyToSolanaAddress } from './scalar';
 import { SCHEME_ID } from './constants';
 import type { Announcement, MatchedAnnouncement } from './types';
 import { hexToBytes } from './utils';
+import { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
+import type { ChainScannerAdapter } from '../../scanner/unified';
 
 /**
  * Checks whether a single announcement belongs to the recipient.
@@ -80,3 +82,44 @@ export function scanAnnouncements(
 
   return matched;
 }
+
+/**
+ * Solana ChainScannerAdapter implementation.
+ */
+export const adapter: ChainScannerAdapter<
+  Announcement,
+  { viewingKey: Uint8Array; spendingPubKey: Uint8Array; spendingScalar: bigint },
+  MatchedAnnouncement
+> = {
+  id: 'solana',
+  scan: async function* (source, keys) {
+    const iter = source[Symbol.asyncIterator]();
+    try {
+      while (true) {
+        const batch: Announcement[] = [];
+        for (let i = 0; i < 64; i++) {
+          const next = await iter.next();
+          if (next.done) break;
+          batch.push(next.value);
+        }
+        if (batch.length === 0) break;
+        const matches = scanAnnouncements(
+          batch,
+          keys.viewingKey,
+          keys.spendingPubKey,
+          keys.spendingScalar,
+        );
+        for (const match of matches) {
+          yield match;
+        }
+        if (batch.length < 64) break;
+      }
+    } finally {
+      await iter.return?.(undefined);
+    }
+  },
+  decodeMetaAddress: decodeStealthMetaAddress,
+  encodeMetaAddress: encodeStealthMetaAddress,
+};
+
+export const solanaAdapter = adapter;

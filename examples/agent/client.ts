@@ -5,7 +5,7 @@
  * AI chat, and chain operations — via the hosted TEE infrastructure.
  * No crypto libraries, no contracts, no RPC calls.
  */
-import { Wraith, Chain } from '@wraith-protocol/sdk';
+import { Wraith, Chain } from '@wraith-protocol/sdk-agent';
 
 async function main() {
   // 1. Initialize with your API key

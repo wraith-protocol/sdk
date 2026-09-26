@@ -15,6 +15,7 @@ import {
   ECDHFailedError,
   RPCRequestError,
   RPCRetryExhaustedError,
+  RPCTimeoutError,
   RetentionExceededError,
   NameNotFoundError,
   NameAlreadyRegisteredError,
@@ -139,6 +140,53 @@ describe('Wraith Custom Errors Taxonomy', () => {
     });
   });
 
+  test('RPCRetryExhaustedError keeps the last error as a non-serialised cause', () => {
+    const timeout = new RPCTimeoutError({
+      url: 'https://rpc.test/',
+      endpoint: 'https://rpc.test',
+      attempt: 3,
+      phase: 'connect',
+      timeoutMs: 500,
+    });
+    const error = new RPCRetryExhaustedError('https://rpc.test', 3, timeout.message, {
+      cause: timeout,
+    });
+    expect(error.cause).toBe(timeout);
+    expect(Object.keys(error)).not.toContain('cause');
+    expect(JSON.parse(JSON.stringify(error))).not.toHaveProperty('cause');
+    expect('cause' in new RPCRetryExhaustedError('https://rpc.test', 3)).toBe(false);
+  });
+
+  test('RPCTimeoutError instanceof checks', () => {
+    const error = new RPCTimeoutError({
+      url: 'https://soroban-testnet.stellar.org/rpc',
+      endpoint: 'https://soroban-testnet.stellar.org',
+      attempt: 2,
+      phase: 'request',
+      timeoutMs: 30_000,
+    });
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toBeInstanceOf(WraithError);
+    expect(error).toBeInstanceOf(WraithNetworkError);
+    expect(error).toBeInstanceOf(RPCTimeoutError);
+    expect(error.code).toBe('WRAITH/NETWORK/RPC_TIMEOUT');
+    expect(error.name).toBe('RPCTimeoutError');
+    expect(error.endpoint).toBe('https://soroban-testnet.stellar.org');
+    expect(error.attempt).toBe(2);
+    expect(error.phase).toBe('request');
+    expect(error.timeoutMs).toBe(30_000);
+    expect(error.context).toEqual({
+      url: 'https://soroban-testnet.stellar.org/rpc',
+      endpoint: 'https://soroban-testnet.stellar.org',
+      attempt: 2,
+      phase: 'request',
+      timeoutMs: 30_000,
+    });
+    expect(error.message).toContain('timed out after 30000ms before the response completed');
+    expect(error.message).toContain('attempt 2');
+    expect(error.toJSON().context).toEqual(error.context);
+  });
+
   test('RetentionExceededError instanceof checks', () => {
     const error = new RetentionExceededError(100, 105);
     expect(error).toBeInstanceOf(Error);
@@ -231,5 +279,55 @@ describe('Wraith Custom Errors Taxonomy', () => {
     expect(parsed.message).toContain('Insufficient balance to build transaction for ETH');
     expect(parsed.message).toContain(parsed.docsLink);
     expect(parsed.context).toEqual({ required: '500', actual: '100', asset: 'ETH' });
+  });
+
+  // Test 7: describe() returns a non-empty, tailored hint for every concrete subclass
+  describe('describe() fix hints', () => {
+    const cases: Array<[string, WraithError]> = [
+      ['InvalidMetaAddressError', new InvalidMetaAddressError('st:eth:0x123', 'bad length')],
+      ['InvalidNameError', new InvalidNameError('alice.wraith', 'too short')],
+      ['InvalidSignatureError', new InvalidSignatureError('0xabc', 65, 3)],
+      ['InvalidScalarError', new InvalidScalarError(0n, 'is zero')],
+      ['KeyDerivationFailedError', new KeyDerivationFailedError('invalid scalar addition')],
+      ['ViewTagMismatchError', new ViewTagMismatchError(42, 24)],
+      ['ECDHFailedError', new ECDHFailedError('point off curve')],
+      ['RPCRequestError', new RPCRequestError('https://horizon.stellar.org', 404, 'Not Found')],
+      [
+        'RPCRetryExhaustedError',
+        new RPCRetryExhaustedError('https://horizon.stellar.org', 5, 'timeout'),
+      ],
+      [
+        'RPCTimeoutError',
+        new RPCTimeoutError({
+          url: 'https://horizon.stellar.org/ledgers',
+          endpoint: 'https://horizon.stellar.org',
+          attempt: 1,
+          phase: 'connect',
+          timeoutMs: 10_000,
+        }),
+      ],
+      ['RetentionExceededError', new RetentionExceededError(100, 105)],
+      ['NameNotFoundError', new NameNotFoundError('missing.wraith')],
+      [
+        'NameAlreadyRegisteredError',
+        new NameAlreadyRegisteredError('taken.wraith', 'owner_address'),
+      ],
+      ['InsufficientAuthError', new InsufficientAuthError('admin', 'user')],
+      ['ContractRevertError', new ContractRevertError('execution reverted: out of gas', '0x111')],
+      ['InsufficientBalanceError', new InsufficientBalanceError(100n, 50n, 'XLM')],
+      ['UnsupportedAssetError', new UnsupportedAssetError('SOL', 'horizen')],
+    ];
+
+    test.each(cases)('%s.describe() returns a non-empty, tailored hint', (className, error) => {
+      const hint = error.describe();
+      expect(typeof hint).toBe('string');
+      expect(hint.length).toBeGreaterThan(0);
+      // The hint should point back to the docs and not just be the generic base fallback
+      expect(hint).toContain(error.docsLink);
+      expect(hint).not.toBe(
+        `No specific guidance is available for this error. See ${error.docsLink} for details.`,
+      );
+      expect(hint).not.toBe(className); // sanity: not accidentally the class name
+    });
   });
 });

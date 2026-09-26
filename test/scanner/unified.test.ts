@@ -18,6 +18,11 @@ import { generateStealthAddress as generateStellarAddress } from '../../src/chai
 import { SCHEME_ID as STELLAR_SCHEME_ID } from '../../src/chains/stellar/constants';
 import { bytesToHex as stellarBytesToHex } from '../../src/chains/stellar/utils';
 import type { Announcement as StellarAnnouncement } from '../../src/chains/stellar/types';
+import { adapter as evmAdapter } from '../../src/chains/evm/scan';
+import { adapter as stellarAdapter } from '../../src/chains/stellar/scan';
+import { adapter as solanaAdapter } from '../../src/chains/solana/scan';
+import { adapter as ckbAdapter } from '../../src/chains/ckb/scan';
+import type { ChainScannerAdapter, CustomChainInput } from '../../src/scanner/unified';
 
 const evmSig = ('0x' + 'aa'.repeat(32) + 'bb'.repeat(32) + '1b') as EvmHexString;
 const stellarSig = new Uint8Array(64).fill(0xaa);
@@ -439,5 +444,57 @@ describe('windowed scanning', () => {
 
     const results = await collect(scanAll(input));
     expect(results).toHaveLength(150);
+  });
+});
+
+describe('ChainScannerAdapter conformance & custom adapters', () => {
+  test('all registered in-tree adapters implement the ChainScannerAdapter interface', () => {
+    const inTreeAdapters: ChainScannerAdapter[] = [
+      evmAdapter,
+      stellarAdapter,
+      solanaAdapter,
+      ckbAdapter,
+    ];
+
+    for (const adapter of inTreeAdapters) {
+      expect(typeof adapter.id).toBe('string');
+      expect(adapter.id.length).toBeGreaterThan(0);
+      expect(typeof adapter.scan).toBe('function');
+      expect(typeof adapter.decodeMetaAddress).toBe('function');
+      expect(typeof adapter.encodeMetaAddress).toBe('function');
+    }
+  });
+
+  test('scanAll({ adapters: [customChain] }) compiles and runs against a fixture', async () => {
+    const mockCustomAdapter: ChainScannerAdapter = {
+      id: 'custom-fixture-chain',
+      scan: async function* (source, keys) {
+        for await (const item of source) {
+          if (item.target === keys.viewingKey) {
+            yield { matchedId: item.id, value: item.val };
+          }
+        }
+      },
+      decodeMetaAddress: (meta) => ({ raw: meta }),
+      encodeMetaAddress: (spend, view) => `st:custom:${spend}:${view}`,
+    };
+
+    const customChain: CustomChainInput = {
+      adapter: mockCustomAdapter,
+      source: toAsyncGen([
+        { id: '1', target: 'vk_123', val: 100 },
+        { id: '2', target: 'vk_999', val: 200 },
+        { id: '3', target: 'vk_123', val: 300 },
+      ]),
+      keys: { viewingKey: 'vk_123' },
+    };
+
+    const results = await collect(scanAll({ adapters: [customChain] }));
+
+    expect(results).toHaveLength(2);
+    expect(results[0].chain).toBe('custom-fixture-chain');
+    expect(results[0].announcement).toEqual({ matchedId: '1', value: 100 });
+    expect(results[1].chain).toBe('custom-fixture-chain');
+    expect(results[1].announcement).toEqual({ matchedId: '3', value: 300 });
   });
 });

@@ -1,6 +1,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { toBytes } from 'viem';
 import { InvalidMetaAddressError } from '../../errors';
+import { getUnknownErrorMessage } from '../errorUtils';
 import { META_ADDRESS_PREFIX } from './constants';
 import type { HexString, StealthMetaAddress } from './types';
 
@@ -32,8 +33,11 @@ export function encodeStealthMetaAddress(
   try {
     secp256k1.ProjectivePoint.fromHex(spendBytes);
     secp256k1.ProjectivePoint.fromHex(viewBytes);
-  } catch (err: any) {
-    throw new InvalidMetaAddressError('', `Invalid public key points: ${err.message}`);
+  } catch (err: unknown) {
+    throw new InvalidMetaAddressError(
+      '',
+      `Invalid public key points: ${getUnknownErrorMessage(err)}`,
+    );
   }
 
   const spendHex = spendingPubKey.slice(2);
@@ -68,10 +72,10 @@ export function decodeStealthMetaAddress(metaAddress: string): StealthMetaAddres
   try {
     secp256k1.ProjectivePoint.fromHex(toBytes(spendingPubKey));
     secp256k1.ProjectivePoint.fromHex(toBytes(viewingPubKey));
-  } catch (err: any) {
+  } catch (err: unknown) {
     throw new InvalidMetaAddressError(
       metaAddress,
-      `Invalid public key points inside meta-address: ${err.message}`,
+      `Invalid public key points inside meta-address: ${getUnknownErrorMessage(err)}`,
     );
   }
 

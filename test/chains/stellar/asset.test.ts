@@ -1,51 +1,42 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ---------------------------------------------------------------------------
-// Mock @stellar/stellar-sdk BEFORE importing the module under test
+// Mock only the RPC transport. Everything else in @stellar/stellar-sdk is real:
+// transactions are built by the SDK, and each reply is a real xdr.ScVal parsed
+// by the SDK's own simulation parser, exactly as a live RPC response would be.
 // ---------------------------------------------------------------------------
 
-const mockScVal = (value: unknown) => ({
-  u32: () => value,
-  get sym() {
-    return value;
-  },
-  get str() {
-    return value;
-  },
-  i128: { lo: () => value },
+const { mockSimulateTransaction } = vi.hoisted(() => ({ mockSimulateTransaction: vi.fn() }));
+
+vi.mock('@stellar/stellar-sdk', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@stellar/stellar-sdk')>();
+  class Server {
+    async simulateTransaction(tx: { toXDR(): string }) {
+      // The real client serialises the transaction before sending it.
+      tx.toXDR();
+      return mockSimulateTransaction(tx);
+    }
+  }
+  return { ...actual, rpc: { ...actual.rpc, Server } };
 });
 
-// Special handling for balance which uses i128
-const mockBalanceScVal = (value: string) => ({
-  i128: { lo: () => value },
-});
+import { nativeToScVal, rpc, xdr } from '@stellar/stellar-sdk';
 
-const mockRetval = (value: unknown) => ({
-  result: { retval: mockScVal(value) },
-});
+/** A successful simulation whose contract call returned `value`. */
+const simulated = (value: xdr.ScVal) =>
+  rpc.parseRawSimulation({
+    id: '1',
+    latestLedger: 1,
+    minResourceFee: '0',
+    results: [{ auth: [], xdr: value.toXDR('base64') }],
+  });
 
-const mockSimulateTransaction = vi.fn();
+/** `name` and `symbol` return a String, `decimals` a u32. */
+const mockRetval = (value: string | number) =>
+  simulated(typeof value === 'number' ? xdr.ScVal.scvU32(value) : xdr.ScVal.scvString(value));
 
-vi.mock('@stellar/stellar-sdk', () => {
-  const mockContract = vi.fn(() => ({
-    call: vi.fn(),
-  }));
-
-  return {
-    rpc: {
-      Server: vi.fn(() => ({
-        simulateTransaction: mockSimulateTransaction,
-      })),
-    },
-    Account: vi.fn(),
-    Contract: mockContract,
-    TransactionBuilder: vi.fn(() => ({
-      addOperation: vi.fn().mockReturnThis(),
-      setTimeout: vi.fn().mockReturnThis(),
-      build: vi.fn(),
-    })),
-  };
-});
+/** `balance` returns an i128. */
+const mockBalanceScVal = (value: bigint) => simulated(nativeToScVal(value, { type: 'i128' }));
 
 // ---------------------------------------------------------------------------
 // Import module under test AFTER mock is set up
@@ -146,9 +137,7 @@ describe('Stellar Asset Helpers', () => {
 
   describe('getAssetBalance', () => {
     it('returns the balance for an address', async () => {
-      mockSimulateTransaction.mockResolvedValue({
-        result: { retval: mockBalanceScVal('5000000') },
-      });
+      mockSimulateTransaction.mockResolvedValue(mockBalanceScVal(5000000n));
 
       const balance = await getAssetBalance(FIXED_CONTRACT, FIXED_ADDRESS, 'testnet');
 
