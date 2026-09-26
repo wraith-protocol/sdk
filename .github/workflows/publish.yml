@@ -29,6 +29,17 @@ jobs:
       - run: pnpm build
       - run: pnpm test
 
+      # Release alignment: the changelog entry for this version and the API
+      # report matching the built declarations, before anything is published.
+      - name: Check release alignment
+        run: pnpm release:check
+
+      # Prove the tarball contains only what `files` intends. Runs the real
+      # `pnpm pack --dry-run`, so a stray source, test, config or API-report path
+      # fails the release instead of reaching every consumer.
+      - name: Verify the packed file list
+        run: pnpm pack:check
+
       - name: Check if version is already published
         id: check
         run: |
@@ -47,8 +58,19 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish to npm
+      # --provenance asks the registry to attach a signed attestation linking the
+      # published tarball to this workflow run. It requires the "id-token: write"
+      # permission declared above and a public repository.
+      - name: Publish to npm with provenance
         if: steps.check.outputs.exists == 'false'
-        run: pnpm publish --access public --no-git-checks
+        run: pnpm publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Publishing with the flag is not the same as having an attestation: assert
+      # the registry actually attached one before this run reports success.
+      - name: Verify the provenance attestation
+        if: steps.check.outputs.exists == 'false'
+        run: node scripts/verify-provenance.mjs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
