@@ -25,6 +25,10 @@ jobs:
       - run: pnpm run format:check
       - run: pnpm build
       - run: pnpm api:check
+      # Compile-time checks for the public types. Runs plain `tsc` on purpose:
+      # `vitest --typecheck` silently reports zero errors for type errors inside
+      # test() bodies in this repo, so it cannot be trusted as a gate.
+      - run: pnpm test:types
       - run: pnpm test
 
   entrypoints:
