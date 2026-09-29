@@ -15,7 +15,11 @@ import {
 import { SCHEME_ID } from '../../../../src/chains/stellar/constants';
 import { bytesToHex } from '../../../../src/chains/stellar/utils';
 import type { Announcement, StealthKeys } from '../../../../src/chains/stellar/types';
-import { fetchAnnouncementsStream } from '../../../../src/chains/stellar/announcements';
+import {
+  fetchAnnouncementsStream,
+  mergeOrdered,
+  MAX_COLD_SCAN_PARALLELISM,
+} from '../../../../src/chains/stellar/announcements';
 
 const MATCH_INDEX = 997;
 const POOL_SIZE = 512;
@@ -341,6 +345,57 @@ describe('Stellar parallel horizon range chunking', () => {
           { window: PAGE_SIZE },
         ),
       );
+    },
+    BENCH_OPTIONS,
+  );
+});
+
+/**
+ * Backpressure for a cold scan's parallel chunks. `mergeOrdered` buffers one
+ * item per chunk and only pulls again after the consumer reads, so the cap on
+ * chunk count is what keeps a slow consumer's pending work bounded.
+ */
+describe('Stellar cold-scan backpressure', () => {
+  const CHUNK_COUNT = MAX_COLD_SCAN_PARALLELISM;
+  const ITEMS_PER_CHUNK = 2_000;
+  const PAGE_LATENCY_MS = 10;
+
+  test('bounded merge over the maximum chunk count drains in order', async () => {
+    const iterables = Array.from({ length: CHUNK_COUNT }, (_, index) =>
+      (async function* () {
+        await sleep(PAGE_LATENCY_MS);
+        for (let i = 0; i < ITEMS_PER_CHUNK; i++) {
+          yield { item: index, key: i * CHUNK_COUNT + index };
+        }
+      })(),
+    );
+
+    let consumed = 0;
+    for await (const _item of mergeOrdered(iterables)) {
+      consumed += 1;
+      if (consumed % 500 === 0) await sleep(1);
+    }
+    expect(consumed).toBe(CHUNK_COUNT * ITEMS_PER_CHUNK);
+  });
+
+  bench(
+    `bounded merge buffer, slow consumer (${CHUNK_COUNT} chunks)`,
+    async () => {
+      const iterables = Array.from({ length: CHUNK_COUNT }, (_, index) =>
+        (async function* () {
+          await sleep(PAGE_LATENCY_MS);
+          for (let i = 0; i < ITEMS_PER_CHUNK; i++) {
+            yield { item: index, key: i * CHUNK_COUNT + index };
+          }
+        })(),
+      );
+
+      let consumed = 0;
+      for await (const _item of mergeOrdered(iterables)) {
+        consumed += 1;
+        if (consumed % 500 === 0) await sleep(1);
+      }
+      expect(consumed).toBe(CHUNK_COUNT * ITEMS_PER_CHUNK);
     },
     BENCH_OPTIONS,
   );
