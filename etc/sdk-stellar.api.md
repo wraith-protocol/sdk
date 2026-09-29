@@ -294,6 +294,11 @@ export function clearAssetMetadataCache(): void;
 // @public
 export function computeAnnouncementViewTag(ephemeralPubKey: Uint8Array, viewingPubKey: Uint8Array): number;
 
+// Warning: (ae-internal-missing-underscore) The name "computeEventIdentity" should be prefixed with an underscore because the declaration is marked as @internal
+//
+// @internal
+export function computeEventIdentity(event: Record<string, unknown>): EventIdentity | null;
+
 // @public
 export function computeSharedSecret(privateKey: Uint8Array, publicKey: Uint8Array): Uint8Array;
 
@@ -356,6 +361,15 @@ export function encodeSymbolTopic(symbol: string): string;
 export function encodeU32Topic(value: number): string;
 
 // @public
+export interface EventIdentity {
+    contractId: string;
+    id: string;
+    ledger: number;
+    topicsHash: string;
+    txHash: string;
+}
+
+// @public
 export function extractMemoFromTransaction(tx: {
     memo: Memo | xdr.Memo;
 }): TypedMemo;
@@ -368,6 +382,7 @@ export interface FetchAnnouncementsOptions {
     includeV1?: boolean;
     includeV2?: boolean;
     parallelism?: number;
+    seenEventIds?: Set<string>;
     sorobanUrl?: string;
     toLedger?: number;
     toTimestamp?: Date;

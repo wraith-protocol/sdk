@@ -6,6 +6,12 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
 
 ### Added
 
+- **Deterministic Event Identity and Cross-Chunk Deduplication**: Introduced stable event identity computation for Stellar announcements (#211). Breaking changes:
+  - Added `EventIdentity` interface and `computeEventIdentity()` function to compute deterministic event IDs from chain, transaction, ledger, contract, and topic data.
+  - Event identity is now independent of provider-specific event IDs, ensuring consistent deduplication across RPC providers and pagination boundaries.
+  - Added `seenEventIds` option to `FetchAnnouncementsOptions` to support cross-chunk deduplication by passing previously seen event identity hashes.
+  - Deduplication now uses deterministic SHA-256 hashes instead of provider-specific IDs or serialized topics.
+  - Exposed event identity metadata for callers to persist deduplication state across multiple scan sessions.
 - **Supported Runtime and Peer Dependency Matrix** (issue #209): `compat/matrix.json` is now the single source of truth for the runtimes the SDK supports — Node.js, Bun, evergreen browsers and React Native — and for the dependency ranges it accepts (`@stellar/stellar-sdk`, `@solana/web3.js`, `viem`).
   - [`COMPAT.md`](./COMPAT.md) is generated from that file and documents the unsupported combinations alongside the exact failure message each one produces.
   - `pnpm test:compat` validates the matrix against `package.json` and `COMPAT.md`, imports every entry point on the running runtime, repeats that against a simulated React Native global scope, bundles every entry point for `platform: browser`, imports every entry point from an install with the optional peers removed, and asserts the npm tarball contains every file the `exports` map points at.

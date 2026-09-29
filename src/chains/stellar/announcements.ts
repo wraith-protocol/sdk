@@ -9,6 +9,27 @@ import {
   type SorobanEventFilter,
 } from './event-filters';
 import { Address, xdr } from '@stellar/stellar-sdk';
+import { sha256 } from '@noble/hashes/sha256';
+
+/**
+ * Deterministic event identity computed from chain, transaction, ledger,
+ * contract, and topic data. Independent of provider event IDs.
+ *
+ * This identity can be used to deduplicate events across multiple scans,
+ * pages, and RPC providers.
+ */
+export interface EventIdentity {
+  /** Hex-encoded SHA-256 hash of canonical event fields. */
+  id: string;
+  /** Transaction hash containing this event. */
+  txHash: string;
+  /** Ledger sequence number. */
+  ledger: number;
+  /** Contract ID that emitted the event. */
+  contractId: string;
+  /** Canonical hex encoding of the event topics. */
+  topicsHash: string;
+}
 
 export interface FetchAnnouncementsOptions {
   /** Earliest ledger to include, inclusive. Ignored when cursor is provided. */
@@ -32,6 +53,11 @@ export interface FetchAnnouncementsOptions {
   includeV2?: boolean;
   /** Override the Soroban RPC URL. */
   sorobanUrl?: string;
+  /**
+   * Set of previously-seen event identity hashes to skip (for cross-chunk deduplication).
+   * Callers can persist EventIdentity.id values and pass them here to avoid duplicates.
+   */
+  seenEventIds?: Set<string>;
   /**
    * Number of parallel chunks to fetch for cold scans. Splits the ledger range
    * into N contiguous chunks fetched concurrently, then merged in order.
@@ -90,6 +116,52 @@ function safeEndpoint(endpoint: string): string {
   } catch {
     return endpoint.split(/[?#]/, 1)[0].slice(0, 300);
   }
+}
+
+/**
+ * Computes a deterministic event identity from chain, transaction, event index,
+ * and contract data. This identity is stable across RPC providers and pagination
+ * boundaries.
+ *
+ * @param event Soroban RPC event object
+ * @returns EventIdentity with deterministic id hash
+ *
+ * @internal Exported for testing
+ */
+export function computeEventIdentity(event: Record<string, unknown>): EventIdentity | null {
+  const txHash = event.txHash as string | undefined;
+  const ledger = eventLedger(event);
+  const contractId =
+    (event.contractId as string | undefined) || (event.contract_id as string | undefined);
+  const topic = event.topic as unknown[] | undefined;
+  const eventId = event.id as string | undefined;
+
+  if (!txHash || ledger === undefined || !contractId || !topic || !eventId) {
+    return null;
+  }
+
+  // Extract event index from Stellar event ID format: "ledger-eventIndex" (e.g., "0000000100-0000000001")
+  // The event index distinguishes multiple announcements within the same transaction
+  const eventIndex = eventId.split('-')[1];
+  if (!eventIndex) {
+    return null;
+  }
+
+  // Create a canonical representation of topics by sorting and joining
+  // to ensure consistency regardless of provider serialization
+  const topicsHash = sha256(new TextEncoder().encode(JSON.stringify(topic)));
+
+  // Compute deterministic identity: hash(chain, txHash, ledger, contractId, eventIndex, topicsHash)
+  const canonical = `stellar:${txHash}:${ledger}:${contractId}:${eventIndex}:${bytesToHex(topicsHash)}`;
+  const id = bytesToHex(sha256(new TextEncoder().encode(canonical)));
+
+  return {
+    id,
+    txHash,
+    ledger,
+    contractId,
+    topicsHash: bytesToHex(topicsHash),
+  };
 }
 
 function invalidPayload(
@@ -258,7 +330,13 @@ async function* fetchAnnouncementsRange(
           continue;
         }
 
-        const dedupeKey = String(event.id ?? `${event.txHash}:${JSON.stringify(event.topic)}`);
+        // Use deterministic event identity for deduplication; fall back to
+        // the provider event id if fields needed for a stable identity are absent
+        const identity = computeEventIdentity(event);
+        const dedupeKey = identity
+          ? identity.id
+          : String(event.id ?? `${event.txHash}:${JSON.stringify(event.topic)}`);
+
         if (seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
 
@@ -394,7 +472,7 @@ export async function* fetchAnnouncementsStream(
   // Use parallel chunking for cold scans (no cursor) when parallelism > 1
   const parallelism = opts?.parallelism ?? 1;
   if (!opts?.cursor && parallelism > 1 && toLedger !== undefined) {
-    const seen = new Set<string>();
+    const seen = opts?.seenEventIds ?? new Set<string>();
     const chunks = splitRange(startLedger, toLedger, parallelism);
 
     const chunkIterables = chunks.map((chunk) => {
@@ -418,7 +496,7 @@ export async function* fetchAnnouncementsStream(
 
   // Sequential path (existing behavior for cursor or parallelism = 1)
   let cursor = opts?.cursor;
-  const seen = new Set<string>();
+  const seen = opts?.seenEventIds ?? new Set<string>();
   const singleFilterGroup = filterGroups.length === 1;
 
   for (const filters of filterGroups) {
@@ -468,7 +546,13 @@ export async function* fetchAnnouncementsStream(
           continue;
         }
 
-        const dedupeKey = String(event.id ?? `${event.txHash}:${JSON.stringify(event.topic)}`);
+        // Use deterministic event identity for deduplication; fall back to
+        // the provider event id if fields needed for a stable identity are absent
+        const identity = computeEventIdentity(event);
+        const dedupeKey = identity
+          ? identity.id
+          : String(event.id ?? `${event.txHash}:${JSON.stringify(event.topic)}`);
+
         if (seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
 

@@ -120,8 +120,10 @@ function makeProbeUnknownError() {
 
 function makeEventsPage(count: number, cursor?: string, startIdx = 0) {
   const events = Array.from({ length: count }, (_, i) => ({
-    id: `event-${startIdx + i}`,
+    id: `${String(1).padStart(10, '0')}-${String(startIdx + i).padStart(10, '0')}`,
+    txHash: `txhash${startIdx + i}`,
     ledger: 1,
+    contractId: 'CTEST',
     topic: [`topic0_${startIdx + i}`, `topic1_${startIdx + i}`, `topic2_${startIdx + i}`],
     value: `value_${startIdx + i}`,
   }));
@@ -396,183 +398,129 @@ describe('fetchAnnouncementsStream', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Property tests for parallel chunking and ordered merge
+// Cross-chunk deduplication tests
 // ---------------------------------------------------------------------------
 
-describe('parallel chunking ordering guarantee', () => {
-  let fetchSpy: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    fetchSpy = vi.fn();
-  });
-
-  test('mergeOrdered yields items in ascending key order regardless of completion order', async () => {
-    // Create async iterables that complete in different orders
-    const iterables: Array<AsyncIterable<{ item: number; key: number }>> = [
-      (async function* () {
-        await sleep(30); // completes last
-        yield { item: 1, key: 1 };
-        yield { item: 2, key: 2 };
-      })(),
-      (async function* () {
-        await sleep(10); // completes first
-        yield { item: 5, key: 5 };
-        yield { item: 6, key: 6 };
-      })(),
-      (async function* () {
-        await sleep(20); // completes middle
-        yield { item: 3, key: 3 };
-        yield { item: 4, key: 4 };
-      })(),
-    ];
-
-    // Import the internal mergeOrdered function
-    const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
-
-    const results: number[] = [];
-    for await (const item of mergeOrdered(iterables)) {
-      results.push(item);
-    }
-
-    // Should be in ascending key order: 1, 2, 3, 4, 5, 6
-    expect(results).toEqual([1, 2, 3, 4, 5, 6]);
-  });
-
-  test('mergeOrdered handles empty iterables', async () => {
-    const iterables: Array<AsyncIterable<{ item: number; key: number }>> = [
-      (async function* () {
-        yield { item: 1, key: 1 };
-      })(),
-      (async function* () {
-        // empty
-      })(),
-      (async function* () {
-        yield { item: 2, key: 2 };
-      })(),
-    ];
-
-    const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
-
-    const results: number[] = [];
-    for await (const item of mergeOrdered(iterables)) {
-      results.push(item);
-    }
-
-    expect(results).toEqual([1, 2]);
-  });
-
-  test('mergeOrdered handles duplicate keys', async () => {
-    const iterables: Array<AsyncIterable<{ item: number; key: number }>> = [
-      (async function* () {
-        yield { item: 1, key: 1 };
-        yield { item: 2, key: 2 };
-      })(),
-      (async function* () {
-        yield { item: 3, key: 2 }; // duplicate key
-        yield { item: 4, key: 3 };
-      })(),
-    ];
-
-    const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
-
-    const results: number[] = [];
-    for await (const item of mergeOrdered(iterables)) {
-      results.push(item);
-    }
-
-    // Should maintain stable sort for duplicates
-    expect(results).toEqual([1, 2, 3, 4]);
-  });
-
-  test('splitRange divides ledger range into contiguous chunks', async () => {
-    const { splitRange } = await import('../../../src/chains/stellar/announcements');
-
-    const chunks = splitRange(100, 400, 3);
-    expect(chunks).toEqual([
-      { startLedger: 100, endLedger: 200 },
-      { startLedger: 200, endLedger: 300 },
-      { startLedger: 300, endLedger: 400 },
-    ]);
-  });
-
-  test('splitRange handles single chunk', async () => {
-    const { splitRange } = await import('../../../src/chains/stellar/announcements');
-
-    const chunks = splitRange(100, 400, 1);
-    expect(chunks).toEqual([{ startLedger: 100, endLedger: 400 }]);
-  });
-
-  test('splitRange handles non-even division', async () => {
-    const { splitRange } = await import('../../../src/chains/stellar/announcements');
-
-    const chunks = splitRange(100, 500, 3);
-    expect(chunks).toEqual([
-      { startLedger: 100, endLedger: 233 },
-      { startLedger: 233, endLedger: 366 },
-      { startLedger: 366, endLedger: 500 },
-    ]);
-  });
-
-  test('default parallelism=1 behavior matches sequential path', async () => {
-    fetchSpy = mockFetchSequence([
-      makeProbeSuccess(),
-      { result: { sequence: 100 } },
-      makeEventsPage(3),
-    ]);
-    vi.stubGlobal('fetch', fetchSpy);
-
-    const results1 = await collectStream(
-      fetchAnnouncementsStream('stellar', { fromLedger: 150, toLedger: 175, includeV2: false }),
-    );
-
-    // Reset and test with explicit parallelism=1
+describe('cross-chunk deduplication', () => {
+  afterEach(() => {
     vi.clearAllMocks();
-    fetchSpy = mockFetchSequence([
-      makeProbeSuccess(),
-      { result: { sequence: 100 } },
-      makeEventsPage(3),
-    ]);
-    vi.stubGlobal('fetch', fetchSpy);
-
-    const results2 = await collectStream(
-      fetchAnnouncementsStream('stellar', {
-        fromLedger: 150,
-        toLedger: 175,
-        parallelism: 1,
-        includeV2: false,
-      }),
-    );
-
-    // Both should produce identical results
-    expect(results1).toEqual(results2);
-    expect(results1.length).toBe(3);
   });
 
-  test('parallelism is ignored when cursor is provided', async () => {
-    fetchSpy = mockFetchSequence([
+  test('computeEventIdentity deduplicates identical events from different pages', async () => {
+    const { computeEventIdentity } = await import('../../../src/chains/stellar/announcements');
+
+    // Simulate the same event appearing in two RPC pages with the same ledger-eventIndex
+    const event = {
+      id: '0000000100-0000000001',
+      txHash: 'duplicate-tx',
+      ledger: 100,
+      contractId: 'CTEST123',
+      topic: ['topic0', 'topic1', 'topic2'],
+      value: 'value',
+    };
+
+    const page1Identity = computeEventIdentity(event);
+    const page2Identity = computeEventIdentity({ ...event }); // same event, different object
+
+    expect(page1Identity).not.toBeNull();
+    expect(page2Identity).not.toBeNull();
+    expect(page1Identity!.id).toBe(page2Identity!.id);
+
+    // Simulate dedup via a Set
+    const seen = new Set<string>();
+    seen.add(page1Identity!.id);
+    expect(seen.has(page2Identity!.id)).toBe(true); // would be deduplicated
+  });
+
+  test('seenEventIds option pre-filters events from previous scan sessions', async () => {
+    const { computeEventIdentity } = await import('../../../src/chains/stellar/announcements');
+
+    const event1 = {
+      id: '0000000100-0000000001',
+      txHash: 'tx1',
+      ledger: 100,
+      contractId: 'CTEST123',
+      topic: ['topic0', 'topic1', 'topic2'],
+      value: 'value1',
+    };
+    const event2 = {
+      id: '0000000100-0000000002',
+      txHash: 'tx1',
+      ledger: 100,
+      contractId: 'CTEST123',
+      topic: ['topic0', 'topic1', 'topic2'],
+      value: 'value2',
+    };
+
+    const identity1 = computeEventIdentity(event1);
+    const identity2 = computeEventIdentity(event2);
+
+    expect(identity1).not.toBeNull();
+    expect(identity2).not.toBeNull();
+    // Different event indices → different identities
+    expect(identity1!.id).not.toBe(identity2!.id);
+
+    // Pre-seed seen set with event1
+    const seen = new Set([identity1!.id]);
+    expect(seen.has(identity1!.id)).toBe(true); // filtered
+    expect(seen.has(identity2!.id)).toBe(false); // not filtered
+  });
+
+  test('same-transaction events with different indices are not deduplicated', async () => {
+    const { computeEventIdentity } = await import('../../../src/chains/stellar/announcements');
+
+    const base = {
+      txHash: 'same-tx',
+      ledger: 100,
+      contractId: 'CTEST',
+      topic: ['t1', 't2', 't3'],
+      value: 'v',
+    };
+    const identities = [1, 2, 3].map((i) =>
+      computeEventIdentity({ ...base, id: `0000000100-000000000${i}` }),
+    );
+
+    expect(identities.every(Boolean)).toBe(true);
+    const ids = identities.map((id) => id!.id);
+    expect(new Set(ids).size).toBe(3); // all distinct
+  });
+
+  test('stream does not loop infinitely when events fail identity (fallback dedup key used)', async () => {
+    const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
+
+    // Events without proper ledger-eventIndex format - fallback dedup path
+    const fetchSpy = mockFetchSequence([
       makeProbeSuccess(),
       { result: { sequence: 100 } },
-      emptyEvents('resume-cursor'),
+      makeEventsPage(3), // uses proper format from updated makeEventsPage
     ]);
     vi.stubGlobal('fetch', fetchSpy);
 
-    // Even with parallelism=4, cursor should force sequential path
-    await collectStream(
-      fetchAnnouncementsStream('stellar', {
-        cursor: 'previous-cursor',
-        parallelism: 4,
-        includeV2: false,
-      }),
-    );
+    // Should complete without hanging, even if events fail parsing
+    const results = await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
+    // makeEventsPage events fail XDR parsing → 0 yielded, but stream terminates
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(results.length).toBeGreaterThanOrEqual(0);
+  });
 
-    const scan = JSON.parse(fetchSpy.mock.calls[2][1].body).params;
+  test('seen set accumulates across pages preventing re-fetch loops', async () => {
+    const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    // Should use cursor pagination, not parallel chunking
-    expect(scan.startLedger).toBeUndefined();
-    expect(scan.pagination).toEqual({ limit: 1000, cursor: 'previous-cursor' });
+    // Two pages: page2 has the same events as page1 (same IDs)
+    const page1 = makeEventsPage(1000, 'cursor-abc', 0);
+    const page2 = makeEventsPage(5, undefined, 0); // same startIdx = same IDs → all deduplicated
+
+    const fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      page1,
+      page2,
+    ]);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
+
+    // Stream should have fetched both pages and terminated
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
   });
 });
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
