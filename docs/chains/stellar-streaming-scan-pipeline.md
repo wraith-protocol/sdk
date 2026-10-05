@@ -80,3 +80,29 @@ mechanism directly (a mock producer/consumer pair with matched I/O and CPU delay
 asserts the bounded-queue backpressure property with a fast producer paired with an
 artificially slow consumer, so both acceptance criteria run under `pnpm test`, not just the
 excluded `bench/` folder.
+
+## Bounding parallel cold scans
+
+`fetchAnnouncementsStream` can split a cold scan's ledger range into parallel
+chunks (`parallelism`), and `mergeOrdered` interleaves those chunk generators in
+ledger order. Both halves are now bounded:
+
+- **Concurrent chunks.** `parallelism` is a caller hint, clamped to
+  `[1, MAX_COLD_SCAN_PARALLELISM]` (`MAX_COLD_SCAN_PARALLELISM = 8`). Each chunk
+  keeps one `getEvents` page in flight, so without the cap a large hint would
+  start an unbounded number of concurrent RPC requests for no throughput gain on
+  a single I/O-bound endpoint.
+- **Buffered announcements.** `mergeOrdered` holds exactly one item per chunk
+  (`pending`) and only pulls from a chunk again after the consumer has read its
+  previous item. Memory is O(number of chunks), not O(scan size), so a slow
+  consumer cannot make a fast producer run ahead.
+- **Cancellation.** `mergeOrdered` closes **every** chunk iterator in a `finally`
+  block, so breaking out of the consumer's `for-await` (or `.return()`) reaches
+  the chunk that was in flight and the ones that had not yielded yet. Previously
+  only the delegated iterator chain unwound, leaving other chunk generators
+  suspended with a page requested.
+
+`test/chains/stellar/announcements.test.ts` covers all three: the clamp on an
+oversized `parallelism`, the per-chunk lead bound under a slow consumer, and
+cancellation closing every chunk iterator. `test/chains/stellar/bench/scan.bench.ts`
+adds a bounded-merge case under "Stellar cold-scan backpressure".
