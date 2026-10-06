@@ -573,6 +573,99 @@ describe('parallel chunking ordering guarantee', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// AbortSignal cancellation
+// ---------------------------------------------------------------------------
+
+describe('AbortSignal cancellation', () => {
+  test('pre-aborted signal throws AbortError before any RPC request', async () => {
+    const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
+    const spy = vi.fn();
+    vi.stubGlobal('fetch', spy);
+
+    const controller = new AbortController();
+    controller.abort();
+
+    const stream = fetchAnnouncementsStream('stellar', { signal: controller.signal });
+    await expect(stream.next()).rejects.toMatchObject({ name: 'AbortError' });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test('threads the signal into fetch and aborts an in-flight page request', async () => {
+    const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
+    const controller = new AbortController();
+
+    const blockingFetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      if (body.method === 'getEvents' && body.id === 0) {
+        return Promise.resolve({
+          json: async () => rpcEnvelope(makeProbeSuccess(), 0),
+        } as Response);
+      }
+      if (body.method === 'getLatestLedger') {
+        return Promise.resolve({
+          json: async () => rpcEnvelope({ result: { sequence: 100 } }, 1),
+        } as Response);
+      }
+      // Simulate a page request that stays in flight until it is aborted.
+      const signal = init?.signal;
+      return new Promise<Response>((_resolve, reject) => {
+        const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+        if (signal?.aborted) {
+          onAbort();
+          return;
+        }
+        signal?.addEventListener('abort', onAbort, { once: true });
+        setTimeout(() => controller.abort(), 0);
+      });
+    });
+    vi.stubGlobal('fetch', blockingFetch);
+
+    await expect(
+      collectStream(fetchAnnouncementsStream('stellar', { signal: controller.signal })),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    const pageCall = blockingFetch.mock.calls.find(
+      ([, init]) => JSON.parse(String(init?.body)).id === 2,
+    );
+    expect(pageCall).toBeDefined();
+    expect(pageCall?.[1]?.signal).toBe(controller.signal);
+  });
+
+  test('mergeOrdered closes every chunk iterator when the signal aborts', async () => {
+    const { mergeOrdered } = await import('../../../src/chains/stellar/announcements');
+    const controller = new AbortController();
+    let closed = 0;
+
+    const makeChunk = (start: number) =>
+      (async function* () {
+        try {
+          for (let i = 0; ; i++) {
+            await sleep(1);
+            yield { item: start + i, key: start + i };
+          }
+        } finally {
+          closed++;
+        }
+      })();
+
+    const iterables = [makeChunk(1), makeChunk(10), makeChunk(20)];
+    const seen: number[] = [];
+
+    await expect(
+      (async () => {
+        for await (const item of mergeOrdered(iterables, controller.signal)) {
+          seen.push(item);
+          if (seen.length === 2) controller.abort();
+        }
+      })(),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(seen).toHaveLength(2);
+    expect(closed).toBe(3);
+  });
+});
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -368,6 +368,7 @@ export interface FetchAnnouncementsOptions {
     includeV1?: boolean;
     includeV2?: boolean;
     parallelism?: number;
+    signal?: AbortSignal;
     sorobanUrl?: string;
     toLedger?: number;
     toTimestamp?: Date;
