@@ -114,7 +114,7 @@ pnpm build
 pnpm test:compat
 ```
 
-`pnpm test:compat` runs four checks, each in its own child process:
+`pnpm test:compat` runs five checks, each in its own child process:
 
 | Check                                    | What it does                                                                                                                                                                                               |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -122,6 +122,7 @@ pnpm test:compat
 | `verify-imports.mjs`                     | Detects the running runtime, refuses to continue with the documented message when it is unsupported, then imports every entry point and drives a stealth address flow on each chain module.                |
 | `verify-imports.mjs --mode=react-native` | Repeats the above against a simulated Hermes global scope (no `atob`, `btoa`, `TextEncoder`, `TextDecoder`) after calling `installReactNativePolyfills()`.                                                 |
 | `verify-package.mjs`                     | Bundles every entry point for `platform: browser`, imports every entry point from an install with the optional peers removed, and asserts the npm tarball contains every file the `exports` map points at. |
+| `verify-ssr-imports.mjs`                 | Imports every framework companion (`packages/sdk-*`) in a server-only Node process with `window`, `document`, storage and browser `crypto` trapped, then renders or instantiates its minimal SSR path.     |
 
 CI runs the suite on Node.js 20, 22 and 24 in the `compat` job, and runs the runtime check under Bun. The nightly `slow-tests` job still owns the long-running fuzz suites.
 

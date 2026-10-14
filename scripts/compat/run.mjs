@@ -6,6 +6,8 @@
 //   2. `verify-imports.mjs`   - every entry point imports and runs on this runtime.
 //   3. `verify-imports.mjs`   - the same, against a simulated React Native scope.
 //   4. `verify-package.mjs`   - browser bundling, optional peers, tarball contents.
+//   5. `verify-ssr-imports.mjs` - every framework companion imports and renders
+//                               server-side without touching browser globals.
 //
 // Requires `pnpm build` to have produced dist/ first, the same way CI runs it.
 
@@ -27,6 +29,7 @@ const steps = [
   ['Runtime imports', 'verify-imports.mjs', '--mode=auto'],
   ['React Native imports', 'verify-imports.mjs', '--mode=react-native'],
   ['Built package', 'verify-package.mjs'],
+  ['Framework SSR imports', 'verify-ssr-imports.mjs'],
 ];
 
 let failed = false;
