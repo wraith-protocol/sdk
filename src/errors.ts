@@ -258,6 +258,30 @@ export class RPCRequestError extends WraithNetworkError {
   }
 }
 
+/**
+ * Thrown when a Horizon endpoint answers 2xx but the body is malformed, oversized, or does not
+ * match the request (for example a path for a different asset than the one asked for).
+ */
+export class HorizonResponseError extends WraithNetworkError {
+  readonly code = 'WRAITH/NETWORK/HORIZON_RESPONSE';
+  /** Location of the rejected value in the response, e.g. `_embedded.records[0].source_amount`. */
+  readonly field: string;
+
+  constructor(url: string, field: string, reason: string) {
+    super(`Invalid Horizon response from "${url}" at ${field}: ${reason}`, { url, field, reason });
+    this.field = field;
+  }
+
+  describe(): string {
+    const { url, field } = this.context ?? {};
+    return (
+      `Horizon at "${url}" returned a response that failed validation at ${field}. ` +
+      `Try: check that the URL points to a Horizon server for the network you expect, or switch ` +
+      `Horizon providers. See ${this.docsLink}.`
+    );
+  }
+}
+
 export class RPCRetryExhaustedError extends WraithNetworkError {
   readonly code = 'WRAITH/NETWORK/RPC_RETRY_EXHAUSTED';
 

@@ -14,6 +14,7 @@ import {
   ViewTagMismatchError,
   ECDHFailedError,
   RPCRequestError,
+  HorizonResponseError,
   RPCRetryExhaustedError,
   RPCTimeoutError,
   RetentionExceededError,
@@ -106,6 +107,24 @@ describe('Wraith Custom Errors Taxonomy', () => {
     expect(error.code).toBe('WRAITH/CRYPTO/ECDH_FAILED');
     expect(error.name).toBe('ECDHFailedError');
     expect(error.context).toEqual({ reason: 'point off curve' });
+  });
+
+  test('HorizonResponseError instanceof checks', () => {
+    const error = new HorizonResponseError(
+      'https://horizon.stellar.org/paths/strict-receive',
+      '_embedded.records',
+      'missing or not an array',
+    );
+    expect(error).toBeInstanceOf(WraithNetworkError);
+    expect(error).toBeInstanceOf(HorizonResponseError);
+    expect(error.code).toBe('WRAITH/NETWORK/HORIZON_RESPONSE');
+    expect(error.name).toBe('HorizonResponseError');
+    expect(error.field).toBe('_embedded.records');
+    expect(error.context).toEqual({
+      url: 'https://horizon.stellar.org/paths/strict-receive',
+      field: '_embedded.records',
+      reason: 'missing or not an array',
+    });
   });
 
   // Test 3: Validate instanceof chain for WraithNetworkError and its subclasses
@@ -292,6 +311,10 @@ describe('Wraith Custom Errors Taxonomy', () => {
       ['ViewTagMismatchError', new ViewTagMismatchError(42, 24)],
       ['ECDHFailedError', new ECDHFailedError('point off curve')],
       ['RPCRequestError', new RPCRequestError('https://horizon.stellar.org', 404, 'Not Found')],
+      [
+        'HorizonResponseError',
+        new HorizonResponseError('https://horizon.stellar.org', 'body', 'not valid JSON'),
+      ],
       [
         'RPCRetryExhaustedError',
         new RPCRetryExhaustedError('https://horizon.stellar.org', 5, 'timeout'),

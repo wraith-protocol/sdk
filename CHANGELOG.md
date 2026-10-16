@@ -42,6 +42,12 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
 
 - **Stellar Streaming Scan Pipelining** (issue #126): `scanAnnouncementsStream` now pulls its `source` through a bounded pipeline (`src/chains/stellar/scanner/pipeline.ts`) instead of prefetching a strict window before scanning it, so RPC fetches for later pages overlap with CPU work scanning earlier ones. Peak memory stays O(window). `fetchAnnouncementsStream` and `scanAnnouncementsStream`'s public shapes are unchanged; the old windowed algorithm is retained as `scanAnnouncementsStreamSequential` for benchmark comparisons. See [`docs/chains/stellar-streaming-scan-pipeline.md`](./docs/chains/stellar-streaming-scan-pipeline.md) — measured 36% wall-clock reduction on the 10k-announcement canned benchmark.
 
+### Fixed
+
+- **Stellar `findStrictReceivePath` reads and validates real Horizon responses** (issue #236): the function now reads paths from Horizon's `_embedded.records` envelope instead of expecting a bare array, and sends the query parameters Horizon accepts (`source_assets` with `destination_asset_type` / `_code` / `_issuer`; the old `destination_asset` and dummy `source_account` made every live request fail with HTTP 400).
+  - Every record is validated before use: amounts, asset type / code / issuer, that the source and destination assets and `destination_amount` match the request, and a path of at most 5 hops. The body is read as a stream and abandoned past 256 KiB; responses over 100 records are rejected. The cheapest valid record is returned. An invalid `destAmount` now throws before the request, and the request uses the Horizon client's default timeouts (`RPCTimeoutError`).
+  - New `HorizonResponseError` (`WRAITH/NETWORK/HORIZON_RESPONSE`), exported from the package root, carries the URL and the rejected field. A non-2xx status now throws `RPCRequestError` instead of a plain `Error`.
+
 ### Changed
 
 - **Stellar Horizon and RPC Clients Time Out by Default** (issue #202): an attempt now fails after 10 s without response headers or 30 s in total, then retries or fails over, instead of waiting indefinitely. Pass `timeouts: { connectMs: 0, requestMs: 0 }` for the old behaviour, or longer values for slow calls such as Horizon transaction submission.

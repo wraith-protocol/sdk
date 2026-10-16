@@ -178,6 +178,16 @@ export interface FreighterWalletWatcher {
 // @public
 export function getTracer(): Tracer;
 
+// @public
+export class HorizonResponseError extends WraithNetworkError {
+    constructor(url: string, field: string, reason: string);
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/HORIZON_RESPONSE";
+    // (undocumented)
+    describe(): string;
+    readonly field: string;
+}
+
 // @public (undocumented)
 export function installReactNativePolyfills(): void;
 

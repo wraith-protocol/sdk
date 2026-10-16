@@ -90,6 +90,21 @@ interface StrictReceivePathResult {
 }
 ```
 
+#### How the Horizon response is read
+
+The request uses `source_assets` (never together with `source_account`, which Horizon rejects) and passes the destination asset as `destination_asset_type`, `destination_asset_code` and `destination_asset_issuer`.
+
+Horizon returns every path in one `_embedded.records` page; this endpoint is not paginated. Before a path is used, every record is checked:
+
+- the body is read as a stream and abandoned once it passes 256 KiB (or rejected up front when `Content-Length` says so), must be JSON, and holds at most 100 records;
+- `source_amount` and `destination_amount` are positive Stellar amounts (at most 7 decimals, within int64 stroops), and `destination_amount` equals `destAmount`;
+- the source and destination assets are exactly `sendAsset` and `receiveAsset`, and every asset has a type that matches its code and a valid issuer;
+- `path` is an array of at most 5 assets (the protocol limit for a path payment).
+
+The record with the smallest `source_amount` is returned. If any record fails a check, the whole response is rejected with `HorizonResponseError`.
+
+`destAmount` must itself be a positive amount with at most 7 decimals; anything else throws before Horizon is called. The request uses the same timeouts as the SDK's Horizon client (10 s for the response headers, 30 s in total) and throws `RPCTimeoutError` when one fires.
+
 ---
 
 ## Worked Examples
@@ -266,6 +281,15 @@ The recipient can claim the balance once they detect the announcement and derive
 ---
 
 ## Error Handling
+
+`findStrictReceivePath` throws:
+
+| Error                  | When                                                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `RPCRequestError`      | Horizon answers with a non-2xx status (`statusCode` and the start of the body are on the error).               |
+| `HorizonResponseError` | The response is too large, is not JSON, or a record fails validation. `error.field` names the rejected value.  |
+| `RPCTimeoutError`      | Horizon sends no headers within 10 s, or the whole request takes longer than 30 s.                             |
+| `Error`                | Horizon returns no path for the asset pair and amount, or `destAmount` is invalid (thrown before the request). |
 
 ### No payment path found
 
