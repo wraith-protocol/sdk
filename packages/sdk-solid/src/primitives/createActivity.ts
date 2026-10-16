@@ -1,6 +1,6 @@
 import { createSignal } from 'solid-js';
-import { Wraith, WraithAgent, Chain } from '@wraith-protocol/sdk';
-import type { WraithConfig, AgentConfig, AgentInfo, ChatResponse } from '@wraith-protocol/sdk';
+import { Wraith, WraithAgent, Chain } from '@wraith-protocol/sdk-agent';
+import type { WraithConfig, AgentConfig, AgentInfo, ChatResponse } from '@wraith-protocol/sdk-agent';
 
 /**
  * Solid primitive for managing Wraith agent activity (chat, balance, agent lifecycle).

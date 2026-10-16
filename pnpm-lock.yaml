@@ -594,6 +594,9 @@ importers:
       '@wraith-protocol/sdk':
         specifier: workspace:*
         version: link:../..
+      '@wraith-protocol/sdk-agent':
+        specifier: workspace:*
+        version: link:../sdk-agent
       solid-js:
         specifier: ^1.9.0
         version: 1.9.15
@@ -625,6 +628,9 @@ importers:
       '@wraith-protocol/sdk':
         specifier: workspace:*
         version: link:../..
+      '@wraith-protocol/sdk-agent':
+        specifier: workspace:*
+        version: link:../sdk-agent
     devDependencies:
       '@stellar/stellar-sdk':
         specifier: ^13.1.0
@@ -659,6 +665,9 @@ importers:
       '@wraith-protocol/sdk':
         specifier: workspace:*
         version: link:../..
+      '@wraith-protocol/sdk-agent':
+        specifier: workspace:*
+        version: link:../sdk-agent
       vue:
         specifier: ^3.5.0
         version: 3.5.39(typescript@5.9.3)
@@ -3251,6 +3260,7 @@ packages:
 
   '@wraith-protocol/sdk@file:':
     resolution: {directory: '', type: directory}
+    engines: {node: '>=20'}
     peerDependencies:
       '@solana/web3.js': ^1.95.0
       '@stellar/stellar-sdk': ^13.1.0

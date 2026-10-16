@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@wraith-protocol/sdk": "workspace:*",
+    "@wraith-protocol/sdk-agent": "workspace:*",
     "vue": "^3.5.0"
   },
   "devDependencies": {

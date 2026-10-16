@@ -7,7 +7,7 @@ import {
   type AgentConfig,
   type AgentInfo,
   type ChatResponse,
-} from '@wraith-protocol/sdk';
+} from '@wraith-protocol/sdk-agent';
 
 export function useWraith(config?: WraithConfig) {
   const client: Ref<Wraith | null> = ref(null);

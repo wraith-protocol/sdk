@@ -37,17 +37,14 @@ const SCENARIOS = {
   '@wraith-protocol/sdk-vue': 'vue',
 };
 
-// Companions whose server import is already broken, with the error it fails
-// with. `Wraith`, `WraithAgent` and `Chain` moved from `@wraith-protocol/sdk` to
-// `@wraith-protocol/sdk-agent` in #193, but these packages still import them
-// from the core, so Node refuses to link them. An entry must keep failing with
-// its message: once the import is fixed this check fails until the entry is
-// removed, which turns the SSR render back on for that package.
-const KNOWN_IMPORT_FAILURES = {
-  '@wraith-protocol/sdk-solid': /does not provide an export named '(Wraith|WraithAgent|Chain)'/,
-  '@wraith-protocol/sdk-svelte': /does not provide an export named '(Wraith|WraithAgent|Chain)'/,
-  '@wraith-protocol/sdk-vue': /does not provide an export named '(Wraith|WraithAgent|Chain)'/,
-};
+// Companions whose server import is known to be broken, mapped to the error it
+// fails with, so a pre-existing failure does not mask a new one. Empty today:
+// the Vue, Svelte and Solid companions import `Wraith`, `WraithAgent` and
+// `Chain` from `@wraith-protocol/sdk-agent` (where #193 moved them) and link
+// cleanly again. An entry must keep failing with its message: once the import
+// is fixed this check fails until the entry is removed, which turns the SSR
+// render back on for that package.
+const KNOWN_IMPORT_FAILURES = {};
 
 let failed = 0;
 

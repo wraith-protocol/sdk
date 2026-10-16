@@ -9,5 +9,5 @@ export default defineConfig({
   splitting: true,
   clean: true,
   treeshake: true,
-  external: ['svelte', '@wraith-protocol/sdk'],
+  external: ['svelte', '@wraith-protocol/sdk', '@wraith-protocol/sdk-agent'],
 });

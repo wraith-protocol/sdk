@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@wraith-protocol/sdk": "workspace:*",
+    "@wraith-protocol/sdk-agent": "workspace:*",
     "solid-js": "^1.9.0"
   },
   "peerDependencies": {

@@ -9,5 +9,5 @@ export default defineConfig({
   splitting: true,
   clean: true,
   treeshake: true,
-  external: ['vue', '@wraith-protocol/sdk'],
+  external: ['vue', '@wraith-protocol/sdk', '@wraith-protocol/sdk-agent'],
 });
