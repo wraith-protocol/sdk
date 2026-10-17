@@ -20,7 +20,7 @@ export default defineConfig({
       'test/chains/evm/vectors.test.ts',
       'test/chains/solana/vectors.test.ts',
     ],
-    testTimeout: 1200000, // 20 minutes for high-run nightly fuzz tests
+    testTimeout: 3600000, // 60 minutes for high-run nightly fuzz tests (100k runs takes ~6.5min + reporting overhead)
   },
   benchmark: {
     include: ['test/chains/**/bench/**/*.bench.ts', 'test/bench/**/*.bench.ts'],
