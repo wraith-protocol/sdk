@@ -77,6 +77,13 @@ export function decodeStealthMetaAddress(metaAddress: string): StealthMetaAddres
     );
   }
 
+  if (!/^[0-9a-fA-F]{128}$/.test(hex)) {
+    throw new InvalidMetaAddressError(
+      metaAddress,
+      'Invalid stealth meta-address hex. Expected 128 hexadecimal chars',
+    );
+  }
+
   const spendingPubKey = hexToBytes(hex.slice(0, 64));
   const viewingPubKey = hexToBytes(hex.slice(64));
 
