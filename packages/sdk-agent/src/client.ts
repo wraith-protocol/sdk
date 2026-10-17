@@ -10,12 +10,54 @@ import type {
   Payment,
   Notification,
   Conversation,
+  RequestOptions,
 } from './types';
 import { Chain } from './types';
 
 export { AgentResponseError, RPCRequestError };
 
 const DEFAULT_BASE_URL = 'https://api.wraith.dev';
+const DEFAULT_TIMEOUT_MS = 30_000;
+const MAX_RESPONSE_BYTES = 1024 * 1024;
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+async function readResponseText(response: Response, url: string): Promise<string> {
+  const contentLength = Number(response.headers.get('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > MAX_RESPONSE_BYTES) {
+    await response.body?.cancel();
+    throw new AgentResponseError(url, 'body', 'exceeds maximum size');
+  }
+
+  if (!response.body) return '';
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw new AgentResponseError(url, 'body', 'exceeds maximum size');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -185,41 +227,74 @@ function validateChatResponse(payload: unknown, url: string): ChatResponse {
 export class Wraith {
   private readonly apiKey: string;
   private readonly baseUrl: string;
+  private readonly timeoutMs: number;
   private readonly aiConfig?: { provider: string; apiKey: string };
 
   constructor(config: WraithConfig) {
     this.apiKey = config.apiKey;
     this.baseUrl = (config.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '');
+    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    if (
+      !Number.isFinite(this.timeoutMs) ||
+      this.timeoutMs <= 0 ||
+      this.timeoutMs > MAX_TIMEOUT_MS
+    ) {
+      throw new RangeError(`timeoutMs must be between 0 and ${MAX_TIMEOUT_MS}`);
+    }
     this.aiConfig = config.ai;
   }
 
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    options: RequestOptions = {},
+  ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const res = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-        ...(this.aiConfig
-          ? { 'X-AI-Provider': this.aiConfig.provider, 'X-AI-Key': this.aiConfig.apiKey }
-          : {}),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    if (!res.ok) {
-      const error = (await res.json().catch(() => null)) as unknown;
-      const message =
-        isRecord(error) && typeof error.message === 'string' && error.message.length > 0
-          ? error.message
-          : res.statusText;
-      throw new RPCRequestError(url, res.status, message);
+    const controller = new AbortController();
+    let timedOut = false;
+    const abortFromCaller = () => controller.abort(options.signal?.reason);
+    if (options.signal?.aborted) {
+      abortFromCaller();
+    } else {
+      options.signal?.addEventListener('abort', abortFromCaller, { once: true });
     }
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, this.timeoutMs);
 
     try {
-      return (await res.json()) as T;
-    } catch {
-      throw new AgentResponseError(url, 'body', 'not valid JSON');
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+          ...(this.aiConfig
+            ? { 'X-AI-Provider': this.aiConfig.provider, 'X-AI-Key': this.aiConfig.apiKey }
+            : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        await res.body?.cancel();
+        throw new RPCRequestError(url, res.status);
+      }
+
+      const text = await readResponseText(res, url);
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        throw new AgentResponseError(url, 'body', 'not valid JSON');
+      }
+    } catch (error) {
+      if (timedOut) throw new Error(`Request timed out after ${this.timeoutMs}ms`);
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+      options.signal?.removeEventListener('abort', abortFromCaller);
     }
   }
 
@@ -230,8 +305,8 @@ export class Wraith {
    * @returns A WraithAgent instance to control the new agent.
    * @throws {RPCRequestError} If the server returns a non-2xx status code.
    */
-  async createAgent(config: AgentConfig): Promise<WraithAgent> {
-    const info = await this.request<AgentInfo>('POST', '/agent/create', config);
+  async createAgent(config: AgentConfig, options?: RequestOptions): Promise<WraithAgent> {
+    const info = await this.request<AgentInfo>('POST', '/agent/create', config, options);
     return new WraithAgent(this, info);
   }
 
@@ -252,8 +327,13 @@ export class Wraith {
    * @returns A WraithAgent instance.
    * @throws {RPCRequestError} If the server returns a non-2xx status code.
    */
-  async getAgentByWallet(walletAddress: string): Promise<WraithAgent> {
-    const info = await this.request<AgentInfo>('GET', `/agent/wallet/${walletAddress}`);
+  async getAgentByWallet(walletAddress: string, options?: RequestOptions): Promise<WraithAgent> {
+    const info = await this.request<AgentInfo>(
+      'GET',
+      `/agent/wallet/${walletAddress}`,
+      undefined,
+      options,
+    );
     return new WraithAgent(this, info);
   }
 
@@ -264,8 +344,8 @@ export class Wraith {
    * @returns A WraithAgent instance.
    * @throws {RPCRequestError} If the server returns a non-2xx status code.
    */
-  async getAgentByName(name: string): Promise<WraithAgent> {
-    const info = await this.request<AgentInfo>('GET', `/agent/info/${name}`);
+  async getAgentByName(name: string, options?: RequestOptions): Promise<WraithAgent> {
+    const info = await this.request<AgentInfo>('GET', `/agent/info/${name}`, undefined, options);
     return new WraithAgent(this, info);
   }
 
@@ -275,13 +355,13 @@ export class Wraith {
    * @returns List of AgentInfo objects.
    * @throws {RPCRequestError} If the server returns a non-2xx status code.
    */
-  async listAgents(): Promise<AgentInfo[]> {
-    return this.request<AgentInfo[]>('GET', '/agents');
+  async listAgents(options?: RequestOptions): Promise<AgentInfo[]> {
+    return this.request<AgentInfo[]>('GET', '/agents', undefined, options);
   }
 
   /** @internal Exposed for WraithAgent to use. */
-  _request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    return this.request<T>(method, path, body);
+  _request<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.request<T>(method, path, body, options);
   }
 
   /** @internal Returns the normalized base URL for error reporting. */
@@ -299,34 +379,43 @@ export class WraithAgent {
     this.info = info;
   }
 
-  private req<T>(method: string, path: string, body?: unknown): Promise<T> {
-    return this.wraith._request<T>(method, `/agent/${this.info.id}${path}`, body);
+  private req<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    options?: RequestOptions,
+  ): Promise<T> {
+    return this.wraith._request<T>(method, `/agent/${this.info.id}${path}`, body, options);
   }
 
   private endpointUrl(path: string): string {
     return `${this.wraith._getBaseUrl()}/agent/${this.info.id}${path}`;
   }
 
-  async chat(message: string, conversationId?: string): Promise<ChatResponse> {
+  async chat(
+    message: string,
+    conversationId?: string,
+    options?: RequestOptions,
+  ): Promise<ChatResponse> {
     const path = '/chat';
-    const data = await this.req<unknown>('POST', path, { message, conversationId });
+    const data = await this.req<unknown>('POST', path, { message, conversationId }, options);
     return validateChatResponse(data, this.endpointUrl(path));
   }
 
-  async getStatus(): Promise<AgentStatus> {
+  async getStatus(options?: RequestOptions): Promise<AgentStatus> {
     const path = '/status';
-    const data = await this.req<unknown>('GET', path);
+    const data = await this.req<unknown>('GET', path, undefined, options);
     return validateAgentStatus(data, this.endpointUrl(path));
   }
 
-  async getBalance(): Promise<Balance> {
-    const status = await this.getStatus();
+  async getBalance(options?: RequestOptions): Promise<Balance> {
+    const status = await this.getStatus(options);
     return { native: status.balance, tokens: status.tokens };
   }
 
-  async scanPayments(): Promise<Payment[]> {
+  async scanPayments(options?: RequestOptions): Promise<Payment[]> {
     const url = this.endpointUrl('/chat');
-    const res = await this.chat('Scan for incoming stealth payments');
+    const res = await this.chat('Scan for incoming stealth payments', undefined, options);
     const payments: Payment[] = [];
 
     for (const [index, tc] of (res.toolCalls ?? []).entries()) {
@@ -337,31 +426,40 @@ export class WraithAgent {
     return payments;
   }
 
-  async exportKey(signature: string, message: string): Promise<{ secret: string }> {
-    return this.req<{ secret: string }>('POST', '/export', { signature, message });
+  async exportKey(
+    signature: string,
+    message: string,
+    options?: RequestOptions,
+  ): Promise<{ secret: string }> {
+    return this.req<{ secret: string }>('POST', '/export', { signature, message }, options);
   }
 
-  async getConversations(): Promise<Conversation[]> {
-    return this.req<Conversation[]>('GET', '/conversations');
+  async getConversations(options?: RequestOptions): Promise<Conversation[]> {
+    return this.req<Conversation[]>('GET', '/conversations', undefined, options);
   }
 
-  async getMessages(conversationId: string): Promise<Array<{ role: string; text: string }>> {
-    return this.req('GET', `/conversations/${conversationId}/messages`);
+  async getMessages(
+    conversationId: string,
+    options?: RequestOptions,
+  ): Promise<Array<{ role: string; text: string }>> {
+    return this.req('GET', `/conversations/${conversationId}/messages`, undefined, options);
   }
 
-  async deleteConversation(conversationId: string): Promise<void> {
-    await this.req('DELETE', `/conversations/${conversationId}`);
+  async deleteConversation(conversationId: string, options?: RequestOptions): Promise<void> {
+    await this.req('DELETE', `/conversations/${conversationId}`, undefined, options);
   }
 
-  async getNotifications(): Promise<{ notifications: Notification[]; unreadCount: number }> {
-    return this.req('GET', '/notifications');
+  async getNotifications(
+    options?: RequestOptions,
+  ): Promise<{ notifications: Notification[]; unreadCount: number }> {
+    return this.req('GET', '/notifications', undefined, options);
   }
 
-  async markNotificationsRead(): Promise<void> {
-    await this.req('POST', '/notifications/read', {});
+  async markNotificationsRead(options?: RequestOptions): Promise<void> {
+    await this.req('POST', '/notifications/read', {}, options);
   }
 
-  async clearNotifications(): Promise<void> {
-    await this.req('DELETE', '/notifications');
+  async clearNotifications(options?: RequestOptions): Promise<void> {
+    await this.req('DELETE', '/notifications', undefined, options);
   }
 }

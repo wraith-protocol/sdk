@@ -152,7 +152,18 @@ beforeAll(async () => {
 
     if (req.url === '/error-test') {
       res.statusCode = 400;
-      res.end(JSON.stringify({ message: 'Bad request' }));
+      res.end(JSON.stringify({ message: 'provider response secret' }));
+      return;
+    }
+
+    if (req.url === '/slow') {
+      const timer = setTimeout(() => res.end(JSON.stringify({ ok: true })), 250);
+      res.on('close', () => clearTimeout(timer));
+      return;
+    }
+
+    if (req.url === '/oversized') {
+      res.end(' '.repeat(1024 * 1024 + 1));
       return;
     }
 
@@ -242,11 +253,37 @@ describe('Wraith', () => {
     expect(agent.info.id).toBe(AGENT_ID);
   });
 
-  test('HTTP error throws RPCRequestError with server message', async () => {
+  test('HTTP errors do not expose provider response payloads', async () => {
     const wraith = new Wraith({ apiKey: TEST_API_KEY, baseUrl });
 
     await expect(wraith._request('GET', '/error-test')).rejects.toThrow(RPCRequestError);
-    await expect(wraith._request('GET', '/error-test')).rejects.toThrow('Bad request');
+    await expect(wraith._request('GET', '/error-test')).rejects.not.toThrow(
+      'provider response secret',
+    );
+  });
+
+  test('caller cancellation aborts an in-flight request', async () => {
+    const wraith = new Wraith({ apiKey: TEST_API_KEY, baseUrl });
+    const controller = new AbortController();
+    const request = wraith._request('GET', '/slow', undefined, { signal: controller.signal });
+    setTimeout(() => controller.abort(), 10);
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  test('requests time out after the configured duration', async () => {
+    const wraith = new Wraith({ apiKey: TEST_API_KEY, baseUrl, timeoutMs: 10 });
+
+    await expect(wraith._request('GET', '/slow')).rejects.toThrow('Request timed out after 10ms');
+  });
+
+  test('oversized JSON responses are rejected', async () => {
+    const wraith = new Wraith({ apiKey: TEST_API_KEY, baseUrl });
+
+    await expect(wraith._request('GET', '/oversized')).rejects.toMatchObject({
+      name: 'AgentResponseError',
+      field: 'body',
+    });
   });
 });
 
