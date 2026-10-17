@@ -330,6 +330,25 @@ try {
 }
 ```
 
+### Stellar `.wraith` Name Resolution
+
+`resolveStellarName` simulates `resolve(name)` against the configured Soroban `wraith-names` contract and decodes the 64-byte `(spendingPubKey || viewingPubKey)` payload into a validated `st:xlm:...` stealth meta-address. Both `@wraith-protocol/sdk-react` and `@wraith-protocol/sdk-svelte` delegate `useStellarName` to this core resolver with `AbortSignal` cancellation and typed errors.
+
+- **Name normalization (`normalizeStellarName`)**: Strips a trailing `.wraith` suffix and validates `3..=32` characters, lowercase ASCII alphanumeric labels (`a-z`, `0-9`), and at most one subdomain level (`sub.parent`). Malformed inputs reject before any RPC call with `InvalidNameError`.
+- **Network semantics**: Accepts `'testnet'` or `'stellar'` (pointing to the configured Stellar testnet deployment). Requesting an unconfigured network or a mismatched `networkPassphrase` rejects with `WalletWrongNetworkError`.
+- **Cache semantics**: Positive resolutions (`st:xlm:...`) are cached in memory for `DEFAULT_STELLAR_NAME_TTL_MS` (5 minutes) keyed by `network:rpcUrl:contractId:normalizedName`. Unregistered names (`null`) and errors are never cached so newly registered names resolve immediately. Pass `{ bypassCache: true }`, `{ ttlMs: 0 }`, or call `clearStellarNameCache()` to force a fresh Soroban RPC read.
+- **Cancellation**: Pass `{ signal }` to cancel an in-flight simulation; aborted requests reject with `RPCAbortedError`.
+
+```ts
+import { resolveStellarName, clearStellarNameCache } from '@wraith-protocol/sdk/chains/stellar';
+
+const metaAddress = await resolveStellarName('alice.wraith', 'testnet', {
+  bypassCache: false,
+  signal: controller.signal,
+});
+// => "st:xlm:..." or null if unregistered
+```
+
 ## CKB (Nervos) Stealth Addresses
 
 Stealth address cryptography for CKB using secp256k1 with blake2b hashing. CKB uses a UTXO-based Cell model where the Cell itself is the announcement. No separate announcer contract needed.

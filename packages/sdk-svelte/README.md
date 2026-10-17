@@ -61,6 +61,28 @@ Reactive Wraith API client.
 {/if}
 ```
 
+### `useStellarName`
+
+Resolves a Stellar `.wraith` name through the core `resolveStellarName` helper against the configured Soroban `wraith-names` contract, with positive-only in-memory TTL caching (5 minutes by default), `AbortController` cancellation (`abort()` / `dispose()`), and typed `WraithError` instances (`InvalidNameError`, `InvalidMetaAddressError`, `WalletWrongNetworkError`, `RPCAbortedError`).
+
+```svelte
+<script lang="ts">
+  import { onDestroy } from 'svelte';
+  import { useStellarName } from '@wraith-protocol/sdk-svelte';
+
+  const { address, loading, error, resolve, abort } = useStellarName('alice.wraith', 'testnet');
+  onDestroy(() => abort());
+</script>
+
+{#if $loading}
+  <p>Resolving...</p>
+{:else if $error}
+  <p>Error: {$error.message}</p>
+{:else}
+  <p>Meta-address: {$address ?? 'Not registered'}</p>
+{/if}
+```
+
 ### `useEvmStealthKeys`
 
 ```svelte
