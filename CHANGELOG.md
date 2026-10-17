@@ -55,6 +55,10 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
 
 ### Changed
 
+- **Stellar Announcements Emit Scheme 2** (issue #234): `buildStealthAnnouncement()`, `buildPathStealthPayment()`, `buildStellarSwapAndStealth()`, `buildAnnouncementData()` and `encodeAnnouncementData()` now emit scheme `2`, the only value the deployed v2 announcer accepts; they sent `1`. The new `ACTIVE_SCHEME_ID` export is the single source of truth. The v1 announcer accepts any scheme id, so v1 deployments keep working.
+  - `scanAnnouncementsLegacySharedSecretTag()` now accepts v2 announcements, like the other scanners.
+  - `SCHEME_ID` (still `1`) is deprecated in favour of `SCHEME_ID_V1` and `ACTIVE_SCHEME_ID`.
+  - A builder-to-contract conformance test checks every builder against the announcer ABI from wraith-protocol/contracts. See [`MIGRATING.md`](./MIGRATING.md#stellar-announcements-use-scheme-2).
 - **Stellar Helper Errors Use the Taxonomy** (issue #235): for a non-2xx Horizon status, `buildMultisigStealthWithdraw()` throws `RPCRequestError` instead of a plain `Error`, and an account record without its sequence, thresholds or signers throws `HorizonResponseError`. `submitOfflineStellarTransaction()` reports the full `/transactions` URL on `RPCRequestError`, throws `HorizonResponseError` for a success body that is not a JSON object, and gives up after 60 s by default; pass `{ timeouts: { requestMs: 0 } }` for the old behaviour.
 - **Stellar Horizon and RPC Clients Time Out by Default** (issue #202): an attempt now fails after 10 s without response headers or 30 s in total, then retries or fails over, instead of waiting indefinitely. Pass `timeouts: { connectMs: 0, requestMs: 0 }` for the old behaviour, or longer values for slow calls such as Horizon transaction submission.
 - **Stellar Chain Module Cryptographic Audit Fixes**: Applied all findings from independent cryptographic audit (issue #55). Breaking changes:

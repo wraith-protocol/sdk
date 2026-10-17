@@ -11,20 +11,39 @@ export const STEALTH_SIGNING_MESSAGE =
   'Sign this message to generate your Wraith stealth keys.\n\nChain: Stellar\nNote: This signature is used for key derivation only and does not authorize any transaction.';
 
 /**
- * Scheme identifier used by Stellar announcements for ed25519 stealth addresses (v1 layout).
+ * Scheme identifier of the v1 Stellar announcement layout.
  *
- * Announcements with another scheme id are ignored by the Stellar scanner unless they
- * use {@link SCHEME_ID_V2}.
+ * @deprecated The name reads like the scheme the SDK emits, but it is the v1 value. Use
+ * {@link SCHEME_ID_V1} for the legacy layout, or {@link ACTIVE_SCHEME_ID} for the scheme the
+ * announcement builders emit.
  *
  * @see {@link scanAnnouncements}
  */
 export const SCHEME_ID = 1;
 
-/** Alias for {@link SCHEME_ID} — v1 announcer event schema. */
-export const SCHEME_ID_V1 = SCHEME_ID;
+/**
+ * Scheme id of the v1 Stellar announcement layout. The v1 announcer emits
+ * `("announce", scheme_id, stealth_address)` topics and accepts any scheme id.
+ */
+export const SCHEME_ID_V1 = 1;
 
-/** Scheme ID for the v2 announcer with indexed view-tag bucket topics. */
+/**
+ * Scheme id of the v2 announcer, which emits indexed view-tag bucket topics and accepts only
+ * this value.
+ */
 export const SCHEME_ID_V2 = 2;
+
+/**
+ * Scheme id the Stellar announcement builders emit, and the single source of truth for it:
+ * `buildStealthAnnouncement()`, `buildPathStealthPayment()`, `buildStellarSwapAndStealth()`,
+ * `buildAnnouncementData()` and `encodeAnnouncementData()` all read it.
+ *
+ * It is {@link SCHEME_ID_V2}, the only value the deployed v2 announcer accepts
+ * (`STELLAR_V2_SCHEME_ID` in wraith-protocol/contracts). The legacy v1 announcer accepts any
+ * scheme id, so the same calls also work against a v1 deployment. The scanners accept both
+ * {@link SCHEME_ID_V1} and {@link SCHEME_ID_V2}.
+ */
+export const ACTIVE_SCHEME_ID = SCHEME_ID_V2;
 
 /** Soroban event topic-0 symbol for stealth announcements. */
 export const ANNOUNCE_EVENT_SYMBOL = 'announce';
