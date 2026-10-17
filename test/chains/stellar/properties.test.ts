@@ -20,7 +20,9 @@ const FC_SEED = process.env.FC_SEED ? parseInt(process.env.FC_SEED, 10) : undefi
 const configure = () => {
   if (FC_SEED !== undefined) {
     console.log(`\n🔬 Using fixed seed: ${FC_SEED}`);
-    console.log(`   Replay with: FC_SEED=${FC_SEED} FC_RUNS=${FC_RUNS} pnpm test test/chains/stellar/properties.test.ts\n`);
+    console.log(
+      `   Replay with: FC_SEED=${FC_SEED} FC_RUNS=${FC_RUNS} pnpm test test/chains/stellar/properties.test.ts\n`,
+    );
     return { seed: FC_SEED };
   }
   return {};
@@ -29,11 +31,11 @@ const configure = () => {
 // Custom error handler to capture seed on failure
 const onFailure = (error: Error, seed: number) => {
   console.error(`\n❌ Property test failed with seed: ${seed}`);
-  console.error(`   Replay with: FC_SEED=${seed} FC_RUNS=${FC_RUNS} pnpm test test/chains/stellar/properties.test.ts\n`);
+  console.error(
+    `   Replay with: FC_SEED=${seed} FC_RUNS=${FC_RUNS} pnpm test test/chains/stellar/properties.test.ts\n`,
+  );
   throw error;
 };
-
-
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
