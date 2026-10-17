@@ -16,6 +16,9 @@ import { TransactionBuilder } from '@stellar/stellar-sdk';
 import { xdr } from '@stellar/stellar-sdk';
 
 // @public
+export const ACTIVE_SCHEME_ID = 2;
+
+// @public
 export function addStealthMultisigSigner(tx: Transaction, signerKey: Keypair | string): Transaction;
 
 // @public
@@ -665,7 +668,7 @@ export function scanAnnouncementsStream(source: AsyncIterable<Announcement>, vie
     tracer?: Tracer;
 }): AsyncGenerator<MatchedAnnouncement>;
 
-// @public
+// @public @deprecated
 export const SCHEME_ID = 1;
 
 // @public
