@@ -13,6 +13,10 @@ announcer events and the privacy trade-offs of RPC topic filtering.
 During the v1 → v2 migration window, `fetchAnnouncements()` reads from **both**
 contracts when `announcerV2` is configured in deployments.
 
+The builders emit `ACTIVE_SCHEME_ID` (`2`) to whichever announcer you pass. The v1
+contract accepts any scheme id, so v1-layout events carry scheme `1` (older SDKs)
+or `2`. The parser picks the layout from the topic count, not from the scheme id.
+
 ## Bucketed `getEvents` queries (v2)
 
 For v2 announcements, the SDK builds Soroban RPC filters:

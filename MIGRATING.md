@@ -238,6 +238,31 @@ See [Stellar Horizon and RPC request timeouts](./docs/chains/stellar-request-tim
 
 ---
 
+### Stellar: Announcements Use Scheme 2
+
+The deployed v2 announcer (`stealth-announcer` in wraith-protocol/contracts) accepts only `scheme_id = 2`, but the builders sent `1`. They now all emit `ACTIVE_SCHEME_ID`, which is `SCHEME_ID_V2` (`2`):
+
+- `buildStealthAnnouncement()`, `buildPathStealthPayment()` and `buildStellarSwapAndStealth()` pass it to `announce()`.
+- `buildAnnouncementData()` returns it as `schemeId`, and `encodeAnnouncementData()` writes it into byte 0.
+
+What it means if you still use the v1 announcer or v1 events:
+
+- **Sending to a v1 announcer still works.** The v1 contract accepts any scheme id, so the same calls succeed. Its events keep the v1 layout `("announce", scheme_id, stealth_address)`, now with `scheme_id = 2`.
+- **The scanners accept both.** `scanAnnouncements()` and the other Stellar scanners keep v1 (`1`) and v2 (`2`) announcements. If your own indexer or filter keeps only `schemeId === 1`, accept `2` as well, or it will miss new payments.
+- **Old events are not reinterpreted.** The SDK picks the v1 or v2 parser from the topic layout (3 or 4 topics), not from the scheme id, so historical v1 events stay v1 events.
+- **`SCHEME_ID` is deprecated.** It is still `1`. Use `SCHEME_ID_V1` when you mean the legacy layout and `ACTIVE_SCHEME_ID` when you mean the scheme the SDK emits.
+
+```typescript
+import { SCHEME_ID_V1, SCHEME_ID_V2 } from '@wraith-protocol/sdk/chains/stellar';
+
+const isStellarStealthAnnouncement = (schemeId: number) =>
+  schemeId === SCHEME_ID_V1 || schemeId === SCHEME_ID_V2;
+```
+
+`test/chains/stellar/announcer-conformance.test.ts` checks every builder against the announcer ABI vendored in `test/chains/stellar/fixtures/stealth-announcer-v2.json`.
+
+---
+
 ### Scanner Pool API
 
 The SDK now includes a `ScannerPool` utility for efficient multichain scanning. While this is an **additive feature** (no breaking changes), be aware of the new export:
