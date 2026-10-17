@@ -65,6 +65,46 @@ const k = deriveKeys(signature);
 const addr = generateAddress(k.spendingPubKey, k.viewingPubKey);
 ```
 
+### `useScanner`
+
+Typed announcement scanner. Fetch options are a discriminated union by chain, and scan inputs pair each chain with its own key material, so mismatches are compile-time errors in TypeScript and `TypeError`s at runtime.
+
+```ts
+import { useScanner } from '@wraith-protocol/sdk-vue';
+
+const scanner = useScanner('stellar');
+
+// One cancellation shape for every chain.
+const controller = new AbortController();
+const announcements = await scanner.fetchAnnouncements({
+  chain: 'stellar',
+  fromLedger: 100,
+  signal: controller.signal,
+});
+
+const matched = scanner.scanAnnouncements({
+  chain: 'stellar',
+  announcements,
+  keys, // StellarStealthKeys
+});
+```
+
+`useScanner` aborts in-flight work when its effect scope is disposed (component unmount), when `setChain` changes the chain, and when a new scan starts. Superseded scans reject with `AbortError` and never update the refs. `dispose()` aborts on demand.
+
+### `useActivity`
+
+Builds activity events from the same chain-discriminated scan inputs.
+
+```ts
+import { useActivity } from '@wraith-protocol/sdk-vue';
+
+const activity = useActivity();
+await activity.scanAnnouncements([
+  { chain: 'evm', announcements: evmAnnouncements, keys: evmKeys },
+  { chain: 'stellar', announcements: stellarAnnouncements, keys: stellarKeys },
+]);
+```
+
 ### `useStealthMetaAddress`
 
 Multi-chain meta address encode/decode.

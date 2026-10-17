@@ -18,11 +18,13 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:types": "tsc --noEmit -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@wraith-protocol/sdk": "workspace:*",
+    "@wraith-protocol/sdk-agent": "workspace:*",
     "vue": "^3.5.0"
   },
   "devDependencies": {

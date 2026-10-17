@@ -17,3 +17,17 @@ export function getUnknownErrorMessage(err: unknown): string {
     return String(err);
   }
 }
+
+/**
+ * Returns `true` when a thrown value is a cancellation.
+ *
+ * Both `DOMException` aborts from `AbortSignal` and errors whose `name` is
+ * `AbortError` (some runtimes and libraries re-create the error) are treated
+ * as cancellation, so framework adapters can skip error state for work that
+ * was deliberately aborted.
+ */
+export function isAbortError(err: unknown): boolean {
+  return (
+    typeof err === 'object' && err !== null && (err as { name?: unknown }).name === 'AbortError'
+  );
+}

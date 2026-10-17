@@ -43,6 +43,8 @@ Only `@stellar/stellar-sdk` and `@solana/web3.js` are optional peers, and each i
 | `@wraith-protocol/sdk/vault`          | Browser-only passphrase vault for short-lived keys   |
 
 > React Native support is documented in `docs/guides/react-native-setup.mdx` and the companion example at `examples/react-native-stellar`.
+>
+> The React, Vue, Svelte and Solid adapters share one scan cancellation contract. See [`docs/guides/framework-scanner-cancellation.mdx`](./docs/guides/framework-scanner-cancellation.mdx).
 
 ## Browser Vault
 
@@ -433,6 +435,8 @@ The nightly CI job (`slow-tests`) runs `pnpm test:fuzz` automatically at 02:00 U
 ## Documentation
 
 Full protocol documentation, architecture details, and integration guides are available at [wraith-protocol/docs](https://github.com/wraith-protocol/docs).
+
+In-repo guides live under [`docs/`](./docs): framework scanner cancellation (`docs/guides/framework-scanner-cancellation.mdx`), React Native setup (`docs/guides/react-native-setup.mdx`), wallet adapters (`docs/wallet-adapters.md`) and per-chain notes under `docs/chains/`.
 
 ## License
 

@@ -1,0 +1,201 @@
+---
+title: Framework Scanner Cancellation
+---
+
+# Framework Scanner Cancellation
+
+The framework adapters — `@wraith-protocol/sdk-react`, `@wraith-protocol/sdk-vue`, `@wraith-protocol/sdk-svelte` and `@wraith-protocol/sdk-solid` — all drive the same chain scanners, and all of them accept the same cancellation contract. One `AbortController` cancels a scan regardless of framework, and a scan whose consumer has gone away can never publish its result.
+
+## The shared option shape
+
+```ts
+import type { ScanCancellationOptions } from '@wraith-protocol/sdk';
+
+interface ScanCancellationOptions {
+  /** Cancels an in-flight scan when aborted. */
+  signal?: AbortSignal;
+}
+```
+
+Every framework entry point that starts network work accepts this shape. The type is exported from the package root so adapters and applications can share it instead of redeclaring their own.
+
+## Per-framework lifecycle
+
+| Framework    | Entry point                    | Aborts automatically on                   | Manual abort                           |
+| ------------ | ------------------------------ | ----------------------------------------- | -------------------------------------- |
+| `sdk-react`  | `useScanner()`                 | unmount, `chain`/`wallet` change          | hook `signal`, per-scan `signal`       |
+| `sdk-vue`    | `useScanner()`                 | effect-scope disposal (component unmount) | `dispose()`, fetch `signal`            |
+| `sdk-svelte` | `useStellarAnnouncementScan()` | factory `signal`                          | `dispose()`, `scan({ signal })`        |
+| `sdk-solid`  | `createScanner()`              | owner disposal (`onCleanup`)              | `dispose()`, `scan(chain, { signal })` |
+
+### React
+
+```tsx
+import { useScanner } from '@wraith-protocol/sdk-react';
+
+function Payments({ wallet }: { wallet: string }) {
+  const { announcements, scanning, error, scan, commitScan } = useScanner({
+    chain: 'stellar',
+    wallet,
+  });
+
+  useEffect(() => {
+    scan()
+      .then(commitScan)
+      .catch((cause) => {
+        if (cause instanceof DOMException && cause.name === 'AbortError') return; // cancelled
+        throw cause;
+      });
+  }, [scan, commitScan]);
+
+  return <Feed items={announcements} loading={scanning} error={error} />;
+}
+```
+
+The hook owns an internal controller: it aborts on unmount and whenever `chain` or `wallet` changes, so a scan started for the previous wallet cannot land on the next one. A `signal` on the hook options aborts the in-flight scan for every consumer sharing that controller, and `scan({ signal })` accepts a per-call signal as well.
+
+### Vue
+
+```vue
+<script setup lang="ts">
+import { useScanner } from '@wraith-protocol/sdk-vue';
+
+const scanner = useScanner('stellar');
+
+const announcements = await scanner.fetchAnnouncements({ chain: 'stellar', fromLedger: 100 });
+const matched = scanner.scanAnnouncements({
+  chain: 'stellar',
+  announcements,
+  keys,
+});
+</script>
+```
+
+`useScanner` registers `onScopeDispose`, so disposal of the component (or any parent effect scope) aborts the in-flight request and `dispose()` does the same on demand. `setChain()` aborts before switching, because a late result from the previous chain must never be shown as the new chain's state.
+
+### Svelte
+
+```svelte
+<script lang="ts">
+  import { onDestroy } from 'svelte';
+  import { useStellarAnnouncementScan } from '@wraith-protocol/sdk-svelte';
+
+  const controller = new AbortController();
+  onDestroy(() => controller.abort());
+
+  const scanner = useStellarAnnouncementScan({ signal: controller.signal });
+  const announcements = await scanner.scan({ fromLedger: 100 });
+</script>
+```
+
+A Svelte store primitive has no lifecycle of its own, so the primitive takes the component's teardown signal and also exposes `dispose()` for imperative teardown.
+
+### Solid
+
+```tsx
+import { createScanner } from '@wraith-protocol/sdk-solid';
+
+function Feed() {
+  const scanner = createScanner();
+  const [announcements, setAnnouncements] = createSignal([]);
+
+  onMount(async () => setAnnouncements(await scanner.scan('stellar')));
+  return <List items={announcements()} />;
+}
+```
+
+`createScanner` calls `onCleanup(dispose)` when it is created inside a Solid owner (component or `createRoot`), so disposal of the owner aborts the scan. Outside a root the cleanup is a no-op and `dispose()` is the explicit path.
+
+## Semantics
+
+- **Aborted scans reject with `AbortError`.** That is the standard `DOMException` name the underlying chain clients throw, and it is what `fetch` throws when its signal fires.
+- **An abort is not an error state.** Adapters leave their `error` store/ref untouched for cancellations, so UI that renders `error` does not flash a failure when a user navigates away.
+- **Superseded scans cannot publish.** Every adapter stamps each scan and checks the stamp, the disposal flag and the abort signal before writing state. This holds even when the source ignores the signal.
+- **State from a completed scan is preserved.** Aborting a newer scan never clears results a previous scan already published.
+
+## What each chain cancels
+
+| Chain   | Cancellation                                                                                                                                                                                                                                      |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stellar | The `signal` is passed into `FetchAnnouncementsOptions`, so in-flight Soroban RPC and Horizon requests are aborted (`src/chains/stellar/announcements.ts`).                                                                                       |
+| EVM     | The core `fetchAnnouncements()` subgraph fetcher has no `signal` parameter yet; the Vue adapter races the promise against the signal, so an aborted fetch rejects immediately and cannot publish. The request itself completes in the background. |
+| Solana  | Same as EVM: the adapter races the promise because `fetchAnnouncements()` takes no `signal` yet.                                                                                                                                                  |
+
+The guarantee callers depend on — an aborted or superseded scan never updates published state — is identical for all three chains.
+
+## Vue scanner options are a discriminated union
+
+`useScanner` models options and inputs as a union by chain, so mismatched key material is a compile-time error in TypeScript and a `TypeError` at runtime for JavaScript consumers.
+
+```ts
+type ScannerFetchOptions = EvmFetchOptions | StellarFetchOptions | SolanaFetchOptions;
+
+interface EvmFetchOptions extends ScanCancellationOptions {
+  chain: 'evm';
+  network?: string; // EVM deployment key, e.g. 'horizen'
+  url?: string; // subgraph URL override
+}
+
+interface StellarFetchOptions
+  extends Omit<FetchAnnouncementsOptions, 'signal' | 'sorobanUrl'>, ScanCancellationOptions {
+  chain: 'stellar';
+  network?: string; // Stellar deployment key, e.g. 'stellar'
+  url?: string; // Soroban RPC URL override
+}
+
+interface SolanaFetchOptions extends ScanCancellationOptions {
+  chain: 'solana';
+  network?: string;
+  url?: string;
+}
+```
+
+Scanning pairs each chain with its own announcements and keys:
+
+```ts
+scanner.scanAnnouncements({
+  chain: 'evm',
+  announcements: evmAnnouncements, // Announcement (EVM)
+  keys: evmKeys, // StealthKeys (EVM) — Stellar keys are a compile error here
+});
+```
+
+### Runtime guards
+
+JavaScript consumers (and `any`-typed call sites) get validated input:
+
+| Guard                            | Rejects                                                                                 |
+| -------------------------------- | --------------------------------------------------------------------------------------- |
+| `assertScannerChain`             | anything other than `evm`, `stellar`, `solana`                                          |
+| `assertScannerFetchOptions`      | non-object options, unknown chains, non-`AbortSignal` signals, malformed Stellar ranges |
+| `assertScannerScanInput`         | non-array announcements, missing or wrong-typed key material                            |
+| `assertScannerScanWithKeysInput` | fetch options plus mismatched or missing keys                                           |
+| `assertScannerCheckInput`        | malformed key material, a `viewTag` outside `0–255`                                     |
+
+Every guard throws a `TypeError` that names the chain and the offending field, for example:
+
+```
+EVM scanner keys must provide a 0x-prefixed hex string "viewingKey".
+stellar scanner keys must provide a bigint "spendingScalar".
+Unsupported scanner chain "bitcoin". Expected "evm", "stellar" or "solana".
+```
+
+## Migrating from positional scanner arguments
+
+`@wraith-protocol/sdk-vue` 0.1.x took positional arguments. They could not express "these keys belong to this chain", so `scanWithKeys` guessed the key layout from the composable's active chain and mismatches failed inside the scanner.
+
+```ts
+// before
+await scanner.fetchAnnouncements('horizen');
+scanner.scanAnnouncements(announcements, viewingKey, spendingPubKey, spendingKey);
+scanner.checkAddress(ephemeralPubKey, viewingKey, spendingPubKey, viewTag);
+await scanner.scanWithKeys(keys);
+
+// after
+await scanner.fetchAnnouncements({ chain: 'evm', network: 'horizen' });
+scanner.scanAnnouncements({ chain: 'evm', announcements, keys });
+scanner.checkAddress({ chain: 'evm', ephemeralPubKey, viewingKey, spendingPubKey, viewTag });
+await scanner.scanWithKeys({ chain: 'evm', keys });
+```
+
+`useActivity().scanAnnouncements()` takes the same `{ chain, announcements, keys }` objects, so activity and scanner inputs cannot disagree about a chain.

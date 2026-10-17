@@ -22,7 +22,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@wraith-protocol/sdk": "workspace:*"
+    "@wraith-protocol/sdk": "workspace:*",
+    "@wraith-protocol/sdk-agent": "workspace:*"
   },
   "peerDependencies": {
     "@stellar/stellar-sdk": "^13.1.0",

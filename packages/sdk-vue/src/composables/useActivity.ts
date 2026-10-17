@@ -1,13 +1,33 @@
 import { ref, readonly } from 'vue';
 import {
   scanAnnouncements as evmScan,
-  type Announcement as EvmAnnouncement,
+  type MatchedAnnouncement as EvmMatchedAnnouncement,
 } from '@wraith-protocol/sdk/chains/evm';
-import { scanAnnouncements as stellarScan } from '@wraith-protocol/sdk/chains/stellar';
-import { scanAnnouncements as solanaScan } from '@wraith-protocol/sdk/chains/solana';
-import type { AnyStealthKeys } from './useStealthKeys';
+import {
+  scanAnnouncements as stellarScan,
+  type MatchedAnnouncement as StellarMatchedAnnouncement,
+} from '@wraith-protocol/sdk/chains/stellar';
+import {
+  scanAnnouncements as solanaScan,
+  type MatchedAnnouncement as SolanaMatchedAnnouncement,
+} from '@wraith-protocol/sdk/chains/solana';
+import { getUnknownErrorMessage } from '@wraith-protocol/sdk';
+import { assertScannerScanInput, type ScannerScanInput } from './useScanner';
 
 export type ActivityChain = 'evm' | 'stellar' | 'solana';
+
+export type AnyMatchedAnnouncement =
+  | EvmMatchedAnnouncement
+  | StellarMatchedAnnouncement
+  | SolanaMatchedAnnouncement;
+
+/**
+ * One chain's announcements and the key material that must match that chain.
+ *
+ * This is the same discriminated union {@link useScanner} scans with, so an EVM
+ * announcement list can only be paired with EVM keys.
+ */
+export type ScanActivityInput = ScannerScanInput;
 
 export interface ActivityEvent {
   id: string;
@@ -15,13 +35,7 @@ export interface ActivityEvent {
   type: 'incoming' | 'outgoing';
   stealthAddress: string;
   timestamp: number;
-  data: unknown;
-}
-
-export interface ScanActivityInput {
-  chain: ActivityChain;
-  announcements: unknown[];
-  keys: AnyStealthKeys;
+  data: AnyMatchedAnnouncement;
 }
 
 export function useActivity() {
@@ -37,60 +51,57 @@ export function useActivity() {
     error.value = null;
     try {
       const newEvents: ActivityEvent[] = [];
+
       for (const input of announcementsInput) {
-        const { chain, announcements: anns, keys } = input;
-        if (!anns || anns.length === 0) continue;
-        let matched: { stealthAddress?: string }[];
-        switch (chain) {
-          case 'evm': {
-            const k = keys as unknown as Record<string, string>;
+        assertScannerScanInput(input);
+        if (input.announcements.length === 0) continue;
+
+        let matched: AnyMatchedAnnouncement[];
+        switch (input.chain) {
+          case 'evm':
             matched = evmScan(
-              anns as EvmAnnouncement[],
-              k.viewingKey as `0x${string}`,
-              k.spendingPubKey as `0x${string}`,
-              k.spendingKey as `0x${string}`,
-            ) as unknown as { stealthAddress?: string }[];
+              input.announcements,
+              input.keys.viewingKey,
+              input.keys.spendingPubKey,
+              input.keys.spendingKey,
+            );
             break;
-          }
-          case 'stellar': {
-            const k = keys as unknown as Record<string, unknown>;
+          case 'stellar':
             matched = stellarScan(
-              anns as any[],
-              k.viewingKey as Uint8Array,
-              k.spendingPubKey as Uint8Array,
-              k.spendingScalar as bigint,
-            ) as unknown as { stealthAddress?: string }[];
+              input.announcements,
+              input.keys.viewingKey,
+              input.keys.spendingPubKey,
+              input.keys.spendingScalar,
+            );
             break;
-          }
-          case 'solana': {
-            const k = keys as unknown as Record<string, unknown>;
+          case 'solana':
             matched = solanaScan(
-              anns as any[],
-              k.viewingKey as Uint8Array,
-              k.spendingPubKey as Uint8Array,
-              k.spendingScalar as bigint,
-            ) as unknown as { stealthAddress?: string }[];
+              input.announcements,
+              input.keys.viewingKey,
+              input.keys.spendingPubKey,
+              input.keys.spendingScalar,
+            );
             break;
-          }
         }
-        for (const m of matched) {
+
+        for (const match of matched) {
           newEvents.push({
-            id: `${chain}-${newEvents.length}-${Date.now()}`,
-            chain,
+            id: `${input.chain}-${newEvents.length}-${Date.now()}`,
+            chain: input.chain,
             type: 'incoming',
-            stealthAddress: m.stealthAddress ?? 'unknown',
+            stealthAddress: match.stealthAddress,
             timestamp: Date.now(),
-            data: m,
+            data: match,
           });
         }
       }
+
       events.value = [...events.value, ...newEvents];
       totalMatched.value += newEvents.length;
       return newEvents;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Activity scan failed';
-      error.value = msg;
-      throw e;
+    } catch (cause) {
+      error.value = getUnknownErrorMessage(cause);
+      throw cause;
     } finally {
       scanning.value = false;
     }

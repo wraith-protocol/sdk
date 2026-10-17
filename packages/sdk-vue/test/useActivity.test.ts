@@ -1,14 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type {
+  Announcement as EvmAnnouncement,
+  StealthKeys as EvmStealthKeys,
+} from '@wraith-protocol/sdk/chains/evm';
+import type {
+  Announcement as StellarAnnouncement,
+  StealthKeys as StellarStealthKeys,
+} from '@wraith-protocol/sdk/chains/stellar';
 import { useActivity } from '../src/composables/useActivity';
 
-const mockEvmKeys = vi.hoisted(() => ({
+const mockEvmKeys: EvmStealthKeys = vi.hoisted(() => ({
   spendingKey: '0x' + 'ab'.repeat(32),
   viewingKey: '0x' + 'cd'.repeat(32),
   spendingPubKey: '0x' + 'ef'.repeat(33),
   viewingPubKey: '0x' + '01'.repeat(33),
 }));
 
-const mockStellarKeys = vi.hoisted(() => ({
+const mockStellarKeys: StellarStealthKeys = vi.hoisted(() => ({
   spendingKey: new Uint8Array(32),
   spendingScalar: 1n,
   viewingKey: new Uint8Array(32),
@@ -16,6 +24,22 @@ const mockStellarKeys = vi.hoisted(() => ({
   spendingPubKey: new Uint8Array(32),
   viewingPubKey: new Uint8Array(32),
 }));
+
+const evmAnnouncement: EvmAnnouncement = {
+  schemeId: 1n,
+  stealthAddress: '0x' + '02'.repeat(20),
+  caller: '0x' + 'aa'.repeat(20),
+  ephemeralPubKey: '0x' + '03'.repeat(33),
+  metadata: '0x',
+};
+
+const stellarAnnouncement: StellarAnnouncement = {
+  schemeId: 1,
+  stealthAddress: 'GABCDEF1234567890',
+  caller: 'GDEADBEEF',
+  ephemeralPubKey: 'aa'.repeat(32),
+  metadata: '00',
+};
 
 const mockEvmMatched = vi.hoisted(() => [
   {
@@ -43,14 +67,7 @@ vi.mock('@wraith-protocol/sdk/chains/stellar', () => ({
 }));
 
 vi.mock('@wraith-protocol/sdk/chains/solana', () => ({
-  scanAnnouncements: vi.fn().mockReturnValue([
-    {
-      isMatch: true,
-      stealthAddress: 'FAKESOLANA...',
-      hashScalar: 3n,
-      stealthPubKeyBytes: new Uint8Array(32),
-    },
-  ]),
+  scanAnnouncements: vi.fn().mockReturnValue([]),
 }));
 
 describe('useActivity', () => {
@@ -71,16 +88,8 @@ describe('useActivity', () => {
     const result = await composable.scanAnnouncements([
       {
         chain: 'evm',
-        announcements: [
-          {
-            schemeId: 1n,
-            stealthAddress: '0x' + '02'.repeat(20),
-            caller: '0x' + 'aa'.repeat(20),
-            ephemeralPubKey: '0x' + '03'.repeat(33),
-            metadata: '0x',
-          },
-        ],
-        keys: mockEvmKeys as any,
+        announcements: [evmAnnouncement],
+        keys: mockEvmKeys,
       },
     ]);
     expect(result.length).toBe(1);
@@ -96,16 +105,8 @@ describe('useActivity', () => {
     const result = await composable.scanAnnouncements([
       {
         chain: 'stellar',
-        announcements: [
-          {
-            schemeId: 1,
-            stealthAddress: 'GABCDEF1234567890',
-            caller: 'GDEADBEEF',
-            ephemeralPubKey: new Uint8Array(32),
-            metadata: new Uint8Array(0),
-          },
-        ],
-        keys: mockStellarKeys as any,
+        announcements: [stellarAnnouncement],
+        keys: mockStellarKeys,
       },
     ]);
     expect(result.length).toBe(1);
@@ -121,20 +122,12 @@ describe('useActivity', () => {
       {
         chain: 'evm',
         announcements: [],
-        keys: mockEvmKeys as any,
+        keys: mockEvmKeys,
       },
       {
         chain: 'stellar',
-        announcements: [
-          {
-            schemeId: 1,
-            stealthAddress: 'GABCDEF1234567890',
-            caller: 'GDEADBEEF',
-            ephemeralPubKey: new Uint8Array(32),
-            metadata: new Uint8Array(0),
-          },
-        ],
-        keys: mockStellarKeys as any,
+        announcements: [stellarAnnouncement],
+        keys: mockStellarKeys,
       },
     ]);
     expect(composable.events.value.length).toBe(1);
@@ -146,31 +139,15 @@ describe('useActivity', () => {
     await composable.scanAnnouncements([
       {
         chain: 'evm',
-        announcements: [
-          {
-            schemeId: 1n,
-            stealthAddress: '0x' + '02'.repeat(20),
-            caller: '0x' + 'aa'.repeat(20),
-            ephemeralPubKey: '0x' + '03'.repeat(33),
-            metadata: '0x',
-          },
-        ],
-        keys: mockEvmKeys as any,
+        announcements: [evmAnnouncement],
+        keys: mockEvmKeys,
       },
     ]);
     await composable.scanAnnouncements([
       {
         chain: 'stellar',
-        announcements: [
-          {
-            schemeId: 1,
-            stealthAddress: 'GABCDEF1234567890',
-            caller: 'GDEADBEEF',
-            ephemeralPubKey: new Uint8Array(32),
-            metadata: new Uint8Array(0),
-          },
-        ],
-        keys: mockStellarKeys as any,
+        announcements: [stellarAnnouncement],
+        keys: mockStellarKeys,
       },
     ]);
     expect(composable.events.value.length).toBe(2);
@@ -182,16 +159,8 @@ describe('useActivity', () => {
     await composable.scanAnnouncements([
       {
         chain: 'evm',
-        announcements: [
-          {
-            schemeId: 1n,
-            stealthAddress: '0x' + '02'.repeat(20),
-            caller: '0x' + 'aa'.repeat(20),
-            ephemeralPubKey: '0x' + '03'.repeat(33),
-            metadata: '0x',
-          },
-        ],
-        keys: mockEvmKeys as any,
+        announcements: [evmAnnouncement],
+        keys: mockEvmKeys,
       },
     ]);
     expect(composable.totalMatched.value).toBe(1);
@@ -204,10 +173,24 @@ describe('useActivity', () => {
   it('handles empty announcements for all chains', async () => {
     const composable = useActivity();
     const result = await composable.scanAnnouncements([
-      { chain: 'evm', announcements: [], keys: mockEvmKeys as any },
-      { chain: 'stellar', announcements: [], keys: mockStellarKeys as any },
+      { chain: 'evm', announcements: [], keys: mockEvmKeys },
+      { chain: 'stellar', announcements: [], keys: mockStellarKeys },
     ]);
     expect(result.length).toBe(0);
     expect(composable.totalMatched.value).toBe(0);
+  });
+
+  it('rejects mismatched key material at runtime for JavaScript consumers', async () => {
+    const composable = useActivity();
+    await expect(
+      composable.scanAnnouncements([
+        {
+          chain: 'evm',
+          announcements: [evmAnnouncement],
+          keys: mockStellarKeys as never,
+        },
+      ]),
+    ).rejects.toThrow(TypeError);
+    expect(composable.error.value).toContain('EVM scanner keys');
   });
 });

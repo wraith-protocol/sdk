@@ -1,6 +1,17 @@
 import { defineConfig } from 'vitest/config';
+import { fileURLToPath } from 'node:url';
+
+// The framework packages import the agent client from its workspace package.
+// Point that specifier at the source so the root suite does not need a build
+// of `packages/sdk-agent` first.
+const sdkAgentSrc = fileURLToPath(new URL('./packages/sdk-agent/src', import.meta.url));
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@wraith-protocol/sdk-agent': sdkAgentSrc,
+    },
+  },
   test: {
     globals: true,
     typecheck: {

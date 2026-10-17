@@ -189,6 +189,9 @@ export interface FreighterWalletWatcher {
 export function getTracer(): Tracer;
 
 // @public
+export function getUnknownErrorMessage(err: unknown): string;
+
+// @public
 export class HorizonResponseError extends WraithNetworkError {
     constructor(url: string, field: string, reason: string);
     // (undocumented)
@@ -254,6 +257,9 @@ export class InvalidSignatureError extends WraithInputError {
     // (undocumented)
     describe(): string;
 }
+
+// @public
+export function isAbortError(err: unknown): boolean;
 
 // @public (undocumented)
 export class KeyDerivationFailedError extends WraithCryptoError {
@@ -407,6 +413,11 @@ export interface ScanAllInput {
     solana?: SolanaChainInput;
     // (undocumented)
     stellar?: StellarChainInput;
+}
+
+// @public
+export interface ScanCancellationOptions {
+    signal?: AbortSignal;
 }
 
 // @public
@@ -703,10 +714,10 @@ export abstract class WraithWalletError extends WraithError {
 
 // Warnings were encountered during analysis:
 //
-// dist/unified-BQ_-bZ0t.d.ts:166:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
-// dist/unified-BQ_-bZ0t.d.ts:171:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
-// dist/unified-BQ_-bZ0t.d.ts:176:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
-// dist/unified-BQ_-bZ0t.d.ts:181:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
+// dist/unified-BXqIrpNT.d.ts:179:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
+// dist/unified-BXqIrpNT.d.ts:184:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
+// dist/unified-BXqIrpNT.d.ts:189:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
+// dist/unified-BXqIrpNT.d.ts:194:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 

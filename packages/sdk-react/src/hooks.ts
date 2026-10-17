@@ -11,6 +11,7 @@ import {
   type BuildStealthPaymentOptions,
 } from '@wraith-protocol/sdk/chains/stellar';
 import { Horizon } from '@stellar/stellar-sdk';
+import { getUnknownErrorMessage } from '@wraith-protocol/sdk';
 import { getPlatform, setPlatform, type Platform } from './platform';
 
 export { getPlatform, setPlatform };
@@ -48,8 +49,8 @@ export function useStellarSendStealthPayment() {
     try {
       const result = await buildStealthPayment(options);
       return result;
-    } catch (err: any) {
-      setError(err);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(getUnknownErrorMessage(err)));
       throw err;
     } finally {
       setBuilding(false);
@@ -74,7 +75,7 @@ export function useStellarBalance(publicKey: string, rpcUrl = 'https://horizon.s
       .loadAccount(publicKey)
       .then((acc) => {
         if (!mounted) return;
-        const xlmBalance = acc.balances.find((b: any) => b.asset_type === 'native');
+        const xlmBalance = acc.balances.find((balance) => balance.asset_type === 'native');
         setBalance(xlmBalance ? xlmBalance.balance : '0');
       })
       .catch(() => {
@@ -93,7 +94,7 @@ export function useStellarBalance(publicKey: string, rpcUrl = 'https://horizon.s
 }
 
 /** Hook to resolve a Wraith name on Stellar */
-export function useStellarName(name: string | undefined, chain = 'testnet') {
+export function useStellarName(name: string | undefined, chain = 'stellar') {
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -113,8 +114,10 @@ export function useStellarName(name: string | undefined, chain = 'testnet') {
         await new Promise((resolve) => setTimeout(resolve, 500));
         if (!mounted) return;
         setAddress(null); // Return null or resolved meta-address
-      } catch (err: any) {
-        if (mounted) setError(err);
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof Error ? err : new Error(getUnknownErrorMessage(err)));
+        }
       } finally {
         if (mounted) setLoading(false);
       }

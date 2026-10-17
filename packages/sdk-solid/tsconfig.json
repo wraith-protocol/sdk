@@ -12,7 +12,8 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "paths": {
-      "@wraith-protocol/sdk": ["../../src"]
+      "@wraith-protocol/sdk": ["../../src"],
+      "@wraith-protocol/sdk-agent": ["../sdk-agent/src"]
     }
   },
   "include": ["src"],

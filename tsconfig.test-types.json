@@ -9,7 +9,9 @@
     "src/**/*.ts",
     "test/scanner/unified.test-d.ts",
     "packages/sdk-agent/src/**/*.ts",
-    "packages/sdk-agent/test/client.test.ts"
+    "packages/sdk-agent/test/client.test.ts",
+    "packages/sdk-react/test/useScanner.test-d.ts",
+    "packages/sdk-vue/test/scanner.test-d.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

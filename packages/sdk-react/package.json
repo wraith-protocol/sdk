@@ -23,7 +23,8 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:types": "tsc --noEmit -p tsconfig.json"
   },
   "peerDependencies": {
     "@stellar/stellar-sdk": "^13.1.0",

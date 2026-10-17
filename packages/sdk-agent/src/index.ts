@@ -10,6 +10,7 @@ export {
 export { Chain } from './types';
 export type {
   WraithConfig,
+  RequestOptions,
   AgentConfig,
   AgentInfo,
   AgentStatus,

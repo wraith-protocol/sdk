@@ -38,16 +38,15 @@ const SCENARIOS = {
 };
 
 // Companions whose server import is already broken, with the error it fails
-// with. `Wraith`, `WraithAgent` and `Chain` moved from `@wraith-protocol/sdk` to
-// `@wraith-protocol/sdk-agent` in #193, but these packages still import them
-// from the core, so Node refuses to link them. An entry must keep failing with
-// its message: once the import is fixed this check fails until the entry is
-// removed, which turns the SSR render back on for that package.
-const KNOWN_IMPORT_FAILURES = {
-  '@wraith-protocol/sdk-solid': /does not provide an export named '(Wraith|WraithAgent|Chain)'/,
-  '@wraith-protocol/sdk-svelte': /does not provide an export named '(Wraith|WraithAgent|Chain)'/,
-  '@wraith-protocol/sdk-vue': /does not provide an export named '(Wraith|WraithAgent|Chain)'/,
-};
+// with. An entry must keep failing with its message: once the import is fixed
+// this check fails until the entry is removed, which turns the SSR render back
+// on for that package.
+//
+// Empty: `sdk-solid`, `sdk-svelte` and `sdk-vue` used to import `Wraith`,
+// `WraithAgent` and `Chain` from the core package after the agent client moved
+// to `@wraith-protocol/sdk-agent` (#193), so Node refused to link them. They
+// now import the agent client from its own package and load cleanly.
+const KNOWN_IMPORT_FAILURES = {};
 
 let failed = 0;
 

@@ -8,7 +8,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "paths": {
+      "@wraith-protocol/sdk": ["../../src"],
+      "@wraith-protocol/sdk-agent": ["../sdk-agent/src"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "test"]

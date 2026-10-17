@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useWraith } from '../src/composables/useWraith';
 
-vi.mock('@wraith-protocol/sdk', () => {
+vi.mock('@wraith-protocol/sdk-agent', () => {
   const mockAgent = {
     info: { id: 'agent-1', name: 'test-agent', chains: [], addresses: {}, metaAddresses: {} },
     chat: vi.fn(),

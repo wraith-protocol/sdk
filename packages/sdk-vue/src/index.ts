@@ -11,7 +11,18 @@ export type {
   AnyGeneratedStealthAddress,
 } from './composables/useStealthKeys';
 export { useScanner } from './composables/useScanner';
-export type { AnyAnnouncement, AnyMatchedAnnouncement } from './composables/useScanner';
+export type {
+  AnyAnnouncement,
+  AnyMatchedAnnouncement,
+  ScannerChain,
+  ScannerFetchOptions,
+  ScannerScanInput,
+  ScannerScanWithKeysInput,
+  ScannerCheckInput,
+  EvmScanInput,
+  StellarScanInput,
+  SolanaScanInput,
+} from './composables/useScanner';
 export { useMetaAddress } from './composables/useMetaAddress';
 export { useActivity } from './composables/useActivity';
-export type { ActivityEvent } from './composables/useActivity';
+export type { ActivityEvent, ScanActivityInput } from './composables/useActivity';

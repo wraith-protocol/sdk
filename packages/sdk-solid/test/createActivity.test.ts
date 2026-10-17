@@ -23,7 +23,7 @@ const mockClient = vi.hoisted(() => ({
   listAgents: vi.fn().mockResolvedValue([mockAgentInfo]),
 }));
 
-vi.mock('@wraith-protocol/sdk', () => ({
+vi.mock('@wraith-protocol/sdk-agent', () => ({
   Wraith: vi.fn().mockImplementation(() => mockClient),
   WraithAgent: vi.fn(),
   Chain: {
@@ -34,7 +34,7 @@ vi.mock('@wraith-protocol/sdk', () => ({
 }));
 
 // Grab mocked references once (safe because vi.mock hoists before imports)
-import { Wraith as MockWraith } from '@wraith-protocol/sdk';
+import { Wraith as MockWraith } from '@wraith-protocol/sdk-agent';
 
 describe('createActivity', () => {
   beforeEach(() => {

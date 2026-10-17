@@ -87,6 +87,23 @@ Reactive Wraith API client.
 </script>
 ```
 
+### `useStellarAnnouncementScan`
+
+Scans Stellar announcements with cancellation. Pass a signal (for example from the component's `onDestroy`) and every in-flight scan is aborted when it fires.
+
+```ts
+import { onDestroy } from 'svelte';
+import { useStellarAnnouncementScan } from '@wraith-protocol/sdk-svelte';
+
+const controller = new AbortController();
+onDestroy(() => controller.abort());
+
+const scanner = useStellarAnnouncementScan({ signal: controller.signal });
+const announcements = await scanner.scan({ fromLedger: 100 });
+```
+
+`scan()` also accepts its own `signal`, aborts any scan already in flight, and never publishes a superseded result. `dispose()` aborts on demand.
+
 ### `useStealthMetaAddress`
 
 Multi-chain meta address encode/decode.

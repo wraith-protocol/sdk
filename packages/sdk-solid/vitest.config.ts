@@ -14,6 +14,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@wraith-protocol/sdk': path.resolve(__dirname, '../../src'),
+      '@wraith-protocol/sdk-agent': path.resolve(__dirname, '../sdk-agent/src'),
     },
     conditions: ['development', 'browser'],
   },

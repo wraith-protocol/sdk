@@ -27,6 +27,20 @@ import { adapter as ckbAdapter } from '../chains/ckb/scan';
 export type SupportedChain = 'evm' | 'stellar' | 'solana' | 'ckb';
 
 /**
+ * Cancellation options shared by every framework scanner entry point.
+ *
+ * `@wraith-protocol/sdk-react`, `-vue`, `-svelte` and `-solid` accept this
+ * shape wherever they start a scan, so one `AbortController` cancels scanner
+ * work the same way in every framework. Aborting rejects the scan with the
+ * standard `AbortError` (`DOMException`) the chain clients throw and leaves the
+ * framework adapter's published state untouched.
+ */
+export interface ScanCancellationOptions {
+  /** Cancels an in-flight scan when aborted. */
+  signal?: AbortSignal;
+}
+
+/**
  * Timestamp used when a scanner adapter cannot supply a real chain time.
  *
  * `scanAll` sorts nothing, it interleaves as results arrive, so this value is not

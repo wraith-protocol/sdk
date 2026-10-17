@@ -55,33 +55,9 @@ class MemoryCache {
     announcements: Announcement[],
     lastScannedLedger?: number,
   ) {
-    await this.readyCheck();
-    if (this.fallback) {
-      const e = await this.fallback.set(chain, wallet, announcements);
-      if (lastScannedLedger) e.lastScannedLedger = lastScannedLedger;
-      return e;
-    }
-    if (!this.db) return null;
-    const id = makeId(chain, wallet);
-    const entry: CacheEntry = {
-      id,
-      chain,
-      wallet,
-      announcements,
-      lastAccess: Date.now(),
-      lastUpdated: Date.now(),
-      lastScannedLedger,
-    };
-    return new Promise<CacheEntry>((resolve, reject) => {
-      const tx = this.db!.transaction(this.storeName, 'readwrite');
-      const store = tx.objectStore(this.storeName);
-      const req = store.put(entry);
-      req.onsuccess = async () => {
-        await this.enforceCap();
-        resolve(entry);
-      };
-      req.onerror = () => reject(req.error);
-    });
+    const entry = await this.set(chain, wallet, announcements);
+    if (lastScannedLedger != null) entry.lastScannedLedger = lastScannedLedger;
+    return entry;
   }
 
   async delete(chain: string, wallet: string) {
