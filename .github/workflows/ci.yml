@@ -30,6 +30,10 @@ jobs:
       # test() bodies in this repo, so it cannot be trusted as a gate.
       - run: pnpm test:types
       - run: pnpm test
+      # Run a small fixed-seed sample of Stellar property tests on every PR
+      - name: Stellar property test sample
+        if: github.event_name == 'pull_request'
+        run: pnpm test:fuzz:sample
 
   entrypoints:
     name: Package entry point smoke tests
