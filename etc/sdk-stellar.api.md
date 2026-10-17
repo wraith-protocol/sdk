@@ -292,6 +292,9 @@ export function checkStealthAddress(ephemeralPubKey: Uint8Array, viewingKey: Uin
 export function clearAssetMetadataCache(): void;
 
 // @public
+export function clearStellarNameCache(): void;
+
+// @public
 export function computeAnnouncementViewTag(ephemeralPubKey: Uint8Array, viewingPubKey: Uint8Array): number;
 
 // @public
@@ -324,6 +327,9 @@ export const DEFAULT_BASE_FEE = 100;
 
 // @public
 export const DEFAULT_BATCH_SENDER_THRESHOLD = 10;
+
+// @public
+export const DEFAULT_STELLAR_NAME_TTL_MS: number;
 
 // @public
 export const DEPLOYMENTS: Record<string, StellarChainDeployment>;
@@ -439,6 +445,9 @@ export function getAssetMetadataResult(contractId: string, network?: Network, op
 export function getDeployment(chain: string): StellarChainDeployment;
 
 // @public
+export function getStellarNameDefaultTtl(): number;
+
+// @public
 export const HASH_MEMO_BYTES = 32;
 
 // @public
@@ -552,6 +561,9 @@ export const META_ADDRESS_PREFIX = "st:xlm:";
 // @public
 export type Network = 'testnet' | 'mainnet';
 
+// @public
+export function normalizeStellarName(name: string): string;
+
 // Warning: (ae-internal-missing-underscore) The name "parseAnnouncementEvent" should be prefixed with an underscore because the declaration is marked as @internal
 //
 // @internal
@@ -579,6 +591,20 @@ export function pubKeyToStellarAddress(pubKeyBytes: Uint8Array): string;
 export interface RequestTimeouts {
     connectMs?: number;
     requestMs?: number;
+}
+
+// @public
+export function resolveStellarName(name: string, chain?: string, options?: ResolveStellarNameOptions): Promise<string | null>;
+
+// @public
+export interface ResolveStellarNameOptions {
+    bypassCache?: boolean;
+    contractId?: string;
+    networkPassphrase?: string;
+    rpcUrl?: string;
+    signal?: AbortSignal;
+    throwOnNotFound?: boolean;
+    ttlMs?: number;
 }
 
 // @public (undocumented)
@@ -676,6 +702,9 @@ export const SCHEME_ID_V2 = 2;
 
 // @public
 export function seedToScalar(seed: Uint8Array): bigint;
+
+// @public
+export function setStellarNameDefaultTtl(ttlMs: number): void;
 
 // @public
 export function signStellarTransaction(transactionHash: Uint8Array, stealthScalar: bigint, stealthPubKey: Uint8Array): Uint8Array;
