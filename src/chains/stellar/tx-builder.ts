@@ -1,7 +1,7 @@
 import { decodeStealthMetaAddress } from './meta-address';
 import { generateStealthAddress } from './stealth';
 import { bytesToHex } from './utils';
-import { SCHEME_ID } from './constants';
+import { ACTIVE_SCHEME_ID } from './constants';
 import type {
   GeneratedStealthAddress,
   StealthPayment,
@@ -228,7 +228,7 @@ export function buildAnnouncementData(
   metadata: string;
 }> {
   return stealthAddresses.map((stealth) => ({
-    schemeId: SCHEME_ID,
+    schemeId: ACTIVE_SCHEME_ID,
     stealthAddress: stealth.stealthAddress,
     caller,
     ephemeralPubKey: bytesToHex(stealth.ephemeralPubKey),

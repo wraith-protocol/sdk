@@ -7,7 +7,7 @@ import {
   StrKey,
 } from '@stellar/stellar-sdk';
 import { hexToBytes } from './utils';
-import { SCHEME_ID } from './constants';
+import { ACTIVE_SCHEME_ID } from './constants';
 
 const MAX_OPS_PER_TX = 100;
 const OPS_PER_PAYMENT = 2;
@@ -59,13 +59,13 @@ export interface BuildResult {
  * storing in a Stellar manageData operation value (max 64 bytes).
  *
  * Format (34 bytes):
- *   [0]       — schemeId (1 byte)
+ *   [0]       — scheme id, {@link ACTIVE_SCHEME_ID} (1 byte)
  *   [1..32]   — ephemeral public key (32 bytes)
  *   [33]      — view tag (1 byte)
  */
 export function encodeAnnouncementData(ephemeralPubKey: Uint8Array, viewTag: number): Uint8Array {
   const data = new Uint8Array(1 + 32 + 1);
-  data[0] = SCHEME_ID;
+  data[0] = ACTIVE_SCHEME_ID;
   data.set(ephemeralPubKey, 1);
   data[33] = viewTag;
   return data;

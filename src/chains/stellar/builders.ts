@@ -9,7 +9,7 @@ import {
   nativeToScVal,
   xdr,
 } from '@stellar/stellar-sdk';
-import { SCHEME_ID } from './constants';
+import { ACTIVE_SCHEME_ID } from './constants';
 import { GeneratedStealthAddress } from './types';
 
 /**
@@ -312,7 +312,7 @@ export function buildStealthAnnouncement(options: BuildAnnouncementOptions) {
     .addOperation(
       contract.call(
         'announce',
-        nativeToScVal(SCHEME_ID, { type: 'u32' }),
+        nativeToScVal(ACTIVE_SCHEME_ID, { type: 'u32' }),
         new Address(stealthResult.stealthAddress).toScVal(),
         xdr.ScVal.scvBytes(Buffer.from(stealthResult.ephemeralPubKey)),
         xdr.ScVal.scvBytes(Buffer.from([stealthResult.viewTag])),

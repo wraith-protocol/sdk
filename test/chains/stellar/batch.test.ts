@@ -6,7 +6,7 @@ import {
   decodeAnnouncementData,
 } from '../../../src/chains/stellar/batch';
 import type { StealthPaymentConfig, BatchConfig } from '../../../src/chains/stellar/batch';
-import { SCHEME_ID } from '../../../src/chains/stellar/constants';
+import { ACTIVE_SCHEME_ID, SCHEME_ID_V2 } from '../../../src/chains/stellar/constants';
 
 const SOURCE = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
 const DEST = 'GCVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVH7N';
@@ -40,10 +40,11 @@ describe('encodeAnnouncementData / decodeAnnouncementData', () => {
   test('roundtrip', () => {
     const encoded = encodeAnnouncementData(ephBytes, VIEW_TAG);
     expect(encoded.length).toBe(34);
-    expect(encoded[0]).toBe(SCHEME_ID);
+    expect(encoded[0]).toBe(ACTIVE_SCHEME_ID);
+    expect(encoded[0]).toBe(SCHEME_ID_V2);
 
     const decoded = decodeAnnouncementData(encoded);
-    expect(decoded.schemeId).toBe(SCHEME_ID);
+    expect(decoded.schemeId).toBe(ACTIVE_SCHEME_ID);
     expect(Buffer.from(decoded.ephemeralPubKey).toString('hex')).toBe(EPH_PUB_KEY);
     expect(decoded.viewTag).toBe(VIEW_TAG);
   });
@@ -56,7 +57,7 @@ describe('encodeAnnouncementData / decodeAnnouncementData', () => {
     expect(encoded.length).toBe(34);
 
     const decoded = decodeAnnouncementData(encoded);
-    expect(decoded.schemeId).toBe(SCHEME_ID);
+    expect(decoded.schemeId).toBe(ACTIVE_SCHEME_ID);
     expect(Buffer.from(decoded.ephemeralPubKey).toString('hex')).toBe(eph);
     expect(decoded.viewTag).toBe(tag);
   });

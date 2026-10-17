@@ -10,6 +10,7 @@ import {
   DEFAULT_BATCH_SENDER_THRESHOLD,
 } from '../../../src/chains/stellar/tx-builder';
 import type { StealthPayment } from '../../../src/chains/stellar/types';
+import { ACTIVE_SCHEME_ID } from '../../../src/chains/stellar/constants';
 
 const testSig = new Uint8Array(64).fill(0xaa);
 const networkPassphrase = 'Test SDF Network ; September 2015';
@@ -383,7 +384,7 @@ describe('tx-builder: buildAnnouncementData', () => {
     const announcementData = buildAnnouncementData(txResult.stealthAddresses, caller);
 
     expect(announcementData).toHaveLength(1);
-    expect(announcementData[0].schemeId).toBe(1);
+    expect(announcementData[0].schemeId).toBe(ACTIVE_SCHEME_ID);
     expect(announcementData[0].stealthAddress).toBe(txResult.stealthAddresses[0].stealthAddress);
     expect(announcementData[0].caller).toBe(caller);
     expect(announcementData[0].ephemeralPubKey).toMatch(/^[0-9a-f]{64}$/);
@@ -408,7 +409,7 @@ describe('tx-builder: buildAnnouncementData', () => {
 
     // Verify each announcement has correct structure
     announcementData.forEach((ann, i) => {
-      expect(ann.schemeId).toBe(1);
+      expect(ann.schemeId).toBe(ACTIVE_SCHEME_ID);
       expect(ann.stealthAddress).toBe(txResult.stealthAddresses[i].stealthAddress);
       expect(ann.caller).toBe(caller);
       expect(ann.ephemeralPubKey).toMatch(/^[0-9a-f]{64}$/);

@@ -1,0 +1,49 @@
+{
+  "$comment": "Contract side of the Stellar announcer conformance test. `abi` is copied verbatim from wraith-protocol/contracts stellar/abi/stealth_announcer.json at `source.commit`. `schemeId` is STELLAR_V2_SCHEME_ID, which announce() asserts, and `metadata` is the rule that announce() reads the view tag bucket from metadata[0]. Refresh all three when the contract changes.",
+  "source": {
+    "repository": "wraith-protocol/contracts",
+    "commit": "66273f272c7f4c5ad0dce7542fe9cb41d11e9ca9",
+    "abi": "stellar/abi/stealth_announcer.json",
+    "contract": "stellar/stealth-announcer/src/lib.rs"
+  },
+  "schemeId": 2,
+  "metadata": {
+    "minLength": 1,
+    "viewTagIndex": 0
+  },
+  "abi": [
+    {
+      "function_v0": {
+        "doc": "Emits a Stellar v2 stealth address announcement event.\\n\\nThis is a pure event-emission function with no access control and no\\nstorage. Indexers watch for these events to let recipients detect\\nincoming payments.\\n\\nv2 event shape:\\n* topics: `(\"announce\", scheme_id, view_tag_bucket, metadata_kind)`\\n* data: `(stealth_address, ephemeral_pub_key, metadata)`\\n\\nThe stable `view_tag_bucket` derivation is `metadata[0] as u32`, where\\n`metadata_kind = 1` (`METADATA_KIND_VIEW_TAG`) means the first metadata\\nbyte is the view tag and the remaining bytes are scheme-specific. This\\nlets wallets and indexers filter Stellar RPC `getEvents` by scheme and\\nbucket before doing client-side cryptographic validation.\\n\\nMigration note: v1 announcements used the old Stellar layout\\n`(\"announce\", scheme_id, stealth_address)` with\\n`(caller, ephemeral_pub_key, metadata)`. Do not reinterpret historical v1\\nevents as v2. The compatibility path is a new announcer deployment using\\n`scheme_id = 2`.\\n\\n# Arguments\\n* `scheme_id` - Must be `2` for the v2 St",
+        "name": "announce",
+        "inputs": [
+          {
+            "doc": "",
+            "name": "scheme_id",
+            "type_": "u32"
+          },
+          {
+            "doc": "",
+            "name": "stealth_address",
+            "type_": "address"
+          },
+          {
+            "doc": "",
+            "name": "ephemeral_pub_key",
+            "type_": {
+              "bytes_n": {
+                "n": 32
+              }
+            }
+          },
+          {
+            "doc": "",
+            "name": "metadata",
+            "type_": "bytes"
+          }
+        ],
+        "outputs": []
+      }
+    }
+  ]
+}
