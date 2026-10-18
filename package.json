@@ -65,7 +65,7 @@
     "prepare": "husky",
     "test:fuzz": "FC_RUNS=100000 vitest run test/chains/stellar/properties.test.ts",
     "test:fuzz:sample": "FC_RUNS=100 FC_SEED=12345 vitest run test/chains/stellar/properties.test.ts",
-    "test:leak": "vitest run test/leaks/scan-leak.test.ts",
+    "test:fuzz:proof": "FC_PROOF_TEST=1 vitest run test/chains/stellar/properties.test.ts",
     "test:leak": "node --expose-gc ./node_modules/vitest/vitest.mjs run test/leaks/scan-leak.test.ts --pool=threads",
     "test:heap-leak": "node --expose-gc ./node_modules/vitest/vitest.mjs run test/leaks/heap-snapshot.test.ts --pool=threads",
     "size": "size-limit",

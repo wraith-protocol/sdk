@@ -15,6 +15,7 @@ import { computeViewTag } from '../../../src/chains/stellar/stealth';
 
 const FC_RUNS = process.env.FC_RUNS ? parseInt(process.env.FC_RUNS, 10) : 1000;
 const FC_SEED = process.env.FC_SEED ? parseInt(process.env.FC_SEED, 10) : undefined;
+const FC_PATH = process.env.FC_PATH;
 
 // Configure fast-check with seed if provided
 const configure = () => {
@@ -23,18 +24,27 @@ const configure = () => {
     console.log(
       `   Replay with: FC_SEED=${FC_SEED} FC_RUNS=${FC_RUNS} pnpm test test/chains/stellar/properties.test.ts\n`,
     );
-    return { seed: FC_SEED };
+    const config: Record<string, unknown> = { seed: FC_SEED };
+    if (FC_PATH !== undefined) {
+      config.path = FC_PATH;
+    }
+    return config;
   }
   return {};
 };
 
-// Custom error handler to capture seed on failure
-const onFailure = (error: Error, seed: number) => {
-  console.error(`\n❌ Property test failed with seed: ${seed}`);
-  console.error(
-    `   Replay with: FC_SEED=${seed} FC_RUNS=${FC_RUNS} pnpm test test/chains/stellar/properties.test.ts\n`,
-  );
-  throw error;
+// Custom reporter to print seed and path on failure
+const reporter = (runDetails: fc.RunDetails<unknown>) => {
+  if (runDetails.failed) {
+    const seed = runDetails.seed;
+    const path = runDetails.counterexamplePath;
+    console.error(`\n❌ Property test failed`);
+    console.error(`   Seed: ${seed}`);
+    console.error(`   Path: ${path}`);
+    const replayCmd = `FC_SEED=${seed} FC_PATH=${path} FC_RUNS=${FC_RUNS} pnpm test test/chains/stellar/properties.test.ts`;
+    console.error(`   Replay with: ${replayCmd}\n`);
+    throw new Error(fc.defaultReportMessage(runDetails));
+  }
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -70,7 +80,7 @@ describe('scalar algebra sanity', () => {
         const r2 = (b + a) % L;
         expect(r1).toBe(r2);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 
@@ -79,7 +89,7 @@ describe('scalar algebra sanity', () => {
       fc.property(scalarAnyArb, (a) => {
         expect((a + 0n) % L).toBe(a % L);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 });
@@ -95,7 +105,7 @@ describe('scalar encoding roundtrip', () => {
         const normalized = a % L;
         expect(bytesToScalar(scalarToBytes(normalized)) % L).toBe(normalized);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 
@@ -104,7 +114,7 @@ describe('scalar encoding roundtrip', () => {
       fc.property(scalarAnyArb, (a) => {
         expect(scalarToBytes(a)).toHaveLength(32);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 });
@@ -121,7 +131,7 @@ describe('seedToScalar stability', () => {
         const b = seedToScalar(seed);
         expect(a).toBe(b);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 
@@ -138,7 +148,7 @@ describe('seedToScalar stability', () => {
         // sanity: still a valid scalar space
         expect(s < 2n ** 256n).toBe(true);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 });
@@ -162,7 +172,7 @@ describe('stealth pubkey correctness', () => {
 
         expect(lhs.equals(rhs)).toBe(true);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 
@@ -181,7 +191,7 @@ describe('stealth pubkey correctness', () => {
 
         expect(derived).toEqual(expected);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 });
@@ -197,7 +207,7 @@ describe('view tag distribution sanity', () => {
         const tag = computeViewTag(secret);
         expect(tag >= 0 && tag <= 255).toBe(true);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 });
@@ -217,7 +227,7 @@ describe('signWithScalar correctness', () => {
         expect(sig).toHaveLength(64);
         expect(verifySignature(sig, msg, pub)).toBe(true);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 
@@ -232,7 +242,7 @@ describe('signWithScalar correctness', () => {
 
         expect(verifySignature(sig, m2, pub)).toBe(false);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 
@@ -249,7 +259,25 @@ describe('signWithScalar correctness', () => {
 
         expect(verifySignature(sig, msg, pub2)).toBe(false);
       }),
-      { numRuns: FC_RUNS, ...configure(), onFailure },
+      { numRuns: FC_RUNS, ...configure(), reporter },
     );
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// 7. proof test: demonstrates replay output on failure
+// ─────────────────────────────────────────────────────────────
+
+if (process.env.FC_PROOF_TEST === '1') {
+  describe('replay output proof test', () => {
+    test('deliberately fails to prove replay output is emitted', () => {
+      fc.assert(
+        fc.property(scalarArb, (a: bigint) => {
+          // This will always fail
+          expect(a).toBe(0n);
+        }),
+        { numRuns: 10, seed: 42, reporter },
+      );
+    });
+  });
+}
