@@ -48,8 +48,10 @@
   "engines": {
     "node": ">=20"
   },
+  "packageManager": "pnpm@10.34.4",
   "scripts": {
     "build": "tsup && pnpm --filter @wraith-protocol/sdk-agent build",
+    "check:pnpm-version": "node scripts/check-pnpm-version.mjs",
     "test": "vitest run --exclude 'test/chains/stellar/properties.test.ts' --exclude 'test/leaks/scan-leak.test.ts' --exclude 'test/leaks/heap-snapshot.test.ts' && pnpm --filter @wraith-protocol/sdk-svelte test",
     "docs": "typedoc",
     "test:exports": "node test/smoke/run.mjs",
