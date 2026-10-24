@@ -1,1 +1,1 @@
-npx pnpm format:check && npx pnpm build && npx pnpm test
+npx pnpm check:pnpm-version && npx pnpm format:check && npx pnpm build && npx pnpm test
