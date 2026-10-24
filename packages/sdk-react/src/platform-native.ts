@@ -39,10 +39,18 @@ export const nativePlatform: Platform = {
     },
   },
   setup(): void {
-    require('react-native-get-random-values');
-    const { Buffer } = require('buffer');
-    if (typeof globalThis.Buffer === 'undefined') {
-      (globalThis as any).Buffer = Buffer;
+    try {
+      require('react-native-get-random-values');
+    } catch {
+      // react-native-get-random-values may not be installed or dynamic require unavailable in ESM
+    }
+    try {
+      const { Buffer } = require('buffer');
+      if (typeof globalThis.Buffer === 'undefined') {
+        (globalThis as any).Buffer = Buffer;
+      }
+    } catch {
+      // buffer unavailable or already present
     }
   },
 };
