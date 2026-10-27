@@ -68,6 +68,28 @@ jobs:
       - name: Verify only intended files would be published
         run: pnpm pack:check
 
+  packages:
+    name: Companion package tarball smoke tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Packs each companion workspace package (`sdk-agent`, `sdk-react`,
+      # `sdk-vue`, `sdk-solid`, `sdk-svelte`, `codemod`, `test-vectors`) and
+      # smoke-tests it as an independently publishable tarball: ESM, types,
+      # documented exports, published file list, and that no workspace-only
+      # import fails to resolve from npm in a clean fixture.
+      - run: pnpm test:packages
+
   framework-types:
     name: Framework package types
     runs-on: ubuntu-latest
