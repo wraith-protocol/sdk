@@ -68,6 +68,9 @@ export class ContractRevertError extends WraithContractError {
 export function createFreighterWalletAdapter(wallet: FreighterWalletApi): FreighterWalletAdapter;
 
 // @public
+export function createSafeTracer(tracer: Tracer): Tracer;
+
+// @public
 export function createSolanaWalletAdapter(wallet: SolanaWalletAdapterLike): SolanaWalletAdapter;
 
 // @public
@@ -261,6 +264,9 @@ export class InvalidSignatureError extends WraithInputError {
 // @public
 export function isAbortError(err: unknown): boolean;
 
+// @public
+export function isSensitiveFieldName(fieldName: string): boolean;
+
 // @public (undocumented)
 export class KeyDerivationFailedError extends WraithCryptoError {
     constructor(reason: string);
@@ -322,6 +328,27 @@ export const NOOP_TRACER: Tracer;
 
 // @public
 export function normalizeWalletError(error: unknown, chain?: WalletAdapterChain): WraithWalletError;
+
+// @public
+export const REDACTED_VALUE = "[REDACTED]";
+
+// @public
+export function redactError(error: unknown, options?: RedactionOptions): SafeErrorSnapshot;
+
+// @public
+export interface RedactionOptions {
+    maxDepth?: number;
+    placeholder?: string;
+}
+
+// @public
+export function redactString(input: string, options?: RedactionOptions): string;
+
+// @public
+export function redactUrl(url: string, placeholder?: string): string;
+
+// @public
+export function redactValue<T = unknown>(value: T, options?: RedactionOptions): unknown;
 
 // @public (undocumented)
 export class RetentionExceededError extends WraithNetworkError {
@@ -397,6 +424,29 @@ export class RPCTimeoutError extends WraithNetworkError implements RPCTimeoutDet
 
 // @public
 export type RPCTimeoutPhase = 'connect' | 'request';
+
+// @public
+export interface SafeErrorSnapshot {
+    // (undocumented)
+    code?: string;
+    // (undocumented)
+    context?: Record<string, unknown>;
+    // (undocumented)
+    docsLink?: string;
+    // (undocumented)
+    message: string;
+    // (undocumented)
+    name: string;
+}
+
+// @public
+export function sanitizeTelemetryAttributes(attributes: Record<string, string | number | boolean> | undefined, options?: RedactionOptions): Record<string, string | number | boolean> | undefined;
+
+// @public
+export function sanitizeTelemetryAttributeValue(key: string, value: unknown, options?: RedactionOptions): string | number | boolean;
+
+// @public
+export function sanitizeTelemetryException(error: unknown, options?: RedactionOptions): Error;
 
 // @public (undocumented)
 export function scanAll(input: ScanAllInput): AsyncGenerator<MatchedAnnouncement>;
@@ -475,6 +525,9 @@ export interface Span {
     recordException(error: unknown): void;
     setAttribute(key: string, value: string | number | boolean): void;
 }
+
+// @public
+export function startSafeSpan(name: string, attributes?: Record<string, string | number | boolean>, tracer?: Tracer): Span;
 
 // @public (undocumented)
 export interface StellarChainInput {
@@ -695,7 +748,7 @@ export abstract class WraithError extends Error {
         message: string;
         code: string;
         docsLink: string;
-        context: Record<string, any> | undefined;
+        context: Record<string, unknown> | undefined;
     };
 }
 

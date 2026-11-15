@@ -11,18 +11,18 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 
 | Entry              | Format           | Baseline  | Budget (+15%) |
 | ------------------ | ---------------- | --------- | ------------- |
-| Root (`.`)         | ESM (`import *`) | 31.32 KB  | 36.1 KB       |
+| Root (`.`)         | ESM (`import *`) | 36.56 KB  | 38 KB         |
 | Root (`.`)         | CJS (`require`)  | 138.79 KB | 159.7 KB      |
 | `./chains/evm`     | ESM (`import *`) | 23.83 KB  | 27.5 KB       |
 | `./chains/evm`     | CJS (`require`)  | 126.79 KB | 145.9 KB      |
-| `./chains/solana`  | ESM (`import *`) | 17.15 KB  | 19.8 KB       |
-| `./chains/solana`  | CJS (`require`)  | 25.89 KB  | 29.8 KB       |
+| `./chains/solana`  | ESM (`import *`) | 19.89 KB  | 21 KB         |
+| `./chains/solana`  | CJS (`require`)  | 30.03 KB  | 31.5 KB       |
 | `./chains/ckb`     | ESM (`import *`) | 20.52 KB  | 23.6 KB       |
 | `./chains/ckb`     | CJS (`require`)  | 128.76 KB | 148.1 KB      |
-| `./vault`          | ESM (`import *`) | 1.93 KB   | 2.3 KB        |
-| `./vault`          | CJS (`require`)  | 2.07 KB   | 2.4 KB        |
-| `./chains/stellar` | ESM (`import *`) | 26.48 KB  | 31 KB         |
-| `./chains/stellar` | CJS (`require`)  | 34.29 KB  | 39.5 KB       |
+| `./vault`          | ESM (`import *`) | 1.97 KB   | 2.3 KB        |
+| `./vault`          | CJS (`require`)  | 2.12 KB   | 2.4 KB        |
+| `./chains/stellar` | ESM (`import *`) | 35.23 KB  | 36.5 KB       |
+| `./chains/stellar` | CJS (`require`)  | 43.33 KB  | 45 KB         |
 
 > Stellar note: the original 20 KB-per-format budget predated any actual
 > measurement (the baseline had never been populated). The current Stellar
@@ -32,7 +32,10 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 >
 > On 2026-10-16 the Stellar ESM budget was raised from 30.5 KB to 31 KB for the
 > cancellation and timeout support in the one-shot Horizon helpers (issue #235),
-> which brought that entry to 30.68 KB.
+> which brought that entry to 30.68 KB, and subsequently raised to 33 KB / 41 KB
+> in #261 for the core Soroban name resolver. Root ESM, Solana ESM/CJS, and
+> Stellar ESM/CJS budgets were updated in #276 (~1.3 KB brotli) for the central
+> secret redaction policy shared across `WraithError` and `telemetry`.
 
 ## Checking Sizes (CI gate)
 

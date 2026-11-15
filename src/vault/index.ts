@@ -272,7 +272,7 @@ export class KeyVault {
         ciphertext: record.ciphertext,
       } satisfies VaultEntryRecord);
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      tx.onerror = () => reject(new Error('KeyVault storage operation failed.'));
     });
 
     this.resetIdleTimer();
@@ -286,16 +286,28 @@ export class KeyVault {
       const tx = db.transaction(STORE_ENTRIES, 'readonly');
       const req = tx.objectStore(STORE_ENTRIES).get(label);
       req.onsuccess = () => resolve((req.result as VaultEntryRecord | undefined) ?? null);
-      req.onerror = () => reject(req.error);
+      req.onerror = () => reject(new Error('KeyVault storage operation failed.'));
     });
 
     if (!record) {
       return null;
     }
 
-    const value = await decryptJson<T>(key, record.iv, record.ciphertext);
+    let value: T;
+    try {
+      value = await decryptJson<T>(key, record.iv, record.ciphertext);
+    } catch {
+      throw new Error('Unable to decrypt KeyVault entry. The vault entry may be corrupt.');
+    }
     this.resetIdleTimer();
     return value;
+  }
+
+  toJSON(): { locked: boolean; dbName: string } {
+    return {
+      locked: this.cryptoKey === null,
+      dbName: this.options.dbName,
+    };
   }
 
   private openDB(): Promise<IDBDatabase> {
@@ -328,7 +340,7 @@ export class KeyVault {
         };
         resolve(req.result);
       };
-      req.onerror = () => reject(req.error);
+      req.onerror = () => reject(new Error('KeyVault storage operation failed.'));
     });
 
     return this.dbPromise;
@@ -339,7 +351,7 @@ export class KeyVault {
       const tx = db.transaction(STORE_META, 'readonly');
       const req = tx.objectStore(STORE_META).get(VAULT_META_KEY);
       req.onsuccess = () => resolve((req.result as VaultMetaRecord | undefined) ?? null);
-      req.onerror = () => reject(req.error);
+      req.onerror = () => reject(new Error('KeyVault storage operation failed.'));
     });
   }
 
@@ -363,7 +375,7 @@ export class KeyVault {
       const tx = db.transaction(STORE_META, 'readwrite');
       tx.objectStore(STORE_META).put(meta);
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      tx.onerror = () => reject(new Error('KeyVault storage operation failed.'));
     });
 
     return meta;

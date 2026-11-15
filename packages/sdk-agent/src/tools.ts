@@ -1,8 +1,6 @@
-import { withSpan, type Tracer } from '@wraith-protocol/sdk';
+import { redactString, withSpan, type Tracer } from '@wraith-protocol/sdk';
 import {
-  deriveStealthKeys,
   decodeStealthMetaAddress,
-  encodeStealthMetaAddress,
   generateStealthAddress,
   scanAnnouncements,
   hexToBytes,
@@ -15,6 +13,12 @@ export interface ClaudeAgentToolContext {
   baseUrl?: string;
   /** Default tracer for spans created by these tools. Overridable per call via `withSpan`-instrumented internals. */
   tracer?: Tracer;
+  /**
+   * Opt-in flag to include spendable private scalars and raw announcement
+   * metadata in `scan` tool results. Defaults to `false` so agent tool
+   * outputs never expose sensitive cryptographic material or metadata by default.
+   */
+  includeSensitive?: boolean;
 }
 
 export interface SendToMetaAddressInput {
@@ -77,8 +81,16 @@ function parseBigInt(value: string | undefined): bigint {
   return BigInt(`0x${clean}`);
 }
 
+function extractPublicViewTag(metadata: string): string | undefined {
+  const clean = metadata.startsWith('0x') ? metadata.slice(2) : metadata;
+  if (clean.length < 2) return undefined;
+  const prefix = clean.slice(0, 2).toLowerCase();
+  return /^[0-9a-f]{2}$/.test(prefix) ? prefix : undefined;
+}
+
 export function createClaudeAgentTools(context: ClaudeAgentToolContext = {}): ClaudeAgentTools {
   const tracer = context.tracer;
+  const includeSensitive = context.includeSensitive === true;
 
   return {
     sendToMetaAddress(input): Promise<ToolResult> {
@@ -89,6 +101,7 @@ export function createClaudeAgentTools(context: ClaudeAgentToolContext = {}): Cl
           async () => {
             const { spendingPubKey, viewingPubKey } = decodeStealthMetaAddress(input.metaAddress);
             const stealthResult = generateStealthAddress(spendingPubKey, viewingPubKey);
+            const viewTag = stealthResult.viewTag.toString(16).padStart(2, '0');
             return {
               kind: 'send',
               signingRequired: true,
@@ -97,10 +110,11 @@ export function createClaudeAgentTools(context: ClaudeAgentToolContext = {}): Cl
                 intent: 'send-to-meta-address',
                 asset: input.asset ?? 'XLM',
                 amount: input.amount,
-                memo: input.memo ?? '',
+                memo: input.memo ? redactString(input.memo) : '',
                 stealthAddress: stealthResult.stealthAddress,
                 ephemeralPubKey: bytesToHex(stealthResult.ephemeralPubKey),
-                metadata: stealthResult.viewTag.toString(16).padStart(2, '0'),
+                viewTag,
+                ...(includeSensitive ? { metadata: viewTag } : {}),
                 destination: input.destination ?? stealthResult.stealthAddress,
               },
               note: 'The agent prepares a stealth send plan. The sender must sign the transaction locally with their wallet.',
@@ -132,12 +146,20 @@ export function createClaudeAgentTools(context: ClaudeAgentToolContext = {}): Cl
             return {
               kind: 'scan',
               signingRequired: false,
-              matches: matches.map((item) => ({
-                stealthAddress: item.stealthAddress,
-                ephemeralPubKey: item.ephemeralPubKey,
-                metadata: item.metadata,
-                stealthPrivateScalar: item.stealthPrivateScalar.toString(),
-              })),
+              matches: matches.map((item) => {
+                const viewTag = extractPublicViewTag(item.metadata);
+                const safeMatch: Record<string, unknown> = {
+                  stealthAddress: item.stealthAddress,
+                  ephemeralPubKey: item.ephemeralPubKey,
+                  schemeId: item.schemeId,
+                  ...(viewTag !== undefined ? { viewTag } : {}),
+                };
+                if (includeSensitive) {
+                  safeMatch.metadata = item.metadata;
+                  safeMatch.stealthPrivateScalar = item.stealthPrivateScalar.toString();
+                }
+                return safeMatch;
+              }),
               count: matches.length,
             };
           },
@@ -160,7 +182,7 @@ export function createClaudeAgentTools(context: ClaudeAgentToolContext = {}): Cl
               asset: input.asset ?? 'XLM',
               amount: input.amount,
               destination: input.destination ?? input.stealthAddress,
-              memo: input.memo ?? '',
+              memo: input.memo ? redactString(input.memo) : '',
             },
             note: 'The agent prepares a withdrawal plan. The stealth account owner must sign the transaction with their local wallet or key manager.',
           }),

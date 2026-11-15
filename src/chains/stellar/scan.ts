@@ -8,7 +8,7 @@ import { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-addre
 import { hexToBytes } from './utils';
 import type { ChainScannerAdapter } from '../../scanner/unified';
 import { pipeline } from './scanner/pipeline';
-import { getTracer, type Tracer } from '../../telemetry';
+import { startSafeSpan, type Tracer } from '../../telemetry';
 
 /**
  * Progress snapshot emitted during a cold scan so UIs can render honest
@@ -105,10 +105,14 @@ export async function* scanAnnouncementsStream(
   const viewingPubKey = ed25519.getPublicKey(viewingKey);
   const piped = pipeline(source, windowSize);
 
-  const span = (opts.tracer ?? getTracer()).startSpan('stellar.scan', {
-    'wraith.chain': 'stellar',
-    'wraith.scan.window': windowSize,
-  });
+  const span = startSafeSpan(
+    'stellar.scan',
+    {
+      'wraith.chain': 'stellar',
+      'wraith.scan.window': windowSize,
+    },
+    opts.tracer,
+  );
   let scanned = 0;
   let matched = 0;
 
@@ -175,10 +179,14 @@ function decryptMatch(
   spendingScalar: bigint,
   tracer: Tracer | undefined,
 ): MatchedAnnouncement {
-  const span = (tracer ?? getTracer()).startSpan('stellar.scan.match', {
-    'wraith.chain': 'stellar',
-    'wraith.scan.scheme_id': ann.schemeId,
-  });
+  const span = startSafeSpan(
+    'stellar.scan.match',
+    {
+      'wraith.chain': 'stellar',
+      'wraith.scan.scheme_id': ann.schemeId,
+    },
+    tracer,
+  );
   try {
     const stealthPrivateScalar = ((spendingScalar % L) + hashScalar) % L;
     return {

@@ -633,4 +633,58 @@ describe('WraithAgent', () => {
     expect(convos).toHaveLength(1);
     expect(convos[0].id).toBe('conv-001');
   });
+
+  test('Wraith.toJSON() and chat tool-call validation redact secrets by default', async () => {
+    const wraith = new Wraith({
+      apiKey: 'wraith_live_topsecret999',
+      baseUrl: `${baseUrl}`,
+      ai: { provider: 'claude', apiKey: 'sk-ant-topsecret888' },
+    });
+
+    const clientJson = JSON.stringify(wraith);
+    expect(clientJson).not.toContain('wraith_live_topsecret999');
+    expect(clientJson).not.toContain('sk-ant-topsecret888');
+
+    const agent = wraith.agent(AGENT_ID);
+    const leakedScalar = '9876543210987654321098765432109876543210';
+    const leakedViewingKey = '0x' + 'aa'.repeat(32);
+
+    nextChatPayload = {
+      response: `Checked https://user:secretpass@rpc.example.com with Bearer secretToken12345`,
+      conversationId: 'conv-redact-1',
+      toolCalls: [
+        {
+          name: 'scan_payments',
+          status: 'completed',
+          detail: JSON.stringify([
+            {
+              stealthAddress: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+              balance: '42.0',
+              ephemeralPubKey: '0x' + '11'.repeat(32),
+              stealthPrivateScalar: leakedScalar,
+              viewingKey: leakedViewingKey,
+              metadata: '07deadbeefsecret',
+            },
+          ]),
+        },
+      ],
+    };
+
+    const chatRes = await agent.chat('scan');
+    const serializedChat = JSON.stringify(chatRes);
+    expect(serializedChat).not.toContain('secretpass');
+    expect(serializedChat).not.toContain('secretToken12345');
+    expect(serializedChat).not.toContain(leakedScalar);
+    expect(serializedChat).not.toContain(leakedViewingKey);
+    expect(serializedChat).not.toContain('07deadbeefsecret');
+
+    const payments = await agent.scanPayments();
+    expect(payments).toEqual([
+      {
+        stealthAddress: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+        balance: '42.0',
+        ephemeralPubKey: '0x' + '11'.repeat(32),
+      },
+    ]);
+  });
 });
