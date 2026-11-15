@@ -1,20 +1,23 @@
+import { redactString, redactValue } from '../redaction';
+
 /**
  * Extracts a safe, human-readable message from an unknown thrown value.
  *
  * Handles the common non-Error throw cases (string, plain object, etc.)
- * so callers never assume `.message` exists.
+ * so callers never assume `.message` exists, and applies the central
+ * redaction policy so secrets and credentials do not leak into UI state.
  */
 export function getUnknownErrorMessage(err: unknown): string {
   if (err instanceof Error) {
-    return err.message;
+    return redactString(err.message);
   }
   if (typeof err === 'string') {
-    return err;
+    return redactString(err);
   }
   try {
-    return JSON.stringify(err);
+    return redactString(JSON.stringify(redactValue(err)));
   } catch {
-    return String(err);
+    return redactString(String(err));
   }
 }
 

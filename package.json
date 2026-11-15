@@ -82,7 +82,7 @@
       "name": "Root ESM (import *)",
       "path": "dist/index.js",
       "import": "*",
-      "limit": "36.1 KB"
+      "limit": "38 KB"
     },
     {
       "name": "Root CJS (require)",
@@ -104,12 +104,12 @@
       "name": "Solana ESM (import *)",
       "path": "dist/chains/solana/index.js",
       "import": "*",
-      "limit": "19.8 KB"
+      "limit": "21 KB"
     },
     {
       "name": "Solana CJS (require)",
       "path": "dist/chains/solana/index.cjs",
-      "limit": "29.8 KB"
+      "limit": "31.5 KB"
     },
     {
       "name": "CKB ESM (import *)",
@@ -137,12 +137,12 @@
       "name": "Stellar ESM (import *)",
       "path": "dist/chains/stellar/index.js",
       "import": "*",
-      "limit": "33 KB"
+      "limit": "36.5 KB"
     },
     {
       "name": "Stellar CJS (require)",
       "path": "dist/chains/stellar/index.cjs",
-      "limit": "41 KB"
+      "limit": "45 KB"
     }
   ],
   "dependencies": {

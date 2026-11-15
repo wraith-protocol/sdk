@@ -19,6 +19,7 @@ declare module '@wraith-protocol/sdk-agent' {
     getAgentByWallet(walletAddress: string): Promise<WraithAgent>;
     getAgentByName(name: string): Promise<WraithAgent>;
     listAgents(): Promise<AgentInfo[]>;
+    toJSON(): { baseUrl: string; timeoutMs: number };
   }
 
   export class WraithAgent {
@@ -161,6 +162,7 @@ declare module '@wraith-protocol/sdk-agent' {
   export interface ClaudeAgentToolContext {
     apiKey?: string;
     baseUrl?: string;
+    includeSensitive?: boolean;
   }
 
   export interface SendToMetaAddressInput {

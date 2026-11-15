@@ -34,8 +34,27 @@ export type {
   FreighterWalletWatcher,
 } from './wallet';
 
-export { setTracer, getTracer, withSpan, NOOP_TRACER } from './telemetry';
+export {
+  setTracer,
+  getTracer,
+  withSpan,
+  startSafeSpan,
+  createSafeTracer,
+  NOOP_TRACER,
+} from './telemetry';
 export type { Tracer, Span } from './telemetry';
+export {
+  REDACTED_VALUE,
+  isSensitiveFieldName,
+  redactUrl,
+  redactString,
+  redactValue,
+  redactError,
+  sanitizeTelemetryAttributeValue,
+  sanitizeTelemetryAttributes,
+  sanitizeTelemetryException,
+} from './redaction';
+export type { RedactionOptions, SafeErrorSnapshot } from './redaction';
 
 export type {
   ScanAllInput,

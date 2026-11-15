@@ -105,7 +105,10 @@ function safeEndpoint(endpoint: string): string {
     const url = new URL(endpoint);
     return `${url.origin}${url.pathname}`.slice(0, 300);
   } catch {
-    return endpoint.split(/[?#]/, 1)[0].slice(0, 300);
+    return endpoint
+      .split(/[?#]/, 1)[0]
+      .replace(/^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)([^/@\s]+)@/, '$1[REDACTED]@')
+      .slice(0, 300);
   }
 }
 

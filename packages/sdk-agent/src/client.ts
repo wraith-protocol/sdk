@@ -1,4 +1,10 @@
-import { AgentResponseError, RPCRequestError } from '@wraith-protocol/sdk';
+import {
+  AgentResponseError,
+  RPCRequestError,
+  redactString,
+  redactUrl,
+  redactValue,
+} from '@wraith-protocol/sdk';
 import type {
   WraithConfig,
   AgentConfig,
@@ -170,6 +176,22 @@ export function parseToolCallPayments(detail: unknown, url: string, field = 'det
   return parsed.map((entry, index) => validatePayment(entry, url, `${field}[${index}]`));
 }
 
+function sanitizeToolCallDetail(detail: string): string {
+  const trimmed = detail.trim();
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    try {
+      const parsed: unknown = JSON.parse(detail);
+      return JSON.stringify(redactValue(parsed));
+    } catch {
+      return redactString(detail);
+    }
+  }
+  return redactString(detail);
+}
+
 function validateToolCall(payload: unknown, url: string, field: string): ToolCall {
   if (!isRecord(payload)) {
     throw new AgentResponseError(url, field, 'tool call must be an object');
@@ -190,7 +212,7 @@ function validateToolCall(payload: unknown, url: string, field: string): ToolCal
   return {
     name: payload.name,
     status: payload.status,
-    ...(payload.detail !== undefined ? { detail: payload.detail } : {}),
+    ...(payload.detail !== undefined ? { detail: sanitizeToolCallDetail(payload.detail) } : {}),
   };
 }
 
@@ -218,7 +240,7 @@ function validateChatResponse(payload: unknown, url: string): ChatResponse {
   }
 
   return {
-    response: payload.response,
+    response: redactString(payload.response),
     ...(toolCalls !== undefined ? { toolCalls } : {}),
     conversationId: payload.conversationId,
   };
@@ -357,6 +379,16 @@ export class Wraith {
    */
   async listAgents(options?: RequestOptions): Promise<AgentInfo[]> {
     return this.request<AgentInfo[]>('GET', '/agents', undefined, options);
+  }
+
+  /**
+   * Returns a safe diagnostic summary without exposing `apiKey` or AI provider credentials.
+   */
+  toJSON(): { baseUrl: string; timeoutMs: number } {
+    return {
+      baseUrl: redactUrl(this.baseUrl),
+      timeoutMs: this.timeoutMs,
+    };
   }
 
   /** @internal Exposed for WraithAgent to use. */

@@ -1,3 +1,5 @@
+import { redactError, redactString, redactUrl } from './redaction';
+
 const DOCS_BASE_URL = 'https://docs.wraith.dev/sdk/errors';
 
 export abstract class WraithError extends Error {
@@ -26,12 +28,13 @@ export abstract class WraithError extends Error {
   }
 
   toJSON() {
+    const snapshot = redactError(this);
     return {
-      name: this.name,
-      message: this.message,
+      name: snapshot.name,
+      message: snapshot.message,
       code: this.code,
       docsLink: this.docsLink,
-      context: this.context,
+      context: snapshot.context,
     };
   }
 
@@ -80,7 +83,8 @@ export interface WalletWrongNetworkDetails extends WalletErrorDetails {
 export abstract class WraithWalletError extends WraithError {
   constructor(message: string, details: WalletErrorDetails = {}, extra?: Record<string, unknown>) {
     const { chain, reason, providerCode, cause } = details;
-    super(message, { chain, reason, providerCode, ...extra });
+    const safeReason = reason === undefined ? undefined : redactString(reason);
+    super(redactString(message), { chain, reason: safeReason, providerCode, ...extra });
     if (cause !== undefined) {
       // Same semantics as a native `Error.cause`: readable, but not enumerable or serialised.
       Object.defineProperty(this, 'cause', { value: cause, writable: true, configurable: true });
@@ -129,7 +133,7 @@ export class InvalidSignatureError extends WraithInputError {
   readonly code = 'WRAITH/INPUT/INVALID_SIGNATURE';
 
   constructor(signature: string | Uint8Array, expectedLength?: number, actualLength?: number) {
-    const sigStr = typeof signature === 'string' ? signature : '[Uint8Array]';
+    const sigStr = typeof signature === 'string' ? redactString(signature) : '[Uint8Array]';
     super(
       `Invalid signature length or format: "${sigStr}"${
         expectedLength !== undefined && actualLength !== undefined
@@ -233,12 +237,14 @@ export class RPCRequestError extends WraithNetworkError {
   readonly statusCode: number;
 
   constructor(url: string, statusCode: number, responseText?: string) {
+    const safeUrl = redactUrl(url);
+    const safeResponseText = responseText === undefined ? undefined : redactString(responseText);
     super(
-      `RPC request failed to "${url}" with status ${statusCode}${responseText ? `: ${responseText}` : ''}`,
+      `RPC request failed to "${safeUrl}" with status ${statusCode}${safeResponseText ? `: ${safeResponseText}` : ''}`,
       {
-        url,
+        url: safeUrl,
         statusCode,
-        responseText,
+        responseText: safeResponseText,
       },
     );
     this.statusCode = statusCode;
@@ -268,7 +274,13 @@ export class HorizonResponseError extends WraithNetworkError {
   readonly field: string;
 
   constructor(url: string, field: string, reason: string) {
-    super(`Invalid Horizon response from "${url}" at ${field}: ${reason}`, { url, field, reason });
+    const safeUrl = redactUrl(url);
+    const safeReason = redactString(reason);
+    super(`Invalid Horizon response from "${safeUrl}" at ${field}: ${safeReason}`, {
+      url: safeUrl,
+      field,
+      reason: safeReason,
+    });
     this.field = field;
   }
 
@@ -292,7 +304,13 @@ export class AgentResponseError extends WraithNetworkError {
   readonly field: string;
 
   constructor(url: string, field: string, reason: string) {
-    super(`Invalid agent response from "${url}" at ${field}: ${reason}`, { url, field, reason });
+    const safeUrl = redactUrl(url);
+    const safeReason = redactString(reason);
+    super(`Invalid agent response from "${safeUrl}" at ${field}: ${safeReason}`, {
+      url: safeUrl,
+      field,
+      reason: safeReason,
+    });
     this.field = field;
   }
 
@@ -315,11 +333,13 @@ export class RPCRetryExhaustedError extends WraithNetworkError {
    * out of `toJSON()`.
    */
   constructor(url: string, attempts: number, lastError?: string, options?: { cause?: unknown }) {
+    const safeUrl = redactUrl(url);
+    const safeLastError = lastError === undefined ? undefined : redactString(lastError);
     super(
-      `RPC request retries exhausted for "${url}" after ${attempts} attempts${
-        lastError ? `. Last error: ${lastError}` : ''
+      `RPC request retries exhausted for "${safeUrl}" after ${attempts} attempts${
+        safeLastError ? `. Last error: ${safeLastError}` : ''
       }`,
-      { url, attempts, lastError },
+      { url: safeUrl, attempts, lastError: safeLastError },
     );
     if (options?.cause !== undefined) {
       // Same semantics as a native `Error.cause`: readable, but not enumerable or serialised.
@@ -376,14 +396,16 @@ export class RPCTimeoutError extends WraithNetworkError implements RPCTimeoutDet
 
   constructor(details: RPCTimeoutDetails) {
     const { url, endpoint, attempt, phase, timeoutMs } = details;
+    const safeUrl = redactUrl(url);
+    const safeEndpoint = redactUrl(endpoint);
     const waiting =
       phase === 'connect' ? 'waiting for response headers' : 'before the response completed';
     super(
-      `RPC request to "${url}" timed out after ${timeoutMs}ms ${waiting} (endpoint ${endpoint}, attempt ${attempt})`,
-      { url, endpoint, attempt, phase, timeoutMs },
+      `RPC request to "${safeUrl}" timed out after ${timeoutMs}ms ${waiting} (endpoint ${safeEndpoint}, attempt ${attempt})`,
+      { url: safeUrl, endpoint: safeEndpoint, attempt, phase, timeoutMs },
     );
-    this.url = url;
-    this.endpoint = endpoint;
+    this.url = safeUrl;
+    this.endpoint = safeEndpoint;
     this.attempt = attempt;
     this.phase = phase;
     this.timeoutMs = timeoutMs;
@@ -417,8 +439,9 @@ export class RPCAbortedError extends WraithNetworkError {
    * of `toJSON()`.
    */
   constructor(url: string, options?: { cause?: unknown }) {
-    super(`RPC request to "${url}" was aborted by the caller`, { url });
-    this.url = url;
+    const safeUrl = redactUrl(url);
+    super(`RPC request to "${safeUrl}" was aborted by the caller`, { url: safeUrl });
+    this.url = safeUrl;
     if (options?.cause !== undefined) {
       Object.defineProperty(this, 'cause', {
         value: options.cause,

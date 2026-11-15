@@ -1,14 +1,31 @@
+import {
+  redactString,
+  sanitizeTelemetryAttributes,
+  sanitizeTelemetryAttributeValue,
+  sanitizeTelemetryException,
+} from './redaction';
+
 /**
  * A single unit of traced work, as emitted by a {@link Tracer}.
  *
  * Implementations typically wrap a tracer-specific span object (an
  * OpenTelemetry `Span`, a Sentry span, a Datadog span, ...). SDK call sites
  * never depend on any tracer package directly, only on this shape.
+ *
+ * Safe telemetry shape guarantee:
+ * - `setAttribute(key, value)` receives primitive `string | number | boolean`
+ *   values after applying the central secret redaction policy (sensitive keys,
+ *   URL credentials, bearer tokens, seeds, signatures, envelopes, and metadata
+ *   are replaced with `[REDACTED]`).
+ * - `recordException(error)` receives a sanitized `Error` instance containing
+ *   only `name`, redacted `message` (and redacted `stack` when present), plus
+ *   optional `code`, `docsLink`, and redacted `context` — never raw provider
+ *   `cause` chains, auth headers, or private key material.
  */
 export interface Span {
-  /** Attaches or overwrites one attribute on the span. */
+  /** Attaches or overwrites one sanitized primitive attribute on the span. */
   setAttribute(key: string, value: string | number | boolean): void;
-  /** Records an exception on the span. Does not end the span. */
+  /** Records a sanitized `Error` on the span. Does not end the span. */
   recordException(error: unknown): void;
   /** Ends the span. Call exactly once, regardless of success or failure. */
   end(): void;
@@ -21,6 +38,11 @@ export interface Span {
  * to this shape and pass it to {@link setTracer}, or as a per-call `tracer`
  * option on an instrumented function — the SDK has no runtime dependency on
  * any specific tracing package.
+ *
+ * User-provided telemetry hooks invoked through {@link withSpan},
+ * {@link startSafeSpan}, or {@link createSafeTracer} receive only the
+ * documented safe shape: redacted span names, sanitized primitive attributes,
+ * and sanitized `Error` instances on `recordException`.
  *
  * @see {@link setTracer}
  * @see {@link NOOP_TRACER}
@@ -62,8 +84,8 @@ const NOOP_SPAN: Span = {
  * Tracer that creates no-op spans.
  *
  * This is the default tracer until {@link setTracer} is called, so instrumented
- * call sites carry negligible overhead (one object allocation, no-op method
- * calls) when nobody has configured tracing.
+ * call sites carry negligible overhead (zero span wrapper allocations, no-op
+ * method calls) when nobody has configured tracing.
  */
 export const NOOP_TRACER: Tracer = {
   startSpan() {
@@ -72,6 +94,64 @@ export const NOOP_TRACER: Tracer = {
 };
 
 let globalTracer: Tracer = NOOP_TRACER;
+
+function wrapSafeSpan(rawSpan: Span): Span {
+  if (rawSpan === NOOP_SPAN) {
+    return NOOP_SPAN;
+  }
+  let ended = false;
+  return {
+    setAttribute(key: string, value: string | number | boolean): void {
+      if (!key) return;
+      rawSpan.setAttribute(key, sanitizeTelemetryAttributeValue(key, value));
+    },
+    recordException(error: unknown): void {
+      rawSpan.recordException(sanitizeTelemetryException(error));
+    },
+    end(): void {
+      if (ended) return;
+      ended = true;
+      rawSpan.end();
+    },
+  };
+}
+
+/**
+ * Wraps a user-provided {@link Tracer} so every span it creates enforces the
+ * central secret redaction policy on initial attributes, dynamic attributes,
+ * and recorded exceptions.
+ */
+export function createSafeTracer(tracer: Tracer): Tracer {
+  if (tracer === NOOP_TRACER) {
+    return NOOP_TRACER;
+  }
+  return {
+    startSpan(name: string, attributes?: Record<string, string | number | boolean>): Span {
+      const safeName = redactString(name);
+      const safeAttributes = sanitizeTelemetryAttributes(attributes);
+      return wrapSafeSpan(tracer.startSpan(safeName, safeAttributes));
+    },
+  };
+}
+
+/**
+ * Starts a redacted, safe-shape {@link Span} on `tracer` (or the global tracer
+ * when omitted). Returns {@link NOOP_SPAN} with zero allocations when tracing
+ * is not configured.
+ */
+export function startSafeSpan(
+  name: string,
+  attributes?: Record<string, string | number | boolean>,
+  tracer?: Tracer,
+): Span {
+  const activeTracer = tracer ?? globalTracer;
+  if (activeTracer === NOOP_TRACER) {
+    return NOOP_SPAN;
+  }
+  const safeName = redactString(name);
+  const safeAttributes = sanitizeTelemetryAttributes(attributes);
+  return wrapSafeSpan(activeTracer.startSpan(safeName, safeAttributes));
+}
 
 /**
  * Sets the tracer instrumented SDK call sites use by default.
@@ -95,6 +175,10 @@ export function getTracer(): Tracer {
  * and always ending the span exactly once. Instrumented call sites use this so
  * span lifecycle handling isn't duplicated at every call site.
  *
+ * Initial attributes, `span.setAttribute` calls, and `span.recordException`
+ * payloads are automatically sanitized through the central redaction policy
+ * before reaching user-provided telemetry hooks.
+ *
  * `fn` may return a plain value or a promise; either way the span ends when
  * the work finishes (synchronously, or once the returned promise settles).
  *
@@ -106,7 +190,12 @@ export function withSpan<T>(
   fn: (span: Span) => T,
   tracer?: Tracer,
 ): T {
-  const span = (tracer ?? globalTracer).startSpan(name, attributes);
+  const activeTracer = tracer ?? globalTracer;
+  if (activeTracer === NOOP_TRACER) {
+    return fn(NOOP_SPAN);
+  }
+
+  const span = startSafeSpan(name, attributes, activeTracer);
 
   let result: T;
   try {
