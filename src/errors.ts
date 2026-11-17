@@ -1,50 +1,16 @@
-const DOCS_BASE_URL = 'https://docs.wraith.dev/sdk/errors';
+import {
+  WraithError,
+  WraithRuntimeError,
+  UnsupportedCapabilityError,
+  type UnsupportedCapabilityDetails,
+} from './base-error';
 
-export abstract class WraithError extends Error {
-  abstract readonly code: string;
-  readonly docsLink: string;
-
-  constructor(
-    message: string,
-    public readonly context?: Record<string, any>,
-  ) {
-    super(message);
-
-    // Set prototype explicitly for correct instanceof behavior in ES5/older environments
-    Object.setPrototypeOf(this, new.target.prototype);
-
-    this.name = this.constructor.name;
-
-    const anchor = this.constructor.name
-      .replace(/Error$/, '')
-      .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-      .toLowerCase();
-    this.docsLink = `${DOCS_BASE_URL}#${anchor}`;
-
-    // Overwrite the message to include the docs link
-    this.message = `${message} (See ${this.docsLink})`;
-  }
-
-  toJSON() {
-    return {
-      name: this.name,
-      message: this.message,
-      code: this.code,
-      docsLink: this.docsLink,
-      context: this.context,
-    };
-  }
-
-  /**
-   * Returns a short, actionable "what to try" hint for this error, derived
-   * from its `context`. Concrete subclasses should override this with a hint
-   * tailored to their specific failure mode. The default implementation is a
-   * generic fallback so `describe()` is always safe to call.
-   */
-  describe(): string {
-    return `No specific guidance is available for this error. See ${this.docsLink} for details.`;
-  }
-}
+export {
+  WraithError,
+  WraithRuntimeError,
+  UnsupportedCapabilityError,
+  type UnsupportedCapabilityDetails,
+};
 
 // Intermediary Base Error Classes
 export abstract class WraithInputError extends WraithError {}

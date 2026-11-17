@@ -18,8 +18,16 @@ export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '
 export const matrixPath = join(repoRoot, 'compat', 'matrix.json');
 export const compatDocPath = join(repoRoot, 'COMPAT.md');
 
-/** Check ids that `verify-runtime.mjs` knows how to execute. */
-export const CHECK_IDS = ['node', 'bun', 'browser', 'react-native'];
+/** Check ids that `verify-runtime.mjs` / `verify-edge-runtimes.mjs` know how to execute. */
+export const CHECK_IDS = [
+  'node',
+  'bun',
+  'browser',
+  'browser-worker',
+  'react-native',
+  'deno',
+  'edge',
+];
 
 /** Allowed values for a runtime's `status` field. */
 export const STATUSES = ['supported', 'partial', 'untested'];
@@ -255,7 +263,16 @@ function runtimeCoverage(matrix, runtime) {
     return '`pnpm test:compat` in the `compat` CI job';
   }
   if (runtime.check === 'browser') return '`pnpm test:compat` browser bundle check';
+  if (runtime.check === 'browser-worker') {
+    return '`pnpm test:compat` standards-only Web Worker smoke fixture';
+  }
   if (runtime.check === 'react-native') return '`pnpm test:compat` React Native check';
+  if (runtime.check === 'deno') {
+    return '`verify-edge-runtimes.mjs --runtime=deno` in the `compat` CI job';
+  }
+  if (runtime.check === 'edge') {
+    return '`pnpm test:compat` Cloudflare Workers / Miniflare smoke fixture';
+  }
   return runtime.check;
 }
 

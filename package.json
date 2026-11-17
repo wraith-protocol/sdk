@@ -57,6 +57,7 @@
     "test:exports": "node test/smoke/run.mjs",
     "test:packages": "node test/smoke/packages.mjs",
     "test:compat": "node scripts/compat/run.mjs",
+    "test:compat:edge": "node scripts/compat/verify-edge-runtimes.mjs",
     "compat:doc": "node scripts/compat/check.mjs --write",
     "test:watch": "vitest",
     "test:types": "tsc --noEmit --project tsconfig.test-types.json",
@@ -126,12 +127,12 @@
       "name": "Vault ESM (import *)",
       "path": "dist/vault/index.js",
       "import": "*",
-      "limit": "2.3 KB"
+      "limit": "2.9 KB"
     },
     {
       "name": "Vault CJS (require)",
       "path": "dist/vault/index.cjs",
-      "limit": "2.4 KB"
+      "limit": "3.1 KB"
     },
     {
       "name": "Stellar ESM (import *)",
@@ -178,6 +179,7 @@
     "fake-indexeddb": "^6.2.5",
     "fast-check": "^4.8.0",
     "husky": "^9.1.0",
+    "miniflare": "^4.20260730.0",
     "prettier": "^3.4.0",
     "semver": "^7.7.4",
     "size-limit": "^11.0.0",

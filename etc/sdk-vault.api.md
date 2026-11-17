@@ -31,6 +31,29 @@ export interface KeyVaultOptions {
     lockOnVisibilityChange?: boolean;
 }
 
+// @public
+export interface UnsupportedCapabilityDetails {
+    capability: string;
+    cause?: unknown;
+    remedy: string;
+    runtime?: string;
+}
+
+// Warning: (ae-forgotten-export) The symbol "WraithRuntimeError" needs to be exported by the entry point index.d.ts
+//
+// @public
+export class UnsupportedCapabilityError extends WraithRuntimeError {
+    constructor(message: string, details: UnsupportedCapabilityDetails);
+    // (undocumented)
+    readonly capability: string;
+    // (undocumented)
+    readonly code = "WRAITH/RUNTIME/UNSUPPORTED_CAPABILITY";
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly remedy: string;
+}
+
 // (No @packageDocumentation comment for this package)
 
 ```
