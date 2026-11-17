@@ -21,8 +21,8 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 | `./chains/ckb`     | CJS (`require`)  | 128.76 KB | 148.1 KB      |
 | `./vault`          | ESM (`import *`) | 1.93 KB   | 2.3 KB        |
 | `./vault`          | CJS (`require`)  | 2.07 KB   | 2.4 KB        |
-| `./chains/stellar` | ESM (`import *`) | 26.48 KB  | 31 KB         |
-| `./chains/stellar` | CJS (`require`)  | 34.29 KB  | 39.5 KB       |
+| `./chains/stellar` | ESM (`import *`) | 33.28 KB  | 34.5 KB       |
+| `./chains/stellar` | CJS (`require`)  | 41.65 KB  | 42.5 KB       |
 
 > Stellar note: the original 20 KB-per-format budget predated any actual
 > measurement (the baseline had never been populated). The current Stellar

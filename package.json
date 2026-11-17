@@ -137,12 +137,12 @@
       "name": "Stellar ESM (import *)",
       "path": "dist/chains/stellar/index.js",
       "import": "*",
-      "limit": "33 KB"
+      "limit": "34.5 KB"
     },
     {
       "name": "Stellar CJS (require)",
       "path": "dist/chains/stellar/index.cjs",
-      "limit": "41 KB"
+      "limit": "42.5 KB"
     }
   ],
   "dependencies": {

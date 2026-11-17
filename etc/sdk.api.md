@@ -18,6 +18,12 @@ export class AgentResponseError extends WraithNetworkError {
 export function assertWalletNetwork(adapter: WalletAdapter, expectedNetwork: string): Promise<void>;
 
 // @public
+export type AuthorizationChain = 'evm' | 'stellar' | 'solana' | 'ckb';
+
+// @public
+export type AuthorizationOperation = 'name.register' | 'name.register_on_behalf' | 'name.update' | 'name.release' | 'stealth.key_derivation' | (string & {});
+
+// @public
 export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature> {
     // (undocumented)
     readonly chain: TChain;
@@ -29,6 +35,9 @@ export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature
 }
 
 // @public
+export function buildDomainStealthSigningMessage(domain: SignatureDomain, account?: string): string;
+
+// @public
 export interface ChainScannerAdapter<TItem = unknown, TKeys = unknown, TMatched = unknown, TMetaAddress = unknown> {
     decodeMetaAddress(metaAddress: string): TMetaAddress;
     encodeMetaAddress(spendingPubKey: unknown, viewingPubKey: unknown): string;
@@ -36,6 +45,9 @@ export interface ChainScannerAdapter<TItem = unknown, TKeys = unknown, TMatched 
     scan(source: AsyncIterable<TItem>, keys: TKeys): AsyncGenerator<TMatched>;
     timestampOf?(matched: TMatched): number | undefined;
 }
+
+// @public
+export function checkDomainGuards(signedDomain: SignatureDomain, options: VerifyDomainOptions): SignatureVerificationResult;
 
 // @public (undocumented)
 export interface CkbChainInput {
@@ -98,6 +110,9 @@ export function deriveStealthKeysFromWallet(adapter: SolanaChainWalletAdapter): 
 // @public (undocumented)
 export function deriveStealthKeysFromWallet(adapter: WalletAdapter): Promise<StealthKeys$1 | StealthKeys | StealthKeys_2>;
 
+// @public
+export const DOMAIN_AUTH_MAGIC = "WRAITH-DOMAIN-SIG-V1";
+
 // @public (undocumented)
 export class ECDHFailedError extends WraithCryptoError {
     constructor(reason: string);
@@ -114,6 +129,12 @@ export interface Eip1193EventProvider {
     // (undocumented)
     removeListener(event: string, listener: (...args: any[]) => void): unknown;
 }
+
+// @public
+export function encodeDomainAuthorizationBytes(domain: SignatureDomain, payloadBytes: Uint8Array): Uint8Array;
+
+// @public
+export function encodeLengthPrefixedFields(fields: Uint8Array[]): Uint8Array;
 
 // @public (undocumented)
 export interface EvmChainInput {
@@ -321,7 +342,13 @@ export class NameNotFoundError extends WraithContractError {
 export const NOOP_TRACER: Tracer;
 
 // @public
+export function normalizeDomainContract(chain: AuthorizationChain, contract: string): string;
+
+// @public
 export function normalizeWalletError(error: unknown, chain?: WalletAdapterChain): WraithWalletError;
+
+// @public
+export type ReplayRejectionReason = 'CHAIN_MISMATCH' | 'CHAIN_ID_MISMATCH' | 'NETWORK_MISMATCH' | 'CONTRACT_MISMATCH' | 'OPERATION_MISMATCH' | 'EXPIRED' | 'NONCE_REUSED' | 'INVALID_SIGNATURE';
 
 // @public (undocumented)
 export class RetentionExceededError extends WraithNetworkError {
@@ -423,6 +450,25 @@ export interface ScanCancellationOptions {
 // @public
 export function setTracer(tracer?: Tracer | null): void;
 
+// @public
+export interface SignatureDomain {
+    chain: AuthorizationChain;
+    chainId?: bigint;
+    contract: string;
+    expiry: bigint;
+    network: string;
+    nonce: bigint;
+    operation: AuthorizationOperation;
+}
+
+// @public
+export interface SignatureVerificationResult {
+    // (undocumented)
+    reason?: ReplayRejectionReason;
+    // (undocumented)
+    valid: boolean;
+}
+
 // @public (undocumented)
 export interface SolanaChainInput {
     // Warning: (ae-forgotten-export) The symbol "Announcement_2" needs to be exported by the entry point index.d.ts
@@ -511,6 +557,17 @@ export class UnsupportedAssetError extends WraithBuilderError {
     readonly code = "WRAITH/BUILDER/UNSUPPORTED_ASSET";
     // (undocumented)
     describe(): string;
+}
+
+// @public
+export function validateSignatureDomain(domain: SignatureDomain): void;
+
+// @public
+export interface VerifyDomainOptions {
+    expectedDomain: Omit<SignatureDomain, 'nonce' | 'expiry'>;
+    nowSeconds: bigint;
+    recordNonce?: boolean;
+    usedNonces?: Set<bigint>;
 }
 
 // @public
@@ -714,10 +771,10 @@ export abstract class WraithWalletError extends WraithError {
 
 // Warnings were encountered during analysis:
 //
-// dist/unified-BXqIrpNT.d.ts:179:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
-// dist/unified-BXqIrpNT.d.ts:184:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
-// dist/unified-BXqIrpNT.d.ts:189:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
-// dist/unified-BXqIrpNT.d.ts:194:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
+// dist/unified-BnEKp3iz.d.ts:179:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
+// dist/unified-BnEKp3iz.d.ts:184:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
+// dist/unified-BnEKp3iz.d.ts:189:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
+// dist/unified-BnEKp3iz.d.ts:194:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 
