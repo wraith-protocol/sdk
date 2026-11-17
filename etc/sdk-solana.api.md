@@ -136,6 +136,11 @@ export function checkStealthAddress(ephemeralPubKey: Uint8Array, viewingKey: Uin
 // @public
 export function computeSharedSecret(privateKey: Uint8Array, publicKey: Uint8Array): Uint8Array;
 
+// Warning: (ae-forgotten-export) The symbol "SignatureDomain" needs to be exported by the entry point index.d.ts
+//
+// @public
+export function computeSolanaAuthorizationDigest(domain: SignatureDomain, payloadBytes: Uint8Array): Uint8Array;
+
 // @public @deprecated
 export function computeViewTag(sharedSecret: Uint8Array): number;
 
@@ -214,6 +219,9 @@ export const SCHEME_ID = 1;
 export function seedToScalar(seed: Uint8Array): bigint;
 
 // @public
+export function signSolanaDomainAuthorization(domain: SignatureDomain, payloadBytes: Uint8Array, secretKeyOrScalar: Uint8Array | bigint, publicKeyBytes?: Uint8Array): Uint8Array;
+
+// @public
 export function signSolanaTransaction(transactionHash: Uint8Array, stealthScalar: bigint, stealthPubKey: Uint8Array): Uint8Array;
 
 // @public
@@ -281,6 +289,12 @@ export interface StealthMetaAddress {
 export interface Tracer {
     startSpan(name: string, attributes?: Record<string, string | number | boolean>): Span;
 }
+
+// Warning: (ae-forgotten-export) The symbol "VerifyDomainOptions" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "SignatureVerificationResult" needs to be exported by the entry point index.d.ts
+//
+// @public
+export function verifySolanaDomainAuthorization(signature: Uint8Array, signedDomain: SignatureDomain, payloadBytes: Uint8Array, publicKeyBytes: Uint8Array, options: VerifyDomainOptions): SignatureVerificationResult;
 
 // (No @packageDocumentation comment for this package)
 

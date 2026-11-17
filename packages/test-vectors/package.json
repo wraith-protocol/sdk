@@ -9,7 +9,8 @@
     "README.md"
   ],
   "scripts": {
-    "generate": "tsx scripts/generate.ts",
+    "generate": "tsx scripts/generate.ts && tsx scripts/generate-wallet-signatures.ts && tsx scripts/checksum.ts",
+    "generate:signatures": "tsx scripts/generate-wallet-signatures.ts && tsx scripts/checksum.ts",
     "checksum": "tsx scripts/checksum.ts",
     "differential": "tsx differential.ts"
   },

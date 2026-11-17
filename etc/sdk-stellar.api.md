@@ -303,6 +303,11 @@ export function computeAnnouncementViewTag(ephemeralPubKey: Uint8Array, viewingP
 // @public
 export function computeSharedSecret(privateKey: Uint8Array, publicKey: Uint8Array): Uint8Array;
 
+// Warning: (ae-forgotten-export) The symbol "SignatureDomain" needs to be exported by the entry point index.d.ts
+//
+// @public
+export function computeStellarAuthorizationDigest(domain: SignatureDomain, payloadBytes: Uint8Array): Uint8Array;
+
 // @public @deprecated
 export function computeViewTag(sharedSecret: Uint8Array): number;
 
@@ -710,6 +715,9 @@ export function seedToScalar(seed: Uint8Array): bigint;
 export function setStellarNameDefaultTtl(ttlMs: number): void;
 
 // @public
+export function signStellarDomainAuthorization(domain: SignatureDomain, payloadBytes: Uint8Array, secretKeyOrScalar: Uint8Array | bigint, publicKeyBytes?: Uint8Array): Uint8Array;
+
+// @public
 export function signStellarTransaction(transactionHash: Uint8Array, stealthScalar: bigint, stealthPubKey: Uint8Array): Uint8Array;
 
 // @public
@@ -831,6 +839,12 @@ export interface TypedMemo {
     type: MemoType;
     value: MemoValue;
 }
+
+// Warning: (ae-forgotten-export) The symbol "VerifyDomainOptions" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "SignatureVerificationResult" needs to be exported by the entry point index.d.ts
+//
+// @public
+export function verifyStellarDomainAuthorization(signature: Uint8Array, signedDomain: SignatureDomain, payloadBytes: Uint8Array, publicKeyBytes: Uint8Array, options: VerifyDomainOptions): SignatureVerificationResult;
 
 // @public
 export const VIEW_TAG_BUCKET_COUNT = 256;

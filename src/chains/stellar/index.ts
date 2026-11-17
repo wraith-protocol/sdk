@@ -33,6 +33,11 @@ export { scanAnnouncementsLegacySharedSecretTag } from './scan';
 
 export { deriveStealthPrivateScalar, signStellarTransaction } from './spend';
 export {
+  computeStellarAuthorizationDigest,
+  signStellarDomainAuthorization,
+  verifyStellarDomainAuthorization,
+} from './auth';
+export {
   buildStealthPayment,
   buildStealthAnnouncement,
   prepareStealthAccountForAsset,
