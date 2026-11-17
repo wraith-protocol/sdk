@@ -63,6 +63,7 @@ try {
   const result = spawnSync(isWindows ? 'pnpm.cmd' : 'pnpm', ['exec', 'tsc', '-p', tsconfigPath], {
     cwd: repoRoot,
     encoding: 'utf8',
+    shell: isWindows,
   });
 
   if (result.error) {
