@@ -14,18 +14,26 @@
 //      tarball, even where a `files` pattern would match them.
 //   4. Required files — every path the entry point maps point at has to be
 //      present, so a pack that drops `dist/` cannot pass by shipping nothing.
+//   5. Runtime manifest hygiene — packs a temporary tarball, extracts
+//      `package/package.json`, and asserts no self-dependency, no `workspace:`
+//      or local link protocol, and only intentional runtime `dependencies`.
 //
 // `files` points at `dist`, so run `pnpm build` first; `pnpm pack:check` wraps
 // this script.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..');
 const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
+
+// Intentional runtime dependencies of `@wraith-protocol/sdk`. Build/dev tools
+// and workspace packages must never appear in `dependencies`.
+const INTENTIONAL_RUNTIME_DEPENDENCIES = ['@noble/curves', '@noble/hashes', 'viem'];
 
 // Metadata npm and pnpm include whether or not `files` mentions it.
 const ALWAYS_INCLUDED = [
@@ -240,5 +248,99 @@ report(
   `every entry point file is packed (${targets.size} paths)`,
   missing.length > 0 ? `missing from the tarball: ${missing.join(', ')}` : undefined,
 );
+
+function inspectPackedManifest() {
+  const scratch = mkdtempSync(join(tmpdir(), 'wraith-verify-pack-'));
+  try {
+    const isWin = process.platform === 'win32';
+    const packAttempts = [
+      ['pnpm', ['pack', '--pack-destination', scratch]],
+      [
+        isWin ? 'npm.cmd' : 'npm',
+        ['pack', '--pack-destination', scratch, '--ignore-scripts'],
+        { shell: isWin },
+      ],
+    ];
+    let packedOk = false;
+    const packErrors = [];
+    for (const [cmd, args, extra] of packAttempts) {
+      const res = spawnSync(cmd, args, { cwd: repoRoot, encoding: 'utf8', ...extra });
+      if (!res.error && res.status === 0) {
+        packedOk = true;
+        break;
+      }
+      packErrors.push(`${cmd}: ${firstLine(res.error ?? res.stderr ?? res.stdout)}`);
+    }
+    if (!packedOk) {
+      report(false, 'packed manifest inspection', packErrors.join('; '));
+      return;
+    }
+
+    const expectedTarball = join(
+      scratch,
+      `${pkg.name.replace(/^@/, '').replace(/\//g, '-')}-${pkg.version}.tgz`,
+    );
+    if (!existsSync(expectedTarball)) {
+      report(false, 'packed manifest inspection', `missing tarball ${expectedTarball}`);
+      return;
+    }
+
+    const extracted = spawnSync(
+      'tar',
+      ['-xzf', expectedTarball, '-C', scratch, 'package/package.json'],
+      { encoding: 'utf8' },
+    );
+    if (extracted.error || extracted.status !== 0) {
+      report(
+        false,
+        'packed manifest inspection',
+        `tar failed: ${firstLine(extracted.error ?? extracted.stderr ?? extracted.stdout)}`,
+      );
+      return;
+    }
+
+    const packedPkg = JSON.parse(readFileSync(join(scratch, 'package', 'package.json'), 'utf8'));
+    const depFields = ['dependencies', 'peerDependencies', 'optionalDependencies'];
+
+    const selfRefs = [];
+    const localProtocols = [];
+    for (const field of depFields) {
+      const entries = packedPkg[field] ?? {};
+      if (Object.prototype.hasOwnProperty.call(entries, packedPkg.name)) {
+        selfRefs.push(`${field}.${packedPkg.name}`);
+      }
+      for (const [dep, spec] of Object.entries(entries)) {
+        if (typeof spec === 'string' && /^(workspace|link|file):/.test(spec)) {
+          localProtocols.push(`${field}.${dep}="${spec}"`);
+        }
+      }
+    }
+
+    report(selfRefs.length === 0, 'no self-dependency in the packed manifest', selfRefs.join(', '));
+    report(
+      localProtocols.length === 0,
+      'no workspace or local link specifiers in the packed manifest',
+      localProtocols.join(', '),
+    );
+
+    const actualDeps = Object.keys(packedPkg.dependencies ?? {}).sort();
+    const expectedDeps = [...INTENTIONAL_RUNTIME_DEPENDENCIES].sort();
+    const unexpectedDeps = actualDeps.filter((dep) => !expectedDeps.includes(dep));
+    const missingDeps = expectedDeps.filter((dep) => !actualDeps.includes(dep));
+    const detailParts = [];
+    if (unexpectedDeps.length > 0) detailParts.push(`unexpected: ${unexpectedDeps.join(', ')}`);
+    if (missingDeps.length > 0) detailParts.push(`missing: ${missingDeps.join(', ')}`);
+
+    report(
+      unexpectedDeps.length === 0 && missingDeps.length === 0,
+      `runtime dependencies contain only intentional packages (${expectedDeps.join(', ')})`,
+      detailParts.join('; '),
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+inspectPackedManifest();
 
 process.exit(failed === 0 ? 0 : 1);
