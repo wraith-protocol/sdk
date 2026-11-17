@@ -142,6 +142,8 @@ export interface BuildAnnouncementOptions {
     sender: string;
     sequence: string;
     stealthResult: GeneratedStealthAddress;
+    timeBounds?: StellarTimeBounds;
+    timeoutSeconds?: number;
 }
 
 // @public
@@ -228,6 +230,8 @@ export interface BuildStealthPaymentOptions {
     sequence: string;
     stealthExists?: boolean;
     stealthResult: GeneratedStealthAddress;
+    timeBounds?: StellarTimeBounds;
+    timeoutSeconds?: number;
 }
 
 // @public
@@ -273,6 +277,8 @@ export interface BuildWithdrawCustomAssetOptions {
     networkPassphrase: string;
     sequence: string;
     stealthAddress: string;
+    timeBounds?: StellarTimeBounds;
+    timeoutSeconds?: number;
 }
 
 // @public
@@ -804,6 +810,14 @@ export interface StellarChainDeployment {
 // @public
 export interface StellarStealthSigner {
     signMessage(message: Uint8Array): Promise<Uint8Array>;
+}
+
+// @public
+export interface StellarTimeBounds {
+    // (undocumented)
+    maxTime: number | string;
+    // (undocumented)
+    minTime: number | string;
 }
 
 // @public

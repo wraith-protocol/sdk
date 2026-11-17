@@ -18,8 +18,10 @@ const files = readdirSync(VECTORS_DIR)
 
 const checksums: Record<string, string> = {};
 for (const file of files) {
-  const data = readFileSync(join(VECTORS_DIR, file));
-  checksums[`vectors/${file}`] = createHash('sha256').update(data).digest('hex');
+  const text = readFileSync(join(VECTORS_DIR, file), 'utf8').replace(/\r\n/g, '\n');
+  checksums[`vectors/${file}`] = createHash('sha256')
+    .update(Buffer.from(text, 'utf8'))
+    .digest('hex');
 }
 
 writeFileSync(OUT, JSON.stringify({ algorithm: 'sha256', files: checksums }, null, 2) + '\n');

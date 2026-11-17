@@ -90,6 +90,12 @@ Run only Stellar conformance tests:
 pnpm test test/conformance/stellar.test.ts
 ```
 
+Run multi-chain transaction-builder golden vector conformance tests:
+
+```bash
+pnpm test test/conformance/transaction-builders.test.ts
+```
+
 ## Test Configuration
 
 The Stellar conformance suite uses the following test counts to balance coverage with execution time:

@@ -1,6 +1,7 @@
 {
   "algorithm": "sha256",
   "files": {
-    "vectors/stellar.json": "4b0636ef2b57e949f2aae154eed3736ca6b0c557fa04410d1aabe3f2b808755f"
+    "vectors/stellar.json": "4b0636ef2b57e949f2aae154eed3736ca6b0c557fa04410d1aabe3f2b808755f",
+    "vectors/transaction-builders.json": "0155fbe6aae111af3a00db4407e616c26c4d9a96a8bfe00fae26bfc7c0d1cab0"
   }
 }
