@@ -1,0 +1,270 @@
+{
+  "schemaVersion": "1.0.0",
+  "magic": "WRAITH-DOMAIN-SIG-V1",
+  "seed": "0x57524149",
+  "domainSpec": {
+    "requiredFields": ["chain", "network", "contract", "operation", "nonce", "expiry"],
+    "evmAdditionalFields": ["chainId"],
+    "evmEncoding": "EIP-712 (\\x19\\x01 || domainSeparator || structHash) over EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt) where salt = keccak256(network)",
+    "binaryFraming": "WRAITH-DOMAIN-SIG-V1\\0 || u32be(len(chain)) || chain || u64be(chainId) || u32be(len(network)) || network || u32be(len(contract)) || contract || u32be(len(operation)) || operation || u256be(nonce) || u64be(expiry) || u32be(len(payload)) || payload"
+  },
+  "validVectors": {
+    "evm": [
+      {
+        "id": "evm_domain_name_register",
+        "domain": {
+          "chain": "evm",
+          "chainId": "2651420",
+          "network": "eip155:2651420",
+          "contract": "0x3d46f709a99A3910f52bD292211Eb5D557F882D6",
+          "operation": "name.register",
+          "nonce": "1",
+          "expiry": "1900000000"
+        },
+        "payload": {
+          "name": "alice",
+          "metaAddressBytes": "0x03c745ab740268bd2f25d15653a413f2b5db9534e39fdb8b4323166630ead2ea4802be2fdd57c685b6dab93921c81b5d7f7488bd6fbd493f62b8317cc69db18a0ea4"
+        },
+        "signerPubKey": "0x03c745ab740268bd2f25d15653a413f2b5db9534e39fdb8b4323166630ead2ea48",
+        "domainSeparator": "0xd9a1b894c476a5753fb64a715f5e1db5c6bf1fe6ac4e6b92f8b623ee44f5c7f1",
+        "digest": "0x665f801f20cea73cabbc294da447469ced598d335c5dd7438b0ee288539ed43f",
+        "signature": "0x643a5c3edfa7cd01280aa12d9e699e4fd595a82c43ca8dca9630bbc273d3ce4b2a06b74c87882480a90c61475f9e3b714a3849c85ff93d879d22f04d3f9c63881c"
+      },
+      {
+        "id": "evm_domain_name_update",
+        "domain": {
+          "chain": "evm",
+          "chainId": "2651420",
+          "network": "eip155:2651420",
+          "contract": "0x3d46f709a99A3910f52bD292211Eb5D557F882D6",
+          "operation": "name.update",
+          "nonce": "2",
+          "expiry": "1900000000"
+        },
+        "payload": {
+          "name": "alice",
+          "metaAddressBytes": "0x03c745ab740268bd2f25d15653a413f2b5db9534e39fdb8b4323166630ead2ea4802be2fdd57c685b6dab93921c81b5d7f7488bd6fbd493f62b8317cc69db18a0ea4"
+        },
+        "signerPubKey": "0x03c745ab740268bd2f25d15653a413f2b5db9534e39fdb8b4323166630ead2ea48",
+        "domainSeparator": "0xd9a1b894c476a5753fb64a715f5e1db5c6bf1fe6ac4e6b92f8b623ee44f5c7f1",
+        "digest": "0x2253c7af605ebceef3d2b27129d6104e5cf9e3b904d54964d18ac89d42c611dc",
+        "signature": "0x3226d0e25a07241318507bb1fe21d68e19586b02c79689c315c051e3dd78bcf4709cd8f81c5eb33acde5a38c6947cb4d31ca3c458e711f8a573b5b99c28532861b"
+      },
+      {
+        "id": "evm_domain_name_release",
+        "domain": {
+          "chain": "evm",
+          "chainId": "2651420",
+          "network": "eip155:2651420",
+          "contract": "0x3d46f709a99A3910f52bD292211Eb5D557F882D6",
+          "operation": "name.release",
+          "nonce": "3",
+          "expiry": "1900000000"
+        },
+        "payload": {
+          "name": "alice"
+        },
+        "signerPubKey": "0x03c745ab740268bd2f25d15653a413f2b5db9534e39fdb8b4323166630ead2ea48",
+        "domainSeparator": "0xd9a1b894c476a5753fb64a715f5e1db5c6bf1fe6ac4e6b92f8b623ee44f5c7f1",
+        "digest": "0x67ab79878b244ff6e261ac0b8ed9a806b1ac16971e2b649b666089642ce94d66",
+        "signature": "0x247ed7ee294861443606157728441ec2cb4f114d1b17b2ae2adb20e96422d1ea0a8b97050e2acf40cc3e7269bd248c5b71e350ff580e70462a6b05ad6f1351391b"
+      }
+    ],
+    "stellar": [
+      {
+        "id": "stellar_domain_name_register",
+        "domain": {
+          "chain": "stellar",
+          "network": "Test SDF Network ; September 2015",
+          "contract": "CDEMB3MAE62ZOCCKZPTYSXR5CS5WVENPOU5MDVK4PNKTZXFVDC74AFBV",
+          "operation": "name.register",
+          "nonce": "1",
+          "expiry": "1900000000"
+        },
+        "payloadHex": "00000005616c6963650000008773743a786c6d3a3033353431373162623236383233363465313162396466333163396331666336356235636233353761393131313362653866333030303533343463633333613632383762323764363831653863623734313165353762623238313236663835643235313132306363396633373762303137363366626136343637656539633830",
+        "encodedBytesHex": "5752414954482d444f4d41494e2d5349472d563100000000077374656c6c61720000000000000000000000215465737420534446204e6574776f726b203b2053657074656d6265722032303135000000384344454d42334d414536325a4f43434b5a505459535852354353355756454e504f55354d44564b34504e4b545a58465644433734414642560000000d6e616d652e7265676973746572000000000000000000000000000000000000000000000000000000000000000100000000713fb3000000009400000005616c6963650000008773743a786c6d3a3033353431373162623236383233363465313162396466333163396331666336356235636233353761393131313362653866333030303533343463633333613632383762323764363831653863623734313165353762623238313236663835643235313132306363396633373762303137363366626136343637656539633830",
+        "digestHex": "1a18dc84f3ab5d109090b85ca000f1c32df68d40ea0d2f5d73f4a64363dfe2b0",
+        "signerPubKeyHex": "0354171bb2682364e11b9df31c9c1fc65b5cb357a91113be8f30005344cc33a6",
+        "signatureHex": "269bc3927523ac0d2355bdf4eb840b11bd376574152845d350af1684abbe22c908d8fde70e251703b2e34fb3bda924daa9b158e3920dae41e7d36761fe5bec0f"
+      }
+    ],
+    "solana": [
+      {
+        "id": "solana_domain_name_register",
+        "domain": {
+          "chain": "solana",
+          "network": "solana:devnet",
+          "contract": "4JrrQh5aK7iLvx6MgtEQk7K7X3SsWfTLxVJu1jXEwNjD",
+          "operation": "name.register",
+          "nonce": "1",
+          "expiry": "1900000000"
+        },
+        "payloadHex": "00000005616c6963650000008773743a736f6c3a3939636465343734653831666635383761356132363866613966643961326530313338626365303738323330363038346636396562643932393932313364376239613334353264363335343534613166393465613365323963663435363130333435353833313438666666643165313638346533633134386236353965343032",
+        "encodedBytesHex": "5752414954482d444f4d41494e2d5349472d56310000000006736f6c616e6100000000000000000000000d736f6c616e613a6465766e65740000002c344a7272516835614b37694c7678364d677445516b374b37583353735766544c78564a75316a5845774e6a440000000d6e616d652e7265676973746572000000000000000000000000000000000000000000000000000000000000000100000000713fb3000000009400000005616c6963650000008773743a736f6c3a3939636465343734653831666635383761356132363866613966643961326530313338626365303738323330363038346636396562643932393932313364376239613334353264363335343534613166393465613365323963663435363130333435353833313438666666643165313638346533633134386236353965343032",
+        "digestHex": "9f6a92a5d37df51bdc37d2556a91719cda073cf0e831518cc1aea8ae98d2532f",
+        "signerPubKeyHex": "99cde474e81ff587a5a268fa9fd9a2e0138bce0782306084f69ebd9299213d7b",
+        "signatureHex": "10baffa8ebcc009bff0d96914ef3b6bb929b727cb3d68a59146fa1be458f9034248712964cca2848bba48101242aa3347e0600f442a4bb5b18220e168fc4c909"
+      }
+    ],
+    "ckb": [
+      {
+        "id": "ckb_domain_name_register",
+        "domain": {
+          "chain": "ckb",
+          "network": "ckb:testnet",
+          "contract": "0xc133817d433f72ea16a2404adaf961524e9572c8378829a21968710d6182e20d",
+          "operation": "name.register",
+          "nonce": "1",
+          "expiry": "1900000000"
+        },
+        "payloadHex": "00000005616c6963650000008b73743a636b623a303334633036633436626339646366316630366132613832326432323637383961636265343436313634393531376664373236333864656338613638376533303539303231633731623633326236323562336236623061393864303635666163333737356664336631646434373565333532396334616132333339373733336264633430",
+        "encodedBytesHex": "5752414954482d444f4d41494e2d5349472d56310000000003636b6200000000000000000000000b636b623a746573746e6574000000423078633133333831376434333366373265613136613234303461646166393631353234653935373263383337383832396132313936383731306436313832653230640000000d6e616d652e7265676973746572000000000000000000000000000000000000000000000000000000000000000100000000713fb3000000009800000005616c6963650000008b73743a636b623a303334633036633436626339646366316630366132613832326432323637383961636265343436313634393531376664373236333864656338613638376533303539303231633731623633326236323562336236623061393864303635666163333737356664336631646434373565333532396334616132333339373733336264633430",
+        "digest": "0xfa5b953fb1408aa27cc5c0e3b0b481c4154b1ef0726ea27512e4a0a3ab10657d",
+        "signerPubKey": "0x034c06c46bc9dcf1f06a2a822d226789acbe4461649517fd72638dec8a687e3059",
+        "signature": "0xf8bc35fb3550f834ebc14532bef019059724d2cd2ce7f366ba8162392862736b6e96b1fcea28b0efd2f548c0967b2606675b504742dd93c6610fee67f81e193501"
+      }
+    ],
+    "walletKeyDerivationPrompt": {
+      "domain": {
+        "chain": "evm",
+        "chainId": "1",
+        "network": "eip155:1",
+        "contract": "0x0000000000000000000000000000000000006538",
+        "operation": "stealth.key_derivation",
+        "nonce": "0",
+        "expiry": "1900000000"
+      },
+      "account": "0x1111111111111111111111111111111111111111",
+      "message": "Wraith Protocol Domain-Separated Authorization (v2)\nChain: evm\nChain ID: 1\nNetwork: eip155:1\nContract: 0x0000000000000000000000000000000000006538\nOperation: stealth.key_derivation\nAccount: 0x1111111111111111111111111111111111111111\nNonce: 0\nExpiry: 1900000000"
+    },
+    "legacyV1Compatibility": {
+      "note": "Retained through 1.x for deployed v1 contracts; deprecated in favor of signDomainNameAuthorization.",
+      "name": "alice",
+      "metaAddressBytes": "0x03c745ab740268bd2f25d15653a413f2b5db9534e39fdb8b4323166630ead2ea4802be2fdd57c685b6dab93921c81b5d7f7488bd6fbd493f62b8317cc69db18a0ea4",
+      "signerPubKey": "0x03c745ab740268bd2f25d15653a413f2b5db9534e39fdb8b4323166630ead2ea48",
+      "registerSignature": "0xd74c617b3466df7e2dae3f30d3eee75f519a46d3f0f868b4f1249081bdc5e0f92f1468297910d2a68006377649f5c004062964b11e223be88e5a5b7971de4a0d1b",
+      "registerOnBehalfNonce1Signature": "0xff0d0f57703e25991a573a8af15c9708bcc12a4e3ff1d68eb40fd6bb8c742b861548dc5cc112f6f6346d0d4e05d1a0b16da94f0c97f0d46d1f2e923ffe5717d21b",
+      "releaseSignature": "0xb233f6b128c96481bf31c34fd68f2ce3c94920a402f739b2349a3eefe1dc7eed02d4d0e82c8673d0e273af39f3f601cbbd99130819a385a8544fa2ba38dd53421b"
+    }
+  },
+  "replayVectors": [
+    {
+      "id": "replay_evm_to_ckb_same_secp256k1_curve",
+      "sourceVectorId": "evm_domain_name_register",
+      "targetDomain": {
+        "chain": "ckb",
+        "network": "ckb:testnet",
+        "contract": "0xc133817d433f72ea16a2404adaf961524e9572c8378829a21968710d6182e20d",
+        "operation": "name.register",
+        "nonce": "1",
+        "expiry": "1900000000"
+      },
+      "nowSeconds": "1800000000",
+      "expectedReason": "CHAIN_MISMATCH"
+    },
+    {
+      "id": "replay_stellar_to_solana_same_ed25519_curve",
+      "sourceVectorId": "stellar_domain_name_register",
+      "targetDomain": {
+        "chain": "solana",
+        "network": "solana:devnet",
+        "contract": "4JrrQh5aK7iLvx6MgtEQk7K7X3SsWfTLxVJu1jXEwNjD",
+        "operation": "name.register",
+        "nonce": "1",
+        "expiry": "1900000000"
+      },
+      "nowSeconds": "1800000000",
+      "expectedReason": "CHAIN_MISMATCH"
+    },
+    {
+      "id": "replay_evm_cross_chain_id_horizen_to_mainnet",
+      "sourceVectorId": "evm_domain_name_register",
+      "targetDomain": {
+        "chain": "evm",
+        "chainId": "1",
+        "network": "eip155:1",
+        "contract": "0x3d46f709a99A3910f52bD292211Eb5D557F882D6",
+        "operation": "name.register",
+        "nonce": "1",
+        "expiry": "1900000000"
+      },
+      "nowSeconds": "1800000000",
+      "expectedReason": "CHAIN_ID_MISMATCH"
+    },
+    {
+      "id": "replay_stellar_testnet_to_public_network",
+      "sourceVectorId": "stellar_domain_name_register",
+      "targetDomain": {
+        "chain": "stellar",
+        "network": "Public Global Stellar Network ; September 2015",
+        "contract": "CDEMB3MAE62ZOCCKZPTYSXR5CS5WVENPOU5MDVK4PNKTZXFVDC74AFBV",
+        "operation": "name.register",
+        "nonce": "1",
+        "expiry": "1900000000"
+      },
+      "nowSeconds": "1800000000",
+      "expectedReason": "NETWORK_MISMATCH"
+    },
+    {
+      "id": "replay_evm_cross_contract",
+      "sourceVectorId": "evm_domain_name_register",
+      "targetDomain": {
+        "chain": "evm",
+        "chainId": "2651420",
+        "network": "eip155:2651420",
+        "contract": "0x953E6cEdcdfAe321796e7637d33653F6Ce05c527",
+        "operation": "name.register",
+        "nonce": "1",
+        "expiry": "1900000000"
+      },
+      "nowSeconds": "1800000000",
+      "expectedReason": "CONTRACT_MISMATCH"
+    },
+    {
+      "id": "replay_evm_register_as_update",
+      "sourceVectorId": "evm_domain_name_register",
+      "targetDomain": {
+        "chain": "evm",
+        "chainId": "2651420",
+        "network": "eip155:2651420",
+        "contract": "0x3d46f709a99A3910f52bD292211Eb5D557F882D6",
+        "operation": "name.update",
+        "nonce": "1",
+        "expiry": "1900000000"
+      },
+      "nowSeconds": "1800000000",
+      "expectedReason": "OPERATION_MISMATCH"
+    },
+    {
+      "id": "replay_expired_signature",
+      "sourceVectorId": "evm_domain_name_register",
+      "targetDomain": {
+        "chain": "evm",
+        "chainId": "2651420",
+        "network": "eip155:2651420",
+        "contract": "0x3d46f709a99A3910f52bD292211Eb5D557F882D6",
+        "operation": "name.register",
+        "nonce": "1",
+        "expiry": "1900000000"
+      },
+      "nowSeconds": "1900000000",
+      "expectedReason": "EXPIRED"
+    },
+    {
+      "id": "replay_reused_nonce",
+      "sourceVectorId": "evm_domain_name_register",
+      "targetDomain": {
+        "chain": "evm",
+        "chainId": "2651420",
+        "network": "eip155:2651420",
+        "contract": "0x3d46f709a99A3910f52bD292211Eb5D557F882D6",
+        "operation": "name.register",
+        "nonce": "1",
+        "expiry": "1900000000"
+      },
+      "nowSeconds": "1800000000",
+      "preUsedNonces": ["1"],
+      "expectedReason": "NONCE_REUSED"
+    }
+  ]
+}

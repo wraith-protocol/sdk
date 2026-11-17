@@ -146,6 +146,11 @@ export interface CKBScript {
     hashType: 'data' | 'type' | 'data1' | 'data2';
 }
 
+// Warning: (ae-forgotten-export) The symbol "SignatureDomain" needs to be exported by the entry point index.d.ts
+//
+// @public
+export function computeCkbAuthorizationDigest(domain: SignatureDomain, payloadBytes: Uint8Array): HexString;
+
 // @public
 export function decodeStealthMetaAddress(metaAddress: string): StealthMetaAddress;
 
@@ -214,6 +219,9 @@ export function scanStealthCells(cells: StealthCell[], viewingKey: HexString, sp
 export const SCHEME_ID = 1;
 
 // @public
+export function signCkbDomainAuthorization(domain: SignatureDomain, payloadBytes: Uint8Array, privateKey: HexString): HexString;
+
+// @public
 export const STEALTH_SIGNING_MESSAGE = "Sign this message to generate your Wraith stealth keys.\n\nChain: CKB\nNote: This signature is used for key derivation only and does not authorize any transaction.";
 
 // @public
@@ -247,6 +255,12 @@ export interface UnsignedCKBStealthTx {
     // (undocumented)
     version: HexString;
 }
+
+// Warning: (ae-forgotten-export) The symbol "VerifyDomainOptions" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "SignatureVerificationResult" needs to be exported by the entry point index.d.ts
+//
+// @public
+export function verifyCkbDomainAuthorization(signature: HexString, signedDomain: SignatureDomain, payloadBytes: Uint8Array, expectedCompressedPubKey: HexString, options: VerifyDomainOptions): SignatureVerificationResult;
 
 // (No @packageDocumentation comment for this package)
 

@@ -47,6 +47,49 @@ pre/post pairs each transform is tested against.
 
 ## Upgrading to 2.0.0
 
+### EVM Name Signatures: From Unscoped `encodePacked` to Domain-Separated EIP-712 (1.5.0+)
+
+**Rationale:** The v1 helpers (`signNameRegistration`, `signNameRegistrationOnBehalf`, `signNameUpdate`, `signNameRelease`) signed unscoped `encodePacked` digests without `chainId`, `network`, `verifyingContract`, `operation`, or `expiry` (allowing a `register` signature to match an `update` digest or replay across EVM/secp256k1 deployments). Those v1 functions remain available and unchanged throughout `1.x` for existing v1 contracts and are deprecated for removal in `2.0.0`.
+
+**Before (v1, deprecated in 1.x):**
+
+```typescript
+import { signNameRegistration } from '@wraith-protocol/sdk/chains/evm';
+
+const sig = signNameRegistration('alice', metaAddressBytes, keys.spendingKey);
+```
+
+**After (domain-separated v2):**
+
+```typescript
+import {
+  signDomainNameAuthorization,
+  verifyDomainNameAuthorization,
+  getDeployment,
+} from '@wraith-protocol/sdk/chains/evm';
+
+const deployment = getDeployment('horizen');
+const domain = {
+  chain: 'evm' as const,
+  chainId: BigInt(deployment.chainId),
+  network: `eip155:${deployment.chainId}`,
+  contract: deployment.contracts.names,
+  operation: 'name.register' as const,
+  nonce: 1n,
+  expiry: BigInt(Math.floor(Date.now() / 1000) + 300),
+};
+
+const sig = signDomainNameAuthorization(
+  domain,
+  { name: 'alice', metaAddressBytes },
+  keys.spendingKey,
+);
+```
+
+See [`docs/security/signature-domains.md`](./docs/security/signature-domains.md) for the full cross-chain domain specification and replay test vectors.
+
+---
+
 ### Error Handling: From Message Matching to Typed Exceptions (1.5.0+)
 
 **Rationale:** The SDK now exports a hierarchy of typed error classes, allowing programmatic error handling without brittle `error.message` string matching. This change improves maintainability and enables richer error context like `expectedLength`, `actualLength`, `code`, and auto-generated `docsLink`.

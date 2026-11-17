@@ -8,6 +8,11 @@ export { generateStealthAddress } from './stealth';
  */
 export { checkStealthCell, scanStealthCells, adapter as ckbAdapter, adapter } from './scan';
 export { deriveStealthPrivateKey } from './spend';
+export {
+  computeCkbAuthorizationDigest,
+  signCkbDomainAuthorization,
+  verifyCkbDomainAuthorization,
+} from './auth';
 /**
  * @internal
  */

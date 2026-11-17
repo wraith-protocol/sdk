@@ -4,6 +4,15 @@ export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-addre
 export { generateStealthAddress } from './stealth';
 export { checkStealthAddress, scanAnnouncements, adapter as evmAdapter, adapter } from './scan';
 export { deriveStealthPrivateKey } from './spend';
+export {
+  EVM_DOMAIN_TYPEHASH,
+  EVM_NAME_AUTH_TYPEHASH,
+  computeEvmDomainSeparator,
+  computeEvmNameAuthorizationDigest,
+  signDomainNameAuthorization,
+  verifyDomainNameAuthorization,
+} from './names';
+export type { EvmNameAuthorizationPayload } from './names';
 /**
  * @internal
  */
