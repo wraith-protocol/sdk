@@ -33,11 +33,12 @@ export function buildSendStealth(params: {
   recipientMetaAddress: string;
   amount: string;
   chain: string;
+  ephemeralPrivateKey?: HexString;
 }): BuildSendStealthResult {
-  const { recipientMetaAddress, amount, chain } = params;
+  const { recipientMetaAddress, amount, chain, ephemeralPrivateKey } = params;
   const deployment = getDeployment(chain);
   const { spendingPubKey, viewingPubKey } = decodeStealthMetaAddress(recipientMetaAddress);
-  const stealth = generateStealthAddress(spendingPubKey, viewingPubKey);
+  const stealth = generateStealthAddress(spendingPubKey, viewingPubKey, ephemeralPrivateKey);
   const viewTagHex = stealth.viewTag.toString(16).padStart(2, '0');
 
   const data = encodeFunctionData({
@@ -75,11 +76,12 @@ export function buildSendERC20(params: {
   amount: bigint;
   chain: string;
   gasTip?: string;
+  ephemeralPrivateKey?: HexString;
 }): BuildSendStealthResult {
-  const { recipientMetaAddress, token, amount, chain, gasTip } = params;
+  const { recipientMetaAddress, token, amount, chain, gasTip, ephemeralPrivateKey } = params;
   const deployment = getDeployment(chain);
   const { spendingPubKey, viewingPubKey } = decodeStealthMetaAddress(recipientMetaAddress);
-  const stealth = generateStealthAddress(spendingPubKey, viewingPubKey);
+  const stealth = generateStealthAddress(spendingPubKey, viewingPubKey, ephemeralPrivateKey);
   const viewTagHex = stealth.viewTag.toString(16).padStart(2, '0');
 
   const data = encodeFunctionData({

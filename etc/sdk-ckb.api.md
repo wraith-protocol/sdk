@@ -50,10 +50,53 @@ export function buildResolveName(params: {
 };
 
 // @public
+export function buildSendCkb(params: BuildSendCkbParams): BuildSendCkbResult;
+
+// @public
+export interface BuildSendCkbParams {
+    capacity: bigint;
+    chain?: string;
+    ephemeralPrivateKey?: HexString;
+    recipientMetaAddress: string;
+}
+
+// @public
+export interface BuildSendCkbResult {
+    // (undocumented)
+    ephemeralPubKey: HexString;
+    // (undocumented)
+    lockArgs: HexString;
+    // (undocumented)
+    stealthPubKey: HexString;
+    // (undocumented)
+    stealthPubKeyHash: HexString;
+    // (undocumented)
+    transaction: UnsignedCKBStealthTx;
+}
+
+// @public
 export function checkStealthCell(lockArgs: HexString, viewingKey: HexString, spendingPubKey: HexString): {
     isMatch: boolean;
     stealthPubKeyHash: HexString | null;
 };
+
+// @public
+export interface CKBCellDep {
+    // (undocumented)
+    depType: 'code' | 'depGroup';
+    // (undocumented)
+    outPoint: CKBOutPoint;
+}
+
+// @public
+export interface CKBCellOutput {
+    // (undocumented)
+    capacity: HexString;
+    // (undocumented)
+    lock: CKBScript;
+    // (undocumented)
+    type?: CKBScript | null;
+}
 
 // @public (undocumented)
 export interface CKBChainDeployment {
@@ -83,6 +126,24 @@ export interface CKBChainDeployment {
     network: string;
     // (undocumented)
     rpcUrl: string;
+}
+
+// @public
+export interface CKBOutPoint {
+    // (undocumented)
+    index: HexString;
+    // (undocumented)
+    txHash: HexString;
+}
+
+// @public
+export interface CKBScript {
+    // (undocumented)
+    args: HexString;
+    // (undocumented)
+    codeHash: HexString;
+    // (undocumented)
+    hashType: 'data' | 'type' | 'data1' | 'data2';
 }
 
 // @public
@@ -138,6 +199,9 @@ export const META_ADDRESS_PREFIX = "st:ckb:";
 // @public
 export function metaAddressFromNameData(data: HexString): string;
 
+// @public
+export const MIN_STEALTH_CELL_CAPACITY = 9400000000n;
+
 // Warning: (ae-internal-missing-underscore) The name "scanAnnouncements" should be prefixed with an underscore because the declaration is marked as @internal
 //
 // @internal (undocumented)
@@ -168,6 +232,20 @@ export interface StealthMetaAddress {
     spendingPubKey: HexString;
     // (undocumented)
     viewingPubKey: HexString;
+}
+
+// @public
+export interface UnsignedCKBStealthTx {
+    // (undocumented)
+    cellDeps: CKBCellDep[];
+    // (undocumented)
+    headerDeps: HexString[];
+    // (undocumented)
+    outputs: CKBCellOutput[];
+    // (undocumented)
+    outputsData: HexString[];
+    // (undocumented)
+    version: HexString;
 }
 
 // (No @packageDocumentation comment for this package)
