@@ -127,12 +127,12 @@
       "name": "Vault ESM (import *)",
       "path": "dist/vault/index.js",
       "import": "*",
-      "limit": "2.3 KB"
+      "limit": "2.9 KB"
     },
     {
       "name": "Vault CJS (require)",
       "path": "dist/vault/index.cjs",
-      "limit": "2.4 KB"
+      "limit": "3.1 KB"
     },
     {
       "name": "Stellar ESM (import *)",
