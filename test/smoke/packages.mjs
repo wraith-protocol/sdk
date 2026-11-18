@@ -19,6 +19,7 @@
 //   6. Verifies TypeScript declarations resolve when each entry point is
 //      imported by its package specifier.
 //   7. Verifies documented exports (the exports-map targets exist on disk).
+//   8. Checks committed API reports against the installed tarballs.
 //
 // Run with:
 //
@@ -30,11 +31,13 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkCompanionReports } from './companion-api-reports.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..');
 
 const require = createRequire(import.meta.url);
+const updateReports = process.argv.includes('--update-api-reports');
 
 // Metadata npm and pnpm include whether or not `files` mentions it.
 const ALWAYS_INCLUDED = [
@@ -638,9 +641,22 @@ async function checkPackage(pkg, sharedPackDir) {
   }
 
   try {
+    const packageDir = scopeDir(fixture, pkg.name);
+    const manifest = readPkgJson(packageDir);
+    problems.push(
+      ...checkCompanionReports({
+        packageDir,
+        manifest,
+        entrypoints: entrypointsOf(manifest),
+        reportFolder: join(repoRoot, 'etc'),
+        tempFolder: join(fixture, 'api-reports'),
+        update: updateReports,
+      }),
+    );
+  } catch (error) {
+    problems.push(`API reports: ${error.message}`);
+  } finally {
     rmSync(fixture, { recursive: true, force: true });
-  } catch {
-    /* fixture already removed or locked */
   }
 
   record(pkg.name, problems);
