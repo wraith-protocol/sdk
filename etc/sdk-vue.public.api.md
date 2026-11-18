@@ -37,6 +37,9 @@ import { WraithAgent } from '@wraith-protocol/sdk-agent';
 import { WraithConfig } from '@wraith-protocol/sdk-agent';
 
 // @public (undocumented)
+type ActivityChain = 'evm' | 'stellar' | 'solana';
+
+// @public (undocumented)
 export interface ActivityEvent {
     // (undocumented)
     chain: ActivityChain;
@@ -62,10 +65,41 @@ export type AnyGeneratedStealthAddress = GeneratedStealthAddress | GeneratedStea
 export type AnyMatchedAnnouncement = MatchedAnnouncement | MatchedAnnouncement_2 | MatchedAnnouncement_3;
 
 // @public (undocumented)
+type AnyMatchedAnnouncement_2 = MatchedAnnouncement | MatchedAnnouncement_2 | MatchedAnnouncement_3;
+
+// @public (undocumented)
 export type AnyStealthKeys = StealthKeys | StealthKeys_2 | StealthKeys_3;
 
 // @public (undocumented)
+type AnyStealthMetaAddress = StealthMetaAddress | StealthMetaAddress_4;
+
+// @public (undocumented)
 export type ChainType = 'evm' | 'stellar' | 'solana';
+
+// @public (undocumented)
+interface EvmCheckInput {
+    // (undocumented)
+    chain: 'evm';
+    // (undocumented)
+    ephemeralPubKey: HexString;
+    // (undocumented)
+    spendingPubKey: HexString;
+    // (undocumented)
+    viewingKey: HexString;
+    // (undocumented)
+    viewTag: number;
+}
+
+// @public (undocumented)
+type EvmCheckResult = ReturnType<typeof checkStealthAddress>;
+
+// @public
+interface EvmFetchOptions extends ScanCancellationOptions {
+    // (undocumented)
+    chain: 'evm';
+    network?: string;
+    url?: string;
+}
 
 // @public
 export interface EvmScanInput {
@@ -76,6 +110,14 @@ export interface EvmScanInput {
     // (undocumented)
     keys: StealthKeys;
 }
+
+// @public
+type EvmScanWithKeysInput = EvmFetchOptions & {
+    keys: StealthKeys;
+};
+
+// @public (undocumented)
+type HexString_2 = `0x${string}`;
 
 // @public
 export type ScanActivityInput = ScannerScanInput;
@@ -95,6 +137,31 @@ export type ScannerScanInput = EvmScanInput | StellarScanInput | SolanaScanInput
 // @public (undocumented)
 export type ScannerScanWithKeysInput = EvmScanWithKeysInput | StellarScanWithKeysInput | SolanaScanWithKeysInput;
 
+// @public (undocumented)
+interface SolanaCheckInput {
+    // (undocumented)
+    chain: 'solana';
+    // (undocumented)
+    ephemeralPubKey: Uint8Array;
+    // (undocumented)
+    spendingPubKey: Uint8Array;
+    // (undocumented)
+    viewingKey: Uint8Array;
+    // (undocumented)
+    viewTag: number;
+}
+
+// @public (undocumented)
+type SolanaCheckResult = ReturnType<typeof checkStealthAddress_3>;
+
+// @public
+interface SolanaFetchOptions extends ScanCancellationOptions {
+    // (undocumented)
+    chain: 'solana';
+    network?: string;
+    url?: string;
+}
+
 // @public
 export interface SolanaScanInput {
     // (undocumented)
@@ -106,7 +173,54 @@ export interface SolanaScanInput {
 }
 
 // @public (undocumented)
+type SolanaScanWithKeysInput = SolanaFetchOptions & {
+    keys: StealthKeys_3;
+};
+
+// @public (undocumented)
 export type StealthChain = 'evm' | 'stellar' | 'solana';
+
+// @public
+interface StealthMetaAddress$1 {
+    prefix: string;
+    spendingPubKey: Uint8Array;
+    viewingPubKey: Uint8Array;
+}
+
+// @public
+interface StealthMetaAddress_2 {
+    // (undocumented)
+    prefix: string;
+    // (undocumented)
+    spendingPubKey: HexString_2;
+    // (undocumented)
+    viewingPubKey: HexString_2;
+}
+
+// @public (undocumented)
+interface StellarCheckInput {
+    // (undocumented)
+    chain: 'stellar';
+    // (undocumented)
+    ephemeralPubKey: Uint8Array;
+    // (undocumented)
+    spendingPubKey: Uint8Array;
+    // (undocumented)
+    viewingKey: Uint8Array;
+    // (undocumented)
+    viewTag: number;
+}
+
+// @public (undocumented)
+type StellarCheckResult = ReturnType<typeof checkStealthAddress_2>;
+
+// @public
+interface StellarFetchOptions extends Omit<FetchAnnouncementsOptions, 'signal' | 'sorobanUrl'>, ScanCancellationOptions {
+    // (undocumented)
+    chain: 'stellar';
+    network?: string;
+    url?: string;
+}
 
 // @public
 export interface StellarScanInput {
@@ -117,6 +231,11 @@ export interface StellarScanInput {
     // (undocumented)
     keys: StealthKeys_2;
 }
+
+// @public (undocumented)
+type StellarScanWithKeysInput = StellarFetchOptions & {
+    keys: StealthKeys_2;
+};
 
 // @public (undocumented)
 export function useActivity(): {

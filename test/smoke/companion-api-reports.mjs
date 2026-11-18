@@ -2,6 +2,8 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { Extractor, ExtractorConfig } from '@microsoft/api-extractor';
 
+import { reconcileCompanionReportInventory } from './companion-report-inventory.mjs';
+
 export function checkCompanionReports({
   packageDir,
   manifest,
@@ -15,8 +17,9 @@ export function checkCompanionReports({
 
   const name = manifest.name.split('/').at(-1);
   const problems = [];
+  const expectedReports = [];
   if (name === 'test-vectors') {
-    // This package exposes data files, with no JavaScript or declaration entry point.
+    // Keep tracking published JSON when the package also exposes typed entry points.
     const files = readdirSync(packageDir, { recursive: true })
       .map((file) => file.replaceAll('\\', '/'))
       .filter((file) => file.endsWith('.json') && file !== 'package.json')
@@ -27,6 +30,7 @@ export function checkCompanionReports({
       ...files.map((file) => '- `' + file + '`'),
       '',
     ].join('\n');
+    expectedReports.push('test-vectors.api.md');
     const baseline = join(reportFolder, 'test-vectors.api.md');
     if (update) writeFileSync(baseline, report);
     else {
@@ -38,17 +42,19 @@ export function checkCompanionReports({
       }
       if (!matches) problems.push('test-vectors.api.md differs from the packed JSON file list');
     }
-    return problems;
   }
 
   for (const { subpath, typesRel } of entrypoints) {
     if (!typesRel) {
-      problems.push(`API ${subpath}: missing packed types entry`);
+      const dataOnly =
+        name === 'test-vectors' && !manifest.exports && !manifest.main && !manifest.module;
+      if (!dataOnly) problems.push(`API ${subpath}: missing packed types entry`);
       continue;
     }
 
     const suffix = subpath === '.' ? '' : `-${subpath.slice(2).replaceAll('/', '-')}`;
     const reportFileName = `${name}${suffix}`;
+    expectedReports.push(`${reportFileName}.public.api.md`);
     const entry = resolve(packageDir, typesRel);
     const config = ExtractorConfig.prepare({
       configObjectFullPath: undefined,
@@ -72,6 +78,7 @@ export function checkCompanionReports({
           enabled: true,
           reportFileName,
           reportVariants: ['public'],
+          includeForgottenExports: true,
           reportFolder,
           reportTempFolder: tempFolder,
         },
@@ -87,6 +94,16 @@ export function checkCompanionReports({
     if (!result.succeeded || (!update && result.apiReportChanged)) {
       problems.push(`API ${subpath}: check ${reportFileName}.public.api.md`);
     }
+  }
+  if (problems.length === 0) {
+    problems.push(
+      ...reconcileCompanionReportInventory({
+        reportFolder,
+        packageName: manifest.name,
+        expectedReports,
+        update,
+      }),
+    );
   }
   return problems;
 }

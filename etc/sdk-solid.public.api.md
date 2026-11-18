@@ -76,6 +76,10 @@ export function createScanner(options?: CreateScannerOptions): {
     dispose: () => void;
 };
 
+// @public (undocumented)
+interface CreateScannerOptions extends ScanCancellationOptions {
+}
+
 // @public
 export function createStealthKeys(): {
     keys: solid_js.Accessor<StealthKeys | null>;
