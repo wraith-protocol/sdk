@@ -71,6 +71,18 @@ Examples:
 - A patch release that fixes Stellar transaction signing should run the Stellar tests, update `CHANGELOG.md`, tag `v1.4.6`, and publish after review.
 - A minor release adding a Solana helper should include tests, docs, an additive changelog entry, tag `v1.5.0`, and verify the `./chains/solana` export in the built package.
 
+## Companion Package API Reports
+
+The required companion package smoke tests check API reports against declarations
+installed from the packed tarballs, including the React Native entry point.
+The data-only test-vectors package records its published JSON paths in place of
+a declaration report.
+
+When you intentionally change a companion API, run
+`pnpm build && pnpm test:packages --update-api-reports` and review the generated
+changes in `etc/`. Commit the updated reports with the API change, then run
+`pnpm test:packages` to verify them in check mode.
+
 ## Pull Request Conventions
 
 Use Conventional Commits for PR titles and commit messages where practical:
