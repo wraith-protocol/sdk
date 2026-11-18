@@ -75,8 +75,8 @@ Examples:
 
 The required companion package smoke tests check API reports against declarations
 installed from the packed tarballs, including the React Native entry point.
-The data-only test-vectors package records its published JSON paths in place of
-a declaration report.
+The test-vectors package also records its published JSON paths. Removing a
+public entry point requires reviewing the removal of its report.
 
 When you intentionally change a companion API, run
 `pnpm build && pnpm test:packages --update-api-reports` and review the generated

@@ -35,7 +35,14 @@ import { WraithAgent } from '@wraith-protocol/sdk-agent';
 import { WraithConfig } from '@wraith-protocol/sdk-agent';
 
 // @public (undocumented)
+type AnyStealthMetaAddress = StealthMetaAddress | StealthMetaAddress_3;
+
+// @public (undocumented)
 export type ChainType = 'evm' | 'stellar' | 'solana';
+
+// @public (undocumented)
+interface StellarAnnouncementScanOptions extends ScanCancellationOptions {
+}
 
 // @public (undocumented)
 export function useEvmStealthKeys(): {

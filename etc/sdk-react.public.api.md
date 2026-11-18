@@ -29,10 +29,50 @@ export interface Platform {
 }
 
 // @public (undocumented)
+interface PlatformCrypto {
+    // (undocumented)
+    getRandomValues(array: Uint8Array): Uint8Array;
+    // (undocumented)
+    sha256(data: Uint8Array): Promise<Uint8Array>;
+}
+
+// @public (undocumented)
+interface PlatformStorage {
+    // (undocumented)
+    getItem(key: string): Promise<string | null>;
+    // (undocumented)
+    removeItem(key: string): Promise<void>;
+    // (undocumented)
+    setItem(key: string, value: string): Promise<void>;
+}
+
+// @public (undocumented)
 export function setPlatform(platform: Platform): void;
 
 // @public (undocumented)
 export function useScanner(opts?: UseScannerOptions): UseScannerResult;
+
+// @public (undocumented)
+interface UseScannerOptions extends ScanCancellationOptions {
+    chain?: 'stellar';
+    wallet?: string;
+}
+
+// @public (undocumented)
+interface UseScannerResult {
+    // (undocumented)
+    announcements: Announcement[];
+    // (undocumented)
+    clearCache: () => Promise<void>;
+    // (undocumented)
+    commitScan: (lastScannedLedger?: number) => Promise<void>;
+    // (undocumented)
+    error: Error | null;
+    // (undocumented)
+    scan: (options?: FetchAnnouncementsOptions) => Promise<Announcement[]>;
+    // (undocumented)
+    scanning: boolean;
+}
 
 // @public
 export function useStellarBalance(publicKey: string, rpcUrl?: string): {
