@@ -105,6 +105,24 @@ Cannot find module '@wraith-protocol/sdk/chains/evm' or its corresponding type d
 
 <!-- compat:unsupported:end -->
 
+## Announcement fetcher bounds and resumption
+
+The EVM (`./chains/evm`), Solana (`./chains/solana`) and CKB (`./chains/ckb`) announcement fetchers share one options shape and one error set, while keeping each upstream's pagination model:
+
+| Option                        | EVM (Goldsky subgraph) | Solana (RPC)                  | CKB (indexer)                    |
+| ----------------------------- | ---------------------- | ----------------------------- | -------------------------------- |
+| `pageSize`                    | default 1000, max 1000 | default 100, max 1000         | default 100, max 1000            |
+| `cursor`                      | decimal `skip` offset  | JSON `{ v, program, before }` | indexer `last_cursor` hex string |
+| `maxPages`                    | default 100            | default 100                   | default 100                      |
+| `maxItems`                    | default 10 000         | default 10 000                | default 10 000                   |
+| `signal`, `timeouts`, `retry` | same shape everywhere  | same shape everywhere         | same shape everywhere            |
+
+Every fetcher is bounded: `maxPages` and `maxItems` always have finite defaults, so no loop can run or accumulate without one. A timed-out or aborted call is reported with `RPCTimeoutError` or `RPCAbortedError`; HTTP 429/5xx and rate-limited Solana RPC calls are retried with deterministic exponential backoff (`retry.baseDelayMs * 2 ** attempt`, capped by `retry.maxDelayMs`), and `Retry-After` is honoured for HTTP responses.
+
+`fetchAnnouncementsPage()` (and `fetchStealthCellsPage()` on CKB) fetches one provider page and returns `{ announcements, cursor, hasMore, pages }`, so an app can persist the cursor between calls. The all-in-one fetchers accept that cursor and resume, and when a budget is exhausted they throw `AnnouncementBudgetExceededError` with `partial` holding what was fetched and `cursor` holding where to continue. Cursor encodings are chain-specific and opaque; passing a cursor this SDK did not produce throws `AnnouncementCursorError`.
+
+All three fetchers keep their existing positional arguments (`chain`, then an optional URL). Pass options instead of the URL as the second argument, or as the third argument after a URL. This is a backwards-compatible addition: existing calls are now bounded by the defaults above.
+
 ## Running the checks
 
 The matrix is enforced by `scripts/compat/`. Build first, then run the suite:
