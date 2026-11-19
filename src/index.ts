@@ -1,7 +1,14 @@
 /**
  * @internal
  */
-export { installReactNativePolyfills } from './compat';
+export {
+  installReactNativePolyfills,
+  assertRuntimeCapabilities,
+  detectRuntimeCapabilities,
+  DEFAULT_RUNTIME_CAPABILITIES,
+  CAPABILITY_HINT,
+} from './compat';
+export type { RuntimeCapability, RuntimeCapabilityReport } from './compat';
 export { scanAll, UNKNOWN_TIMESTAMP } from './scanner/unified';
 export {
   deriveStealthKeysFromWallet,
@@ -54,6 +61,7 @@ export {
   WraithError,
   WraithInputError,
   WraithCryptoError,
+  UnsupportedCapabilityError,
   WraithNetworkError,
   WraithContractError,
   WraithBuilderError,

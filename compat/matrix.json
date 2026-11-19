@@ -44,20 +44,20 @@
     {
       "id": "deno",
       "name": "Deno",
-      "versions": "2.x",
+      "versions": "2.x (tested 2.6.3)",
       "minimumRange": null,
-      "status": "partial",
-      "check": null,
-      "notes": "Use npm specifiers. Verified by static review only — the compat job does not provision a Deno runtime yet."
+      "status": "supported",
+      "check": "deno",
+      "notes": "The `edge-smoke` CI job runs the Deno fixture against the locally built package through an import map, with no Node Buffer, process, fs or crypto polyfills. Use npm specifiers or an import map in your own app."
     },
     {
       "id": "edge",
       "name": "Cloudflare Workers / Vercel Edge",
-      "versions": "current",
+      "versions": "Miniflare 4.x (tested 4.20260730.0), workerd current; browser worker fixture covers the standards-only Web Worker subset",
       "minimumRange": null,
-      "status": "partial",
-      "check": null,
-      "notes": "The browser bundle check covers the same module graph. Optional peers must be bundled explicitly when the edge entry point you use needs them."
+      "status": "supported",
+      "check": "edge",
+      "notes": "The `edge-smoke` CI job runs a Miniflare worker and a standards-only Web Worker fixture against the locally built package. Only standard Web APIs are used; optional peers must be bundled explicitly when the edge entry point you use needs them."
     }
   ],
   "peers": [
@@ -100,6 +100,10 @@
     {
       "combination": "Bun 1.0 and older",
       "failure": "Unsupported runtime: Bun 1.0.x. @wraith-protocol/sdk requires Bun >=1.1. See COMPAT.md for the supported matrix."
+    },
+    {
+      "combination": "Edge or browser runtime missing a required web API",
+      "failure": "UnsupportedCapabilityError [WRAITH/COMPAT/UNSUPPORTED_CAPABILITY]: Unsupported runtime capability: <name>. This is a standard web API available in Cloudflare Workers, Deno, Bun and evergreen browsers. Do not polyfill Node.js Buffer, process, fs or crypto. Check the runtime support table in COMPAT.md and upgrade the runtime or supply the native web API."
     },
     {
       "combination": "React Native without a crypto.getRandomValues polyfill",

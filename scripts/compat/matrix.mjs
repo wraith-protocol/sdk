@@ -19,7 +19,7 @@ export const matrixPath = join(repoRoot, 'compat', 'matrix.json');
 export const compatDocPath = join(repoRoot, 'COMPAT.md');
 
 /** Check ids that `verify-runtime.mjs` knows how to execute. */
-export const CHECK_IDS = ['node', 'bun', 'browser', 'react-native'];
+export const CHECK_IDS = ['node', 'bun', 'browser', 'react-native', 'deno', 'edge'];
 
 /** Allowed values for a runtime's `status` field. */
 export const STATUSES = ['supported', 'partial', 'untested'];
@@ -256,6 +256,8 @@ function runtimeCoverage(matrix, runtime) {
   }
   if (runtime.check === 'browser') return '`pnpm test:compat` browser bundle check';
   if (runtime.check === 'react-native') return '`pnpm test:compat` React Native check';
+  if (runtime.check === 'deno') return '`pnpm test:edge` in the `edge-smoke` CI job';
+  if (runtime.check === 'edge') return '`pnpm test:edge` in the `edge-smoke` CI job';
   return runtime.check;
 }
 

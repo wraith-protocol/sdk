@@ -14,6 +14,9 @@ export class AgentResponseError extends WraithNetworkError {
     readonly field: string;
 }
 
+// @public (undocumented)
+export function assertRuntimeCapabilities(capabilities?: readonly string[]): void;
+
 // @public
 export function assertWalletNetwork(adapter: WalletAdapter, expectedNetwork: string): Promise<void>;
 
@@ -27,6 +30,9 @@ export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature
     // (undocumented)
     signMessage(message: Uint8Array): Promise<TSignature>;
 }
+
+// @public (undocumented)
+export const CAPABILITY_HINT: string;
 
 // @public
 export interface ChainScannerAdapter<TItem = unknown, TKeys = unknown, TMatched = unknown, TMetaAddress = unknown> {
@@ -80,6 +86,9 @@ export interface CustomChainInput<TItem = unknown, TKeys = unknown, TMatched = u
     source: AsyncIterable<TItem>;
 }
 
+// @public (undocumented)
+export const DEFAULT_RUNTIME_CAPABILITIES: readonly RuntimeCapability[];
+
 // Warning: (ae-forgotten-export) The symbol "StealthKeys$1" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
@@ -97,6 +106,9 @@ export function deriveStealthKeysFromWallet(adapter: SolanaChainWalletAdapter): 
 
 // @public (undocumented)
 export function deriveStealthKeysFromWallet(adapter: WalletAdapter): Promise<StealthKeys$1 | StealthKeys | StealthKeys_2>;
+
+// @public (undocumented)
+export function detectRuntimeCapabilities(capabilities?: readonly string[]): RuntimeCapabilityReport;
 
 // @public (undocumented)
 export class ECDHFailedError extends WraithCryptoError {
@@ -399,6 +411,17 @@ export class RPCTimeoutError extends WraithNetworkError implements RPCTimeoutDet
 export type RPCTimeoutPhase = 'connect' | 'request';
 
 // @public (undocumented)
+export type RuntimeCapability = 'crypto.getRandomValues' | 'crypto.subtle' | 'TextEncoder' | 'TextDecoder' | 'AbortController' | 'fetch' | 'setTimeout';
+
+// @public (undocumented)
+export interface RuntimeCapabilityReport {
+    // (undocumented)
+    available: string[];
+    // (undocumented)
+    missing: string[];
+}
+
+// @public (undocumented)
 export function scanAll(input: ScanAllInput): AsyncGenerator<MatchedAnnouncement>;
 
 // @public (undocumented)
@@ -511,6 +534,19 @@ export class UnsupportedAssetError extends WraithBuilderError {
     readonly code = "WRAITH/BUILDER/UNSUPPORTED_ASSET";
     // (undocumented)
     describe(): string;
+}
+
+// @public (undocumented)
+export class UnsupportedCapabilityError extends WraithError {
+    constructor(capabilities: readonly string[], hint: string);
+    // (undocumented)
+    readonly capabilities: readonly string[];
+    // (undocumented)
+    readonly code = "WRAITH/COMPAT/UNSUPPORTED_CAPABILITY";
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly hint: string;
 }
 
 // @public

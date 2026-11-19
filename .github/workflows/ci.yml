@@ -149,8 +149,29 @@ jobs:
       - run: pnpm build
       - run: ${{ matrix.command }}
 
+  edge-smoke:
+    name: Edge runtime smoke suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.x
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.x
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test:edge
+
   differential:
     name: Differential (test-vectors vs vN-1)
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
