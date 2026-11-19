@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "@wraith-protocol/sdk": "../../../dist/index.js",
+    "@wraith-protocol/sdk/chains/evm": "../../../dist/chains/evm/index.js",
+    "@noble/curves/": "npm:@noble/curves@1.9.7/",
+    "@noble/hashes/": "npm:@noble/hashes@1.8.0/",
+    "viem": "npm:viem@2.47.14"
+  }
+}

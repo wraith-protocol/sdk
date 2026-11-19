@@ -227,6 +227,24 @@ export class ECDHFailedError extends WraithCryptoError {
   }
 }
 
+export class UnsupportedCapabilityError extends WraithError {
+  readonly code = 'WRAITH/COMPAT/UNSUPPORTED_CAPABILITY';
+
+  constructor(
+    public readonly capabilities: readonly string[],
+    public readonly hint: string,
+  ) {
+    super(`Unsupported runtime capability: ${capabilities.join(', ')}. ${hint}`, {
+      capabilities: [...capabilities],
+      hint,
+    });
+  }
+
+  describe(): string {
+    return `${this.hint} See ${this.docsLink}.`;
+  }
+}
+
 // WraithNetworkError Subclasses
 export class RPCRequestError extends WraithNetworkError {
   readonly code = 'WRAITH/NETWORK/RPC_REQUEST';
