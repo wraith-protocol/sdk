@@ -14,10 +14,29 @@ export {
   signNameRelease,
   metaAddressToBytes,
 } from './names';
-/**
- * @internal
- */
-export { fetchAnnouncements } from './announcements';
+export { fetchAnnouncements, fetchAnnouncementsPage } from './announcements';
+export type { EvmFetchAnnouncementsOptions } from './announcements';
+export type {
+  AnnouncementFetchOptions,
+  AnnouncementPaginationOptions,
+  AnnouncementFetchResult,
+  AnnouncementPage,
+  AnnouncementRequestTimeouts,
+  AnnouncementRetryPolicy,
+} from '../announcementFetch';
+export {
+  AnnouncementBudgetExceededError,
+  AnnouncementCursorError,
+  AnnouncementProviderError,
+  AnnouncementResponseError,
+} from '../../errors';
+export type {
+  AnnouncementCursorFailure,
+  AnnouncementCursorErrorDetails,
+  AnnouncementProviderErrorDetails,
+  AnnouncementResponseErrorDetails,
+  AnnouncementBudgetExceededDetails,
+} from '../../errors';
 /**
  * @internal
  */

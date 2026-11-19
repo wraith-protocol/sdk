@@ -1,6 +1,6 @@
 # Bundle Size Baselines — All Public Exports
 
-> Last measured: 2026-08-29
+> Last measured: 2026-11-19
 > Bundler: tsup (esbuild) via `size-limit`
 > Sizes are **minified and brotli-compressed**, include all bundled
 > dependencies, and are measured by `size-limit` (SI units: 1 KB = 1000 B).
@@ -15,14 +15,14 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 | Root (`.`)         | CJS (`require`)  | 138.79 KB | 159.7 KB      |
 | `./chains/evm`     | ESM (`import *`) | 23.83 KB  | 27.5 KB       |
 | `./chains/evm`     | CJS (`require`)  | 126.79 KB | 145.9 KB      |
-| `./chains/solana`  | ESM (`import *`) | 17.15 KB  | 19.8 KB       |
-| `./chains/solana`  | CJS (`require`)  | 25.89 KB  | 29.8 KB       |
-| `./chains/ckb`     | ESM (`import *`) | 20.52 KB  | 23.6 KB       |
+| `./chains/solana`  | ESM (`import *`) | 20.61 KB  | 20.8 KB       |
+| `./chains/solana`  | CJS (`require`)  | 30.48 KB  | 30.7 KB       |
+| `./chains/ckb`     | ESM (`import *`) | 24.02 KB  | 24.2 KB       |
 | `./chains/ckb`     | CJS (`require`)  | 128.76 KB | 148.1 KB      |
 | `./vault`          | ESM (`import *`) | 1.93 KB   | 2.3 KB        |
 | `./vault`          | CJS (`require`)  | 2.07 KB   | 2.4 KB        |
-| `./chains/stellar` | ESM (`import *`) | 26.48 KB  | 31 KB         |
-| `./chains/stellar` | CJS (`require`)  | 34.29 KB  | 39.5 KB       |
+| `./chains/stellar` | ESM (`import *`) | 32.47 KB  | 33 KB         |
+| `./chains/stellar` | CJS (`require`)  | 41.24 KB  | 41.5 KB       |
 
 > Stellar note: the original 20 KB-per-format budget predated any actual
 > measurement (the baseline had never been populated). The current Stellar
@@ -33,6 +33,11 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 > On 2026-10-16 the Stellar ESM budget was raised from 30.5 KB to 31 KB for the
 > cancellation and timeout support in the one-shot Horizon helpers (issue #235),
 > which brought that entry to 30.68 KB.
+>
+> On 2026-11-19 the Solana and CKB announcement fetchers gained timeout, abort,
+> retry/backoff, page/item budgets and resumable cursors (issue #271). Their ESM
+> and CJS budgets were re-baselined from the measured sizes, and the Stellar CJS
+> budget was raised by 0.5 KB for the shared announcement error classes.
 
 ## Checking Sizes (CI gate)
 
