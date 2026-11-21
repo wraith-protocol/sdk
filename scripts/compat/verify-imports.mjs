@@ -87,6 +87,11 @@ const ENTRY_CHECKS = {
   './chains/ckb': (mod) => runCkbFlow(mod),
   './chains/stellar': (mod) => runChainFlow(mod, SIGNATURE_BYTES),
   './chains/solana': (mod) => runChainFlow(mod, SIGNATURE_BYTES),
+  './scanner/worker': (mod) => {
+    fn(mod, 'exposeScannerWorker');
+    fn(mod, 'createScannerWorkerHandler');
+    fn(mod, 'runScannerWorker');
+  },
 };
 
 /** Reads a package version straight off disk, without going through `exports`. */

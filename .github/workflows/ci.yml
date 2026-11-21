@@ -63,6 +63,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test:exports
+      # Bundles the Vite, Next.js and plain worker fixtures with esbuild under
+      # a CSP that blocks unsafe-eval and blob workers, then runs each worker
+      # bundle with eval/Function poisoned.
+      - run: pnpm test:worker-csp
       # `pnpm pack --dry-run` over the same dist/: the tarball has to list only
       # the files `package.json`'s `files` field intends.
       - name: Verify only intended files would be published
