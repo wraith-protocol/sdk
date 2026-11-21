@@ -1,11 +1,9 @@
-import type { Announcement, HexString } from './types';
+import type { Announcement } from './types';
 import { SCHEME_ID } from './constants';
 import { getDeployment } from './deployments';
-import {
-  AnnouncementCursorError,
-  AnnouncementProviderError,
-  AnnouncementResponseError,
-} from '../../errors';
+import { parseSubgraphAnnouncementsPage } from './validation';
+import { readBoundedJson, type RPCResponseContext } from '../rpcValidation';
+import { AnnouncementCursorError } from '../../errors';
 import {
   collectAnnouncementPages,
   requestBoundedJson,
@@ -22,6 +20,9 @@ import {
  *
  * EVM announcements come from a Goldsky subgraph and paginate by `skip` offset. The `cursor` is
  * therefore the decimal skip offset of the next page, which is what makes a scan resumable.
+ *
+ * Each page is size-bounded and its records are validated before they are returned, so a
+ * malformed or hostile subgraph response cannot reach address matching or key derivation.
  */
 export interface EvmFetchAnnouncementsOptions extends AnnouncementPaginationOptions {
   /** Override the subgraph URL for this call. */
@@ -61,94 +62,6 @@ function parseCursor(chain: string, cursor: string | undefined): number {
   return skip;
 }
 
-function parseGraphqlResponse(
-  chain: string,
-  endpoint: string,
-  payload: unknown,
-): Record<string, unknown>[] {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    throw new AnnouncementResponseError({
-      chain,
-      endpoint,
-      field: 'body',
-      reason: 'expected an object',
-    });
-  }
-  const body = payload as Record<string, unknown>;
-  if (Array.isArray(body.errors) && body.errors.length > 0) {
-    const reason = body.errors
-      .map((error) =>
-        error &&
-        typeof error === 'object' &&
-        typeof (error as { message?: unknown }).message === 'string'
-          ? (error as { message: string }).message
-          : JSON.stringify(error),
-      )
-      .join('; ');
-    throw new AnnouncementProviderError({ chain, endpoint, reason });
-  }
-  const data = body.data;
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new AnnouncementResponseError({
-      chain,
-      endpoint,
-      field: 'data',
-      reason: 'expected an object',
-    });
-  }
-  const announcements = (data as Record<string, unknown>).announcements;
-  if (!Array.isArray(announcements)) {
-    throw new AnnouncementResponseError({
-      chain,
-      endpoint,
-      field: 'data.announcements',
-      reason: 'expected an array',
-    });
-  }
-  return announcements as Record<string, unknown>[];
-}
-
-function toAnnouncement(
-  chain: string,
-  endpoint: string,
-  raw: unknown,
-  index: number,
-): Announcement {
-  const field = `data.announcements[${index}]`;
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new AnnouncementResponseError({ chain, endpoint, field, reason: 'expected an object' });
-  }
-  const ann = raw as Record<string, unknown>;
-  for (const key of ['stealthAddress', 'caller', 'ephemeralPubKey', 'metadata'] as const) {
-    if (typeof ann[key] !== 'string') {
-      throw new AnnouncementResponseError({
-        chain,
-        endpoint,
-        field: `${field}.${key}`,
-        reason: 'expected a string',
-      });
-    }
-  }
-  let schemeId: bigint;
-  try {
-    schemeId = BigInt(ann.schemeId as string);
-  } catch {
-    throw new AnnouncementResponseError({
-      chain,
-      endpoint,
-      field: `${field}.schemeId`,
-      reason: 'expected an integer',
-    });
-  }
-  return {
-    schemeId,
-    stealthAddress: ann.stealthAddress as HexString,
-    caller: ann.caller as HexString,
-    ephemeralPubKey: ann.ephemeralPubKey as HexString,
-    metadata: ann.metadata as HexString,
-  };
-}
-
 async function fetchPage(
   chain: string,
   url: string,
@@ -156,6 +69,7 @@ async function fetchPage(
   pageSize: number,
   options: EvmFetchAnnouncementsOptions | undefined,
 ): Promise<AnnouncementPage<Announcement>> {
+  const context: RPCResponseContext = { chain, operation: 'fetchAnnouncements' };
   const query = {
     query: `query($first: Int!, $skip: Int!) {
         announcements(first: $first, skip: $skip, where: { schemeId: "${SCHEME_ID}" }, orderBy: block_number, orderDirection: asc) {
@@ -181,15 +95,15 @@ async function fetchPage(
     signal: options?.signal,
     timeouts: resolveAnnouncementTimeouts(options?.timeouts),
     retry: resolveAnnouncementRetry(options?.retry),
+    readJson: (response) => readBoundedJson(response, context, url),
   });
 
-  const raw = parseGraphqlResponse(chain, url, payload);
-  const announcements = raw.map((entry, index) => toAnnouncement(chain, url, entry, index));
-  const hasMore = raw.length === pageSize;
+  const { announcements, recordCount } = parseSubgraphAnnouncementsPage(payload, context);
+  const hasMore = recordCount === pageSize;
 
   return {
     announcements,
-    cursor: hasMore ? String(skip + raw.length) : undefined,
+    cursor: hasMore ? String(skip + recordCount) : undefined,
     hasMore,
   };
 }
@@ -206,6 +120,9 @@ async function fetchPage(
  * @param subgraphUrlOrOptions Optional subgraph URL override, or options.
  * @param maybeOptions Options when the second argument is a URL.
  * @returns Array of announcements.
+ * @throws {RPCRequestError} If the subgraph returns a non-2xx status.
+ * @throws {RPCResponseError} If a page is oversized, malformed, or contains an
+ *   invalid announcement record.
  */
 export async function fetchAnnouncements(
   chain: string,
