@@ -23,6 +23,7 @@ WraithError (Abstract Base)
 │   └── ECDHFailedError
 ├── WraithNetworkError
 │   ├── RPCRequestError
+│   ├── RPCResponseError
 │   ├── HorizonResponseError
 │   ├── AgentResponseError
 │   ├── RPCRetryExhaustedError
@@ -84,6 +85,7 @@ Thrown when HTTP queries to Wraith APIs, Horizon/Soroban endpoints, Solana clust
 | Error Class              | Stable Code                            | Context Fields                                     | Description                                                                                          |
 | :----------------------- | :------------------------------------- | :------------------------------------------------- | :--------------------------------------------------------------------------------------------------- |
 | `RPCRequestError`        | `"WRAITH/NETWORK/RPC_REQUEST"`         | `url`, `statusCode`, `responseText`                | Thrown when an HTTP/RPC endpoint returns a non-2xx status code.                                      |
+| `RPCResponseError`       | `"WRAITH/NETWORK/RPC_RESPONSE"`        | `chain`, `operation`, `field`, `reason`            | Thrown when an EVM subgraph, Solana RPC or CKB indexer payload is malformed, oversized or truncated. |
 | `HorizonResponseError`   | `"WRAITH/NETWORK/HORIZON_RESPONSE"`    | `url`, `field`, `reason`                           | Thrown when Horizon answers 2xx but the body is oversized, malformed, or does not match the request. |
 | `AgentResponseError`     | `"WRAITH/NETWORK/AGENT_RESPONSE"`      | `url`, `field`, `reason`                           | Thrown when the Wraith Agent API returns malformed JSON or invalid status/payment payloads.          |
 | `RPCRetryExhaustedError` | `"WRAITH/NETWORK/RPC_RETRY_EXHAUSTED"` | `url`, `attempts`, `lastError`                     | Thrown when all query retry strategies have timed out or failed.                                     |

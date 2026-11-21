@@ -1,20 +1,30 @@
-import type { Announcement, HexString } from './types';
+import type { Announcement } from './types';
 import { SCHEME_ID } from './constants';
 import { getDeployment } from './deployments';
+import { parseSubgraphAnnouncementsPage } from './validation';
+import { readBoundedJson, type RPCResponseContext } from '../rpcValidation';
 
 /**
  * Fetches all stealth address announcements from the Goldsky subgraph
  * for the specified EVM chain.
  *
+ * Each page is size-bounded and its records are validated before they are
+ * returned, so a malformed or hostile subgraph response cannot reach address
+ * matching or key derivation.
+ *
  * @param chain The chain identifier (e.g., "horizen").
  * @param subgraphUrl Optional override for the subgraph URL.
  * @returns Array of announcements.
+ * @throws {RPCRequestError} If the subgraph returns a non-2xx status.
+ * @throws {RPCResponseError} If a page is oversized, malformed, or contains an
+ *   invalid announcement record.
  */
 export async function fetchAnnouncements(
   chain: string,
   subgraphUrl?: string,
 ): Promise<Announcement[]> {
   const url = subgraphUrl || getDeployment(chain).subgraphUrl;
+  const context: RPCResponseContext = { chain, operation: 'fetchAnnouncements' };
   const all: Announcement[] = [];
   let skip = 0;
   const batchSize = 1000;
@@ -40,20 +50,11 @@ export async function fetchAnnouncements(
       body: JSON.stringify(query),
     });
 
-    const data = await res.json();
-    const announcements = data?.data?.announcements ?? [];
+    const payload = await readBoundedJson(res, context, url);
+    const { announcements, recordCount } = parseSubgraphAnnouncementsPage(payload, context);
+    all.push(...announcements);
 
-    for (const ann of announcements) {
-      all.push({
-        schemeId: BigInt(ann.schemeId),
-        stealthAddress: ann.stealthAddress as HexString,
-        caller: ann.caller as HexString,
-        ephemeralPubKey: ann.ephemeralPubKey as HexString,
-        metadata: ann.metadata as HexString,
-      });
-    }
-
-    if (announcements.length < batchSize) {
+    if (recordCount < batchSize) {
       hasMore = false;
     } else {
       skip += batchSize;

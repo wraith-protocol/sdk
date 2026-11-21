@@ -65,6 +65,7 @@ export {
   ViewTagMismatchError,
   ECDHFailedError,
   RPCRequestError,
+  RPCResponseError,
   HorizonResponseError,
   AgentResponseError,
   RPCRetryExhaustedError,

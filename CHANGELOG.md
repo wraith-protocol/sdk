@@ -6,6 +6,10 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
 
 ### Added
 
+- **Untrusted RPC Validation for EVM, Solana and CKB** (issue #270): subgraph, transaction-log and indexer responses are now checked against bounded runtime schemas before any field is decoded.
+  - `fetchAnnouncements()` (EVM), `fetchAnnouncements()` (Solana) and `fetchStealthCells()` (CKB) reject missing, null, wrong-type, oversized and truncated payloads, and normalize known provider variants (GraphQL `data`/`result`/`nodes` envelopes, base64url Solana logs, and bare CKB hashes or decimal capacities).
+  - Bodies are capped at 1 MiB, pages at their protocol limits, and announcement metadata, transaction logs, cell counts and cursors are bounded, so a hostile endpoint cannot drive unbounded allocation or reach address matching and key derivation.
+  - New `RPCResponseError` (`WRAITH/NETWORK/RPC_RESPONSE`), exported from the package root, carries `chain`, `operation` and the failing `field` without echoing response values. `fetchAnnouncements()` and `fetchStealthCells()` now also surface a non-2xx status as `RPCRequestError`.
 - **Cancellation and Timeouts for the Remaining Stellar Network Helpers** (issue #235): `findStrictReceivePath()`, `buildMultisigStealthWithdraw()` and `submitOfflineStellarTransaction()` accept `signal` and `timeouts`, like the Horizon and RPC clients.
   - Defaults: 10 s for the headers and 30 s in total for path finding and the account lookup; no headers timeout and 60 s in total for transaction submission, since Horizon answers a submission only once the transaction is in a ledger.
   - New `RPCAbortedError` (`WRAITH/NETWORK/RPC_ABORTED`), exported from the package root, with the signal's `reason` on `cause`. A non-2xx status is an `RPCRequestError`, a timeout an `RPCTimeoutError` and an invalid response a `HorizonResponseError`. See [`docs/chains/stellar-request-timeouts.md`](./docs/chains/stellar-request-timeouts.md).

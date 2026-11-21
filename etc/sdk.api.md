@@ -356,6 +356,18 @@ export class RPCRequestError extends WraithNetworkError {
     readonly statusCode: number;
 }
 
+// @public
+export class RPCResponseError extends WraithNetworkError {
+    constructor(chain: string, operation: string, field: string, reason: string);
+    readonly chain: string;
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/RPC_RESPONSE";
+    // (undocumented)
+    describe(): string;
+    readonly field: string;
+    readonly operation: string;
+}
+
 // @public (undocumented)
 export class RPCRetryExhaustedError extends WraithNetworkError {
     constructor(url: string, attempts: number, lastError?: string, options?: {
