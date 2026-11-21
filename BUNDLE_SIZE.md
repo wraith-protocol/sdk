@@ -23,6 +23,8 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 | `./vault`          | CJS (`require`)  | 2.07 KB   | 2.4 KB        |
 | `./chains/stellar` | ESM (`import *`) | 26.48 KB  | 31 KB         |
 | `./chains/stellar` | CJS (`require`)  | 34.29 KB  | 39.5 KB       |
+| `./scanner/worker` | ESM (`import *`) | 28.77 KB  | 33.1 KB       |
+| `./scanner/worker` | CJS (`require`)  | 139.51 KB | 160.5 KB      |
 
 > Stellar note: the original 20 KB-per-format budget predated any actual
 > measurement (the baseline had never been populated). The current Stellar
@@ -33,6 +35,10 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 > On 2026-10-16 the Stellar ESM budget was raised from 30.5 KB to 31 KB for the
 > cancellation and timeout support in the one-shot Horizon helpers (issue #235),
 > which brought that entry to 30.68 KB.
+>
+> On 2026-11-21 the CSP-safe worker scanner entry point was added (issue #269).
+> Its baseline was measured at 28.77 KB (ESM) and 139.51 KB (CJS) with budgets
+> set to baseline + 15%.
 
 ## Checking Sizes (CI gate)
 

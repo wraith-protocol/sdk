@@ -9,6 +9,7 @@ export default defineConfig({
     'chains/ckb/index': 'src/chains/ckb/index.ts',
     'compat/react-native': 'src/compat/react-native.ts',
     'vault/index': 'src/vault/index.ts',
+    'scanner/worker': 'src/scanner/worker.ts',
   },
   format: ['esm', 'cjs'],
   dts: {
@@ -20,6 +21,7 @@ export default defineConfig({
       'chains/ckb/index': 'src/chains/ckb/index.ts',
       'compat/react-native': 'src/compat/react-native.ts',
       'vault/index': 'src/vault/index.ts',
+      'scanner/worker': 'src/scanner/worker.ts',
     },
   },
   splitting: true,
