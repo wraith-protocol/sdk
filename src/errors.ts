@@ -283,6 +283,44 @@ export class HorizonResponseError extends WraithNetworkError {
 }
 
 /**
+ * Thrown when a chain data source (EVM subgraph, Solana RPC, CKB indexer) answers with a payload
+ * that does not match the schema the SDK expects.
+ *
+ * The message names the chain and operation and the failing field, but never echoes the offending
+ * value, so an untrusted endpoint cannot inject large or sensitive payloads into logs.
+ */
+export class RPCResponseError extends WraithNetworkError {
+  readonly code = 'WRAITH/NETWORK/RPC_RESPONSE';
+  /** Chain whose data source returned the payload, e.g. `'evm'`, `'solana'`, `'ckb'`. */
+  readonly chain: string;
+  /** SDK operation that was reading the response, e.g. `'fetchAnnouncements'`. */
+  readonly operation: string;
+  /** Location of the rejected value, e.g. `data.announcements[0].stealthAddress`. */
+  readonly field: string;
+
+  constructor(chain: string, operation: string, field: string, reason: string) {
+    super(`Invalid ${chain} RPC response during ${operation} at ${field}: ${reason}`, {
+      chain,
+      operation,
+      field,
+      reason,
+    });
+    this.chain = chain;
+    this.operation = operation;
+    this.field = field;
+  }
+
+  describe(): string {
+    const { chain, operation, field } = this.context ?? {};
+    return (
+      `The ${chain} data source returned a response that ${operation} could not accept at ` +
+      `${field}. Try: check that the endpoint is a compatible ${chain} provider and retry, or ` +
+      `switch providers if it keeps returning malformed data. See ${this.docsLink}.`
+    );
+  }
+}
+
+/**
  * Thrown when the Wraith Agent API returns a 2xx response whose JSON payload or tool-call output
  * is malformed or does not match the expected schema.
  */

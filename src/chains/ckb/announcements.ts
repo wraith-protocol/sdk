@@ -1,5 +1,7 @@
 import { getDeployment } from './deployments';
-import type { HexString, StealthCell } from './types';
+import type { StealthCell } from './types';
+import { parseStealthCellPage } from './validation';
+import { readBoundedJson, type RPCResponseContext } from '../rpcValidation';
 
 /**
  * Fetches stealth cells from CKB via the indexer `get_cells` RPC.
@@ -7,9 +9,16 @@ import type { HexString, StealthCell } from './types';
  * Queries all live cells using the stealth-lock code hash. On CKB,
  * cells ARE the announcements — the lock script args contain the
  * ephemeral pubkey and stealth pubkey hash.
+ *
+ * Each page is size-bounded and its cells are validated before use.
+ *
+ * @throws {RPCRequestError} If the indexer returns a non-2xx status.
+ * @throws {RPCResponseError} If a page is oversized, malformed, or contains an
+ *   invalid cell.
  */
 export async function fetchStealthCells(chain: string = 'ckb'): Promise<StealthCell[]> {
   const deployment = getDeployment(chain);
+  const context: RPCResponseContext = { chain, operation: 'fetchStealthCells' };
   const cells: StealthCell[] = [];
   let cursor: string | undefined;
 
@@ -37,26 +46,14 @@ export async function fetchStealthCells(chain: string = 'ckb'): Promise<StealthC
       }),
     });
 
-    const data = await res.json();
-    const objects = data.result?.objects ?? [];
+    const payload = await readBoundedJson(res, context, deployment.rpcUrl);
+    const page = parseStealthCellPage(payload, context);
+    cells.push(...page.cells);
 
-    for (const obj of objects) {
-      const args: string = obj.output.lock.args;
-      // 0x + 53 bytes * 2 = 108 hex chars
-      if (args.length !== 108) continue;
-
-      cells.push({
-        txHash: obj.out_point.tx_hash as HexString,
-        index: parseInt(obj.out_point.index, 16),
-        capacity: BigInt(obj.output.capacity),
-        lockArgs: args as HexString,
-        ephemeralPubKey: `0x${args.slice(2, 68)}` as HexString,
-        stealthPubKeyHash: `0x${args.slice(68)}` as HexString,
-      });
-    }
-
-    cursor = data.result?.last_cursor;
-    if (!cursor || objects.length === 0) break;
+    if (!page.cursor || page.rawCount === 0) break;
+    // An indexer that repeats the cursor would otherwise be polled forever.
+    if (page.cursor === cursor) break;
+    cursor = page.cursor;
   }
 
   return cells;
