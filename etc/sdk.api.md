@@ -29,6 +29,22 @@ export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature
 }
 
 // @public
+export interface BoundedStreamStats {
+    buffered: number;
+    exhausted: boolean;
+    inFlight: number;
+    itemsRead: number;
+    requests: number;
+}
+
+// @public
+export interface ChainRequestBudget {
+    maxBufferedAnnouncements?: number;
+    maxInFlightRequests?: number;
+    maxRequests?: number;
+}
+
+// @public
 export interface ChainScannerAdapter<TItem = unknown, TKeys = unknown, TMatched = unknown, TMetaAddress = unknown> {
     decodeMetaAddress(metaAddress: string): TMetaAddress;
     encodeMetaAddress(spendingPubKey: unknown, viewingPubKey: unknown): string;
@@ -51,6 +67,24 @@ export interface CkbChainInput {
     //
     // (undocumented)
     viewingKey: HexString;
+}
+
+// @public (undocumented)
+export interface CkbScanInput {
+    // (undocumented)
+    budget?: ChainRequestBudget;
+    // (undocumented)
+    cells?: StealthCell[];
+    // (undocumented)
+    source?: AsyncIterable<StealthCell>;
+    // (undocumented)
+    spendingKey: HexString_2;
+    // (undocumented)
+    spendingPubKey: HexString_2;
+    // Warning: (ae-forgotten-export) The symbol "HexString_2" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    viewingKey: HexString_2;
 }
 
 // @public (undocumented)
@@ -79,6 +113,13 @@ export interface CustomChainInput<TItem = unknown, TKeys = unknown, TMatched = u
     keys: TKeys;
     source: AsyncIterable<TItem>;
 }
+
+// @public
+export const DEFAULT_CHAIN_REQUEST_BUDGET: {
+    readonly maxRequests: 10000;
+    readonly maxInFlightRequests: 2;
+    readonly maxBufferedAnnouncements: 256;
+};
 
 // Warning: (ae-forgotten-export) The symbol "StealthKeys$1" needs to be exported by the entry point index.d.ts
 //
@@ -125,8 +166,19 @@ export interface EvmChainInput {
     spendingKey: HexString_2;
     // (undocumented)
     spendingPubKey: HexString_2;
-    // Warning: (ae-forgotten-export) The symbol "HexString_2" needs to be exported by the entry point index.d.ts
-    //
+    // (undocumented)
+    viewingKey: HexString_2;
+}
+
+// @public
+export interface EvmScanInput {
+    announcements?: Announcement[];
+    budget?: ChainRequestBudget;
+    source?: AsyncIterable<Announcement>;
+    // (undocumented)
+    spendingKey: HexString_2;
+    // (undocumented)
+    spendingPubKey: HexString_2;
     // (undocumented)
     viewingKey: HexString_2;
 }
@@ -300,6 +352,26 @@ export type MatchedAnnouncement = {
 };
 
 // @public (undocumented)
+export class MultichainScannerPool {
+    constructor(options?: MultichainScannerPoolOptions);
+    // (undocumented)
+    off(event: 'progress', listener: (e: ProgressEvent_2) => void): this;
+    // (undocumented)
+    on(event: 'progress', listener: (e: ProgressEvent_2) => void): this;
+    scanAll(input: ScanInput, signal?: AbortSignal): Promise<ScanResults>;
+}
+
+// @public (undocumented)
+export interface MultichainScannerPoolOptions {
+    budgets?: Partial<Record<SupportedChain_2, ChainRequestBudget>>;
+    // Warning: (ae-forgotten-export) The symbol "SupportedChain_2" needs to be exported by the entry point index.d.ts
+    chains?: SupportedChain_2[];
+    concurrency?: number;
+    failFast?: boolean;
+    requestBudget?: ChainRequestBudget;
+}
+
+// @public (undocumented)
 export class NameAlreadyRegisteredError extends WraithContractError {
     constructor(name: string, owner?: string);
     // (undocumented)
@@ -322,6 +394,31 @@ export const NOOP_TRACER: Tracer;
 
 // @public
 export function normalizeWalletError(error: unknown, chain?: WalletAdapterChain): WraithWalletError;
+
+// @public (undocumented)
+interface ProgressEvent_2 {
+    buffered?: number;
+    // (undocumented)
+    chain: SupportedChain_2;
+    processed: number;
+    requests?: number;
+    streaming?: boolean;
+    total: number;
+}
+export { ProgressEvent_2 as ProgressEvent }
+
+// @public
+export function resolveChainRequestBudget(budget?: ChainRequestBudget): ResolvedChainRequestBudget;
+
+// @public
+export interface ResolvedChainRequestBudget {
+    // (undocumented)
+    maxBufferedAnnouncements: number;
+    // (undocumented)
+    maxInFlightRequests: number;
+    // (undocumented)
+    maxRequests: number;
+}
 
 // @public (undocumented)
 export class RetentionExceededError extends WraithNetworkError {
@@ -416,8 +513,41 @@ export interface ScanAllInput {
 }
 
 // @public
+export class ScanBudgetExceededError extends WraithInputError {
+    constructor(chain: string, kind: 'requests' | 'items', limit: number, processed: number);
+    // (undocumented)
+    readonly code = "WRAITH/INPUT/SCAN_BUDGET_EXCEEDED";
+    // (undocumented)
+    describe(): string;
+}
+
+// @public
 export interface ScanCancellationOptions {
     signal?: AbortSignal;
+}
+
+// @public (undocumented)
+export interface ScanInput {
+    // (undocumented)
+    ckb?: CkbScanInput;
+    // (undocumented)
+    evm?: EvmScanInput;
+    // (undocumented)
+    solana?: SolanaScanInput;
+    // (undocumented)
+    stellar?: StellarScanInput;
+}
+
+// @public (undocumented)
+export interface ScanResults {
+    // (undocumented)
+    ckb?: MatchedStealthCell[];
+    // (undocumented)
+    evm?: MatchedAnnouncement_2[];
+    // (undocumented)
+    solana?: MatchedAnnouncement_3[];
+    // (undocumented)
+    stellar?: MatchedAnnouncement$1[];
 }
 
 // @public
@@ -439,6 +569,22 @@ export interface SolanaChainInput {
 
 // @public
 export type SolanaChainWalletAdapter = BaseWalletAdapter<'solana', Uint8Array>;
+
+// @public (undocumented)
+export interface SolanaScanInput {
+    // (undocumented)
+    announcements?: Announcement_2[];
+    // (undocumented)
+    budget?: ChainRequestBudget;
+    // (undocumented)
+    source?: AsyncIterable<Announcement_2>;
+    // (undocumented)
+    spendingPubKey: Uint8Array;
+    // (undocumented)
+    spendingScalar: bigint;
+    // (undocumented)
+    viewingKey: Uint8Array;
+}
 
 // @public
 export class SolanaWalletAdapter implements SolanaChainWalletAdapter {
@@ -482,6 +628,22 @@ export interface StellarChainInput {
     //
     // (undocumented)
     source: AsyncIterable<Announcement$1>;
+    // (undocumented)
+    spendingPubKey: Uint8Array;
+    // (undocumented)
+    spendingScalar: bigint;
+    // (undocumented)
+    viewingKey: Uint8Array;
+}
+
+// @public (undocumented)
+export interface StellarScanInput {
+    // (undocumented)
+    announcements?: Announcement$1[];
+    // (undocumented)
+    budget?: ChainRequestBudget;
+    // (undocumented)
+    source?: AsyncIterable<Announcement$1>;
     // (undocumented)
     spendingPubKey: Uint8Array;
     // (undocumented)
@@ -714,10 +876,10 @@ export abstract class WraithWalletError extends WraithError {
 
 // Warnings were encountered during analysis:
 //
-// dist/unified-BXqIrpNT.d.ts:179:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
-// dist/unified-BXqIrpNT.d.ts:184:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
-// dist/unified-BXqIrpNT.d.ts:189:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
-// dist/unified-BXqIrpNT.d.ts:194:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
+// dist/unified-DE30mD03.d.ts:179:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point index.d.ts
+// dist/unified-DE30mD03.d.ts:184:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point index.d.ts
+// dist/unified-DE30mD03.d.ts:189:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point index.d.ts
+// dist/unified-DE30mD03.d.ts:194:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 

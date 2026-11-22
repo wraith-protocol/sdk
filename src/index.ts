@@ -3,6 +3,23 @@
  */
 export { installReactNativePolyfills } from './compat';
 export { scanAll, UNKNOWN_TIMESTAMP } from './scanner/unified';
+export { MultichainScannerPool } from './scanner-pool';
+export { DEFAULT_CHAIN_REQUEST_BUDGET, resolveChainRequestBudget } from './scanner/boundedStream';
+export type {
+  BoundedStreamStats,
+  ChainRequestBudget,
+  ResolvedChainRequestBudget,
+} from './scanner/boundedStream';
+export type {
+  CkbScanInput,
+  EvmScanInput,
+  MultichainScannerPoolOptions,
+  ProgressEvent,
+  ScanInput,
+  ScanResults,
+  SolanaScanInput,
+  StellarScanInput,
+} from './scanner-pool';
 export {
   deriveStealthKeysFromWallet,
   FreighterWalletAdapter,
@@ -71,6 +88,7 @@ export {
   RPCTimeoutError,
   RPCAbortedError,
   RetentionExceededError,
+  ScanBudgetExceededError,
   NameNotFoundError,
   NameAlreadyRegisteredError,
   InsufficientAuthError,

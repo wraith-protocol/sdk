@@ -82,7 +82,7 @@
       "name": "Root ESM (import *)",
       "path": "dist/index.js",
       "import": "*",
-      "limit": "36.1 KB"
+      "limit": "37.1 KB"
     },
     {
       "name": "Root CJS (require)",
@@ -142,7 +142,7 @@
     {
       "name": "Stellar CJS (require)",
       "path": "dist/chains/stellar/index.cjs",
-      "limit": "41 KB"
+      "limit": "41.2 KB"
     }
   ],
   "dependencies": {

@@ -11,7 +11,7 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 
 | Entry              | Format           | Baseline  | Budget (+15%) |
 | ------------------ | ---------------- | --------- | ------------- |
-| Root (`.`)         | ESM (`import *`) | 31.32 KB  | 36.1 KB       |
+| Root (`.`)         | ESM (`import *`) | 36.80 KB  | 37.1 KB       |
 | Root (`.`)         | CJS (`require`)  | 138.79 KB | 159.7 KB      |
 | `./chains/evm`     | ESM (`import *`) | 23.83 KB  | 27.5 KB       |
 | `./chains/evm`     | CJS (`require`)  | 126.79 KB | 145.9 KB      |
@@ -22,7 +22,7 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 | `./vault`          | ESM (`import *`) | 1.93 KB   | 2.3 KB        |
 | `./vault`          | CJS (`require`)  | 2.07 KB   | 2.4 KB        |
 | `./chains/stellar` | ESM (`import *`) | 26.48 KB  | 31 KB         |
-| `./chains/stellar` | CJS (`require`)  | 34.29 KB  | 39.5 KB       |
+| `./chains/stellar` | CJS (`require`)  | 41.01 KB  | 41.2 KB       |
 
 > Stellar note: the original 20 KB-per-format budget predated any actual
 > measurement (the baseline had never been populated). The current Stellar
@@ -33,6 +33,11 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 > On 2026-10-16 the Stellar ESM budget was raised from 30.5 KB to 31 KB for the
 > cancellation and timeout support in the one-shot Horizon helpers (issue #235),
 > which brought that entry to 30.68 KB.
+>
+> On 2026-11-22 the Root ESM budget was raised from 36.1 KB to 37.1 KB and the
+> Stellar CJS budget from 41 KB to 41.2 KB for the bounded streaming scanner
+> pool and its budget error (issue #275). Both raises are minimal: 36.80 KB and
+> 41.01 KB measured.
 
 ## Checking Sizes (CI gate)
 
