@@ -2,3 +2,4 @@
 
 - `checksum.json`
 - `vectors/stellar.json`
+- `vectors/transaction-builders.json`
