@@ -64,11 +64,12 @@ export function buildSendSol(params: {
   amount: bigint;
   senderPubkey: string;
   chain?: string;
+  ephemeralSeed?: Uint8Array;
 }): BuildSendSolResult {
-  const { recipientMetaAddress, amount, senderPubkey, chain = 'solana' } = params;
+  const { recipientMetaAddress, amount, senderPubkey, chain = 'solana', ephemeralSeed } = params;
   const deployment = getDeployment(chain);
   const { spendingPubKey, viewingPubKey } = decodeStealthMetaAddress(recipientMetaAddress);
-  const stealth = generateStealthAddress(spendingPubKey, viewingPubKey);
+  const stealth = generateStealthAddress(spendingPubKey, viewingPubKey, ephemeralSeed);
 
   const data = serializeSendSolData(amount, stealth);
 

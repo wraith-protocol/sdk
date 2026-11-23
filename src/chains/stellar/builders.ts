@@ -13,6 +13,35 @@ import { ACTIVE_SCHEME_ID } from './constants';
 import { GeneratedStealthAddress } from './types';
 
 /**
+ * Explicit Ledger time bounds (Unix epoch seconds) for deterministic Stellar
+ * transaction building.
+ */
+export interface StellarTimeBounds {
+  minTime: number | string;
+  maxTime: number | string;
+}
+
+function createStellarBuilder(
+  source: Account,
+  fee: string,
+  networkPassphrase: string,
+  timeoutSeconds = 180,
+  timeBounds?: StellarTimeBounds,
+): TransactionBuilder {
+  if (timeBounds) {
+    return new TransactionBuilder(source, {
+      fee,
+      networkPassphrase,
+      timebounds: {
+        minTime: Number(timeBounds.minTime),
+        maxTime: Number(timeBounds.maxTime),
+      },
+    });
+  }
+  return new TransactionBuilder(source, { fee, networkPassphrase }).setTimeout(timeoutSeconds);
+}
+
+/**
  * Options for building a Stellar stealth payment transaction.
  */
 export interface BuildStealthPaymentOptions {
@@ -32,6 +61,16 @@ export interface BuildStealthPaymentOptions {
   fee?: string;
   /** Whether the stealth account already exists (only relevant for XLM payments). */
   stealthExists?: boolean;
+  /**
+   * Relative timeout in seconds passed to `TransactionBuilder.setTimeout()`.
+   * Pass `0` (`TimeoutInfinite`) to omit wall-clock `timeBounds`. Defaults to `180`.
+   */
+  timeoutSeconds?: number;
+  /**
+   * Explicit Unix-second `timeBounds` (`{ minTime, maxTime }`). Takes precedence
+   * over `timeoutSeconds` when provided, producing deterministic unsigned XDR.
+   */
+  timeBounds?: StellarTimeBounds;
 }
 
 /**
@@ -58,13 +97,12 @@ export function buildStealthPayment(options: BuildStealthPaymentOptions) {
     networkPassphrase,
     fee = '100',
     stealthExists = false,
+    timeoutSeconds = 180,
+    timeBounds,
   } = options;
 
   const source = new Account(sender, sequence);
-  const builder = new TransactionBuilder(source, {
-    fee,
-    networkPassphrase,
-  }).setTimeout(180);
+  const builder = createStellarBuilder(source, fee, networkPassphrase, timeoutSeconds, timeBounds);
 
   if (asset.isNative()) {
     if (stealthExists) {
@@ -204,6 +242,10 @@ export interface BuildWithdrawCustomAssetOptions {
   networkPassphrase: string;
   /** The base fee in stroops. Defaults to `"100"`. */
   fee?: string;
+  /** Relative timeout in seconds (`0` omits wall-clock `timeBounds`). Defaults to `180`. */
+  timeoutSeconds?: number;
+  /** Explicit Unix-second `timeBounds` (`{ minTime, maxTime }`) for deterministic XDR. */
+  timeBounds?: StellarTimeBounds;
 }
 
 /**
@@ -251,10 +293,12 @@ export function buildWithdrawCustomAsset(options: BuildWithdrawCustomAssetOption
     needsTrustline = false,
     networkPassphrase,
     fee = '100',
+    timeoutSeconds = 180,
+    timeBounds,
   } = options;
 
   const source = new Account(stealthAddress, sequence);
-  const builder = new TransactionBuilder(source, { fee, networkPassphrase }).setTimeout(180);
+  const builder = createStellarBuilder(source, fee, networkPassphrase, timeoutSeconds, timeBounds);
 
   if (needsTrustline) {
     builder.addOperation(Operation.changeTrust({ asset }));
@@ -281,6 +325,10 @@ export interface BuildAnnouncementOptions {
   networkPassphrase: string;
   /** The base fee. Defaults to "100". */
   fee?: string;
+  /** Relative timeout in seconds (`0` omits wall-clock `timeBounds`). Defaults to `180`. */
+  timeoutSeconds?: number;
+  /** Explicit Unix-second `timeBounds` (`{ minTime, maxTime }`) for deterministic XDR. */
+  timeBounds?: StellarTimeBounds;
 }
 
 /**
@@ -300,15 +348,14 @@ export function buildStealthAnnouncement(options: BuildAnnouncementOptions) {
     announcerContract,
     networkPassphrase,
     fee = '100',
+    timeoutSeconds = 180,
+    timeBounds,
   } = options;
 
   const source = new Account(sender, sequence);
   const contract = new Contract(announcerContract);
 
-  return new TransactionBuilder(source, {
-    fee,
-    networkPassphrase,
-  })
+  return createStellarBuilder(source, fee, networkPassphrase, timeoutSeconds, timeBounds)
     .addOperation(
       contract.call(
         'announce',
@@ -318,6 +365,5 @@ export function buildStealthAnnouncement(options: BuildAnnouncementOptions) {
         xdr.ScVal.scvBytes(Buffer.from([stealthResult.viewTag])),
       ),
     )
-    .setTimeout(180)
     .build();
 }
