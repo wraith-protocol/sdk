@@ -148,9 +148,6 @@
   "dependencies": {
     "@noble/curves": "^1.8.0",
     "@noble/hashes": "^1.7.0",
-    "@wraith-protocol/sdk": "^1.4.5",
-    "pnpm": "^10.34.4",
-    "rg": "^0.0.2",
     "viem": "^2.23.0"
   },
   "peerDependencies": {
