@@ -1,3 +1,4 @@
+import { UnsupportedCapabilityError } from '../../base-error';
 import type { Announcement } from './types';
 import { getDeployment } from './deployments';
 import { bytesToHex } from './utils';
@@ -24,7 +25,21 @@ export async function fetchAnnouncements(
   const deployment = getDeployment(chain);
   const url = rpcUrl || deployment.rpcUrl;
 
-  const { Connection, PublicKey } = await import('@solana/web3.js');
+  let solanaWeb3: typeof import('@solana/web3.js');
+  try {
+    solanaWeb3 = await import('@solana/web3.js');
+  } catch (cause) {
+    throw new UnsupportedCapabilityError(
+      "Cannot find package '@solana/web3.js' imported from @wraith-protocol/sdk/chains/solana.",
+      {
+        capability: '@solana/web3.js',
+        remedy:
+          "install or bundle the optional peer dependency '@solana/web3.js' (^1.95.0) before calling fetchAnnouncements(), or pass pre-fetched announcements to scanAnnouncements().",
+        cause,
+      },
+    );
+  }
+  const { Connection, PublicKey } = solanaWeb3;
   const connection = new Connection(url);
 
   const programIds = [deployment.contracts.announcer, deployment.contracts.sender];

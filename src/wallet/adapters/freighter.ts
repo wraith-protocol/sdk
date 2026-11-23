@@ -86,7 +86,19 @@ function decodeBase64(value: string): Uint8Array {
   if (typeof globalThis.atob === 'function') {
     return Uint8Array.from(globalThis.atob(value), (character) => character.charCodeAt(0));
   }
-  return new Uint8Array(Buffer.from(value, 'base64'));
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const clean = value.replace(/=+$/, '');
+  const out: number[] = [];
+  for (let i = 0; i < clean.length; i += 4) {
+    const c0 = chars.indexOf(clean[i]);
+    const c1 = chars.indexOf(clean[i + 1]);
+    const c2 = i + 2 < clean.length ? chars.indexOf(clean[i + 2]) : -1;
+    const c3 = i + 3 < clean.length ? chars.indexOf(clean[i + 3]) : -1;
+    out.push(((c0 << 2) | (c1 >> 4)) & 0xff);
+    if (c2 !== -1) out.push(((c1 << 4) | (c2 >> 2)) & 0xff);
+    if (c3 !== -1) out.push(((c2 << 6) | c3) & 0xff);
+  }
+  return new Uint8Array(out);
 }
 
 function readError(error: string | { message?: string } | undefined, fallback: string): string {

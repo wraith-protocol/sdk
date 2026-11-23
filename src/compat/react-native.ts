@@ -1,3 +1,5 @@
+import { UnsupportedCapabilityError } from '../base-error';
+
 function btoaPolyfill(input: string): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   let output = '';
@@ -72,8 +74,14 @@ export function installReactNativePolyfills(): void {
   }
 
   if (!globalThis.crypto || typeof globalThis.crypto.getRandomValues !== 'function') {
-    throw new Error(
+    throw new UnsupportedCapabilityError(
       'React Native requires a crypto polyfill. Install and import react-native-get-random-values before using @wraith-protocol/sdk.',
+      {
+        capability: 'crypto.getRandomValues',
+        runtime: 'react-native',
+        remedy:
+          'install react-native-get-random-values and import it at the top of your entry file before @wraith-protocol/sdk.',
+      },
     );
   }
 }
