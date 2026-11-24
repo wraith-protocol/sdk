@@ -11,7 +11,7 @@ pnpm build
 pnpm test:exports
 ```
 
-`run.mjs` drives four isolated child processes:
+`run.mjs` drives five isolated child processes:
 
 - `import-esm.mjs` asserts every `exports` entry loads through its `import`
   condition and exposes at least one export.
@@ -22,6 +22,11 @@ pnpm test:exports
   browser-safe.
 - `check-types.mjs` asserts every `types` target exists and type-checks when
   imported by its package specifier.
+- `pack-install.mjs` packs `@wraith-protocol/sdk` into a tarball, installs it
+  with both `npm install` and `pnpm install` in clean ESM and CJS temporary
+  fixtures outside the workspace, checks that the dependency tree contains only
+  intentional runtime packages, and verifies that no runtime import or
+  `require()` resolves through a workspace copy.
 
 The entry point list is derived from `package.json` `exports` in `exports.cjs`,
 so adding a new subpath is covered automatically once it ships in the build.

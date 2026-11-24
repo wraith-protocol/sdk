@@ -1,15 +1,37 @@
 {
   "name": "@wraith-protocol/test-vectors",
   "version": "1.0.0",
-  "description": "Deterministic cryptographic test vectors for the Wraith Stellar stealth address protocol",
+  "description": "Deterministic cryptographic and transaction-builder golden test vectors for the Wraith stealth address protocol",
   "type": "module",
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "require": "./index.cjs"
+    },
+    "./transaction-builders": {
+      "types": "./transaction-builders.d.ts",
+      "import": "./transaction-builders.js",
+      "require": "./transaction-builders.cjs"
+    }
+  },
   "files": [
+    "index.js",
+    "index.cjs",
+    "index.d.ts",
+    "transaction-builders.js",
+    "transaction-builders.cjs",
+    "transaction-builders.d.ts",
     "vectors",
     "checksum.json",
     "README.md"
   ],
   "scripts": {
-    "generate": "tsx scripts/generate.ts",
+    "generate": "tsx scripts/generate.ts && tsx scripts/generate-tx-builders.ts && tsx scripts/checksum.ts",
+    "generate:tx-builders": "tsx scripts/generate-tx-builders.ts && tsx scripts/checksum.ts",
     "checksum": "tsx scripts/checksum.ts",
     "differential": "tsx differential.ts"
   },

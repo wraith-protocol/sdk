@@ -1,3 +1,7 @@
+import { UnsupportedCapabilityError, type UnsupportedCapabilityDetails } from '../base-error';
+
+export { UnsupportedCapabilityError, type UnsupportedCapabilityDetails };
+
 const DB_NAME = 'wraith-vault';
 const DB_VERSION = 1;
 const STORE_META = 'meta';
@@ -49,15 +53,30 @@ function resolveOptions(options: KeyVaultOptions = {}): ResolvedOptions {
 
 function assertBrowserSupport(): void {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
-    throw new Error('KeyVault is browser-only and requires window and document.');
+    throw new UnsupportedCapabilityError(
+      'KeyVault is browser-only and requires window and document.',
+      {
+        capability: 'window',
+        remedy:
+          'run KeyVault on the browser main thread, or persist encrypted stealth keys in an edge KV / Durable Object store instead.',
+      },
+    );
   }
   if (typeof indexedDB === 'undefined') {
-    throw new Error(
+    throw new UnsupportedCapabilityError(
       'KeyVault is browser-only and requires IndexedDB. Use the browser runtime or bundle.',
+      {
+        capability: 'indexedDB',
+        remedy: 'run KeyVault in a browser context where globalThis.indexedDB is available.',
+      },
     );
   }
   if (typeof crypto === 'undefined' || !crypto.subtle) {
-    throw new Error('KeyVault requires WebCrypto (crypto.subtle).');
+    throw new UnsupportedCapabilityError('KeyVault requires WebCrypto (crypto.subtle).', {
+      capability: 'crypto.subtle',
+      remedy:
+        'serve the application over HTTPS/localhost or run in an environment that provides globalThis.crypto.subtle.',
+    });
   }
 }
 
