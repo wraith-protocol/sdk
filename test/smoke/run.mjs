@@ -6,6 +6,8 @@
 //   2. CommonJS requires of every entry point.
 //   3. No entry point imports a Node-only builtin.
 //   4. Every entry point's TypeScript declarations resolve.
+//   5. Packed tarball installs and resolves in clean npm/pnpm ESM and CJS
+//      fixtures without workspace links or accidental runtime dependencies.
 //
 // Requires `pnpm build` to have produced dist/ first, the same way CI runs it.
 
@@ -27,6 +29,7 @@ const steps = [
   ['CommonJS requires', 'require-cjs.cjs'],
   ['No Node-only modules', 'check-node-free.mjs'],
   ['Type declarations', 'check-types.mjs'],
+  ['Packed tarball clean installs', 'pack-install.mjs'],
 ];
 
 let failed = false;

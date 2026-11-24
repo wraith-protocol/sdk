@@ -45,6 +45,7 @@ export {
 } from './multisig';
 export type { BuildMultisigStealthWithdrawOptions } from './multisig';
 export type {
+  StellarTimeBounds,
   BuildStealthPaymentOptions,
   BuildAnnouncementOptions,
   AssetReceivabilityResult,

@@ -15,109 +15,6 @@ export class AgentResponseError extends WraithNetworkError {
 }
 
 // @public
-export interface AnnouncementBudgetExceededDetails {
-    budget: 'pages' | 'items';
-    chain: string;
-    cursor?: string;
-    fetched: number;
-    limit: number;
-    partial?: readonly unknown[];
-}
-
-// @public
-export class AnnouncementBudgetExceededError extends WraithNetworkError {
-    constructor(details: AnnouncementBudgetExceededDetails);
-    // (undocumented)
-    readonly budget: 'pages' | 'items';
-    // (undocumented)
-    readonly chain: string;
-    // (undocumented)
-    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_BUDGET_EXCEEDED";
-    // (undocumented)
-    readonly cursor?: string;
-    // (undocumented)
-    describe(): string;
-    // (undocumented)
-    readonly fetched: number;
-    // (undocumented)
-    readonly limit: number;
-    // (undocumented)
-    readonly partial: readonly unknown[];
-}
-
-// @public
-export class AnnouncementCursorError extends WraithNetworkError {
-    constructor(details: AnnouncementCursorErrorDetails);
-    // (undocumented)
-    readonly chain: string;
-    // (undocumented)
-    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_CURSOR";
-    // (undocumented)
-    readonly cursor: string;
-    // (undocumented)
-    describe(): string;
-    // (undocumented)
-    readonly reason: AnnouncementCursorFailure;
-}
-
-// @public
-export interface AnnouncementCursorErrorDetails {
-    chain: string;
-    cursor: string;
-    reason: AnnouncementCursorFailure;
-}
-
-// @public
-export type AnnouncementCursorFailure = 'malformed' | 'repeated' | 'missing';
-
-// @public
-export class AnnouncementProviderError extends WraithNetworkError {
-    constructor(details: AnnouncementProviderErrorDetails);
-    // (undocumented)
-    readonly chain: string;
-    // (undocumented)
-    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_PROVIDER";
-    // (undocumented)
-    describe(): string;
-    // (undocumented)
-    readonly endpoint: string;
-    // (undocumented)
-    readonly retryable: boolean;
-}
-
-// @public
-export interface AnnouncementProviderErrorDetails {
-    cause?: unknown;
-    chain: string;
-    endpoint: string;
-    reason: string;
-    retryable?: boolean;
-}
-
-// @public
-export class AnnouncementResponseError extends WraithNetworkError {
-    constructor(details: AnnouncementResponseErrorDetails);
-    // (undocumented)
-    readonly chain: string;
-    // (undocumented)
-    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_RESPONSE";
-    // (undocumented)
-    describe(): string;
-    // (undocumented)
-    readonly endpoint?: string;
-    // (undocumented)
-    readonly field: string;
-}
-
-// @public
-export interface AnnouncementResponseErrorDetails {
-    chain: string;
-    endpoint?: string;
-    field: string;
-    reason: string;
-}
-
-// @public
 export function assertWalletNetwork(adapter: WalletAdapter, expectedNetwork: string): Promise<void>;
 
 // @public
@@ -617,6 +514,27 @@ export class UnsupportedAssetError extends WraithBuilderError {
 }
 
 // @public
+export interface UnsupportedCapabilityDetails {
+    capability: string;
+    cause?: unknown;
+    remedy: string;
+    runtime?: string;
+}
+
+// @public
+export class UnsupportedCapabilityError extends WraithRuntimeError {
+    constructor(message: string, details: UnsupportedCapabilityDetails);
+    // (undocumented)
+    readonly capability: string;
+    // (undocumented)
+    readonly code = "WRAITH/RUNTIME/UNSUPPORTED_CAPABILITY";
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly remedy: string;
+}
+
+// @public
 export class ViemWalletAdapter implements EvmWalletAdapter {
     constructor(client: ViemWalletClient);
     // (undocumented)
@@ -808,6 +726,10 @@ export abstract class WraithInputError extends WraithError {
 
 // @public (undocumented)
 export abstract class WraithNetworkError extends WraithError {
+}
+
+// @public (undocumented)
+export abstract class WraithRuntimeError extends WraithError {
 }
 
 // @public

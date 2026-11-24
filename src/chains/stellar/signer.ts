@@ -53,7 +53,12 @@ export class FreighterStealthSigner implements StellarStealthSigner {
 }
 
 function base64ToBytes(base64: string): Uint8Array {
-  return new Uint8Array(Buffer.from(base64, 'base64'));
+  const binary = globalThis.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
 
 /** WebAuthn assertion shape needed to extract PRF extension output. */

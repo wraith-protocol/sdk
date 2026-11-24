@@ -36,6 +36,16 @@ export type {
   AnnouncementBudgetExceededDetails,
 } from '../../errors';
 export { hashName, buildRegisterName, buildResolveName, metaAddressFromNameData } from './names';
+export { MIN_STEALTH_CELL_CAPACITY, buildSendCkb } from './builders';
+export type {
+  CKBOutPoint,
+  CKBCellDep,
+  CKBScript,
+  CKBCellOutput,
+  UnsignedCKBStealthTx,
+  BuildSendCkbParams,
+  BuildSendCkbResult,
+} from './builders';
 /**
  * @internal
  */

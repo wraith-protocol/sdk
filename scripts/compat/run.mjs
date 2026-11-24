@@ -8,6 +8,8 @@
 //   4. `verify-package.mjs`   - browser bundling, optional peers, tarball contents.
 //   5. `verify-ssr-imports.mjs` - every framework companion imports and renders
 //                               server-side without touching browser globals.
+//   6. `verify-edge-runtimes.mjs` - standards-only Web Worker + Cloudflare
+//                               Workers / Miniflare (Node 22+) crypto & abort smoke.
 //
 // Requires `pnpm build` to have produced dist/ first, the same way CI runs it.
 
@@ -24,12 +26,17 @@ if (!existsSync(join(repoRoot, 'dist'))) {
   process.exit(1);
 }
 
+const nodeMajor = Number(process.versions.node.split('.')[0]);
+const defaultEdgeRuntimes =
+  nodeMajor >= 22 ? 'cloudflare-workers,browser-worker' : 'browser-worker';
+
 const steps = [
   ['Matrix and COMPAT.md', 'check.mjs'],
   ['Runtime imports', 'verify-imports.mjs', '--mode=auto'],
   ['React Native imports', 'verify-imports.mjs', '--mode=react-native'],
   ['Built package', 'verify-package.mjs'],
   ['Framework SSR imports', 'verify-ssr-imports.mjs'],
+  ['Edge and worker runtimes', 'verify-edge-runtimes.mjs', `--runtime=${defaultEdgeRuntimes}`],
 ];
 
 let failed = false;

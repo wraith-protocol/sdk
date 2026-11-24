@@ -17,11 +17,11 @@
     {
       "id": "bun",
       "name": "Bun",
-      "versions": "1.1+",
+      "versions": "1.1+ (tested 1.4.x)",
       "minimumRange": ">=1.1",
       "status": "supported",
       "check": "bun",
-      "notes": "Covered by the `compat` CI job. The ESM entry points, the Vitest suite (`bun test`) and the build all run unmodified."
+      "notes": "Covered by the `compat` CI job (`verify-imports.mjs` plus the `Buffer`-free `bun-edge.mjs` crypto and cancellation smoke fixture)."
     },
     {
       "id": "browser",
@@ -31,6 +31,15 @@
       "status": "supported",
       "check": "browser",
       "notes": "Baseline is ES2022 plus `fetch`, `TextEncoder`/`TextDecoder` and `crypto.getRandomValues`; `./vault` additionally needs `crypto.subtle`. Optional peers are the app bundler's responsibility."
+    },
+    {
+      "id": "browser-worker",
+      "name": "Web Workers (standards-only)",
+      "versions": "ES2022 DedicatedWorkerGlobalScope",
+      "minimumRange": null,
+      "status": "supported",
+      "check": "browser-worker",
+      "notes": "Covered by `pnpm test:compat` in an isolated standards-only worker scope without `window`, `document`, `indexedDB`, `Buffer`, `process`, or Node built-ins."
     },
     {
       "id": "react-native",
@@ -44,20 +53,20 @@
     {
       "id": "deno",
       "name": "Deno",
-      "versions": "2.x",
-      "minimumRange": null,
-      "status": "partial",
-      "check": null,
-      "notes": "Use npm specifiers. Verified by static review only — the compat job does not provision a Deno runtime yet."
+      "versions": "2.x (tested 2.9.x)",
+      "minimumRange": ">=2.0.0",
+      "status": "supported",
+      "check": "deno",
+      "notes": "Covered by the `compat` CI job (`deno-edge.mjs`) with `Buffer` and `process` globals stripped and zero network or environment permissions."
     },
     {
       "id": "edge",
       "name": "Cloudflare Workers / Vercel Edge",
-      "versions": "current",
+      "versions": "workerd 1.20260730.1 (Miniflare 4.x)",
       "minimumRange": null,
-      "status": "partial",
-      "check": null,
-      "notes": "The browser bundle check covers the same module graph. Optional peers must be bundled explicitly when the edge entry point you use needs them."
+      "status": "supported",
+      "check": "edge",
+      "notes": "Covered by `pnpm test:compat` in the `compat` CI job via Miniflare (`workerd`, without `nodejs_compat`). Optional peers must be bundled explicitly when an entry point needs them."
     }
   ],
   "peers": [
@@ -106,8 +115,12 @@
       "failure": "React Native requires a crypto polyfill. Install and import react-native-get-random-values before using @wraith-protocol/sdk."
     },
     {
+      "combination": "./vault (KeyVault) in Cloudflare Workers, Deno, Bun, or Web Workers without DOM / IndexedDB",
+      "failure": "UnsupportedCapabilityError [WRAITH/RUNTIME/UNSUPPORTED_CAPABILITY]: KeyVault is browser-only and requires window and document."
+    },
+    {
       "combination": "Browsers or edge runtimes without WebCrypto, when using ./vault",
-      "failure": "KeyVault requires WebCrypto (crypto.subtle)."
+      "failure": "UnsupportedCapabilityError [WRAITH/RUNTIME/UNSUPPORTED_CAPABILITY]: KeyVault requires WebCrypto (crypto.subtle)."
     },
     {
       "combination": "./chains/stellar without @stellar/stellar-sdk installed",
@@ -115,7 +128,7 @@
     },
     {
       "combination": "fetchAnnouncements() from ./chains/solana without @solana/web3.js installed",
-      "failure": "Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@solana/web3.js' imported from @wraith-protocol/sdk/chains/solana."
+      "failure": "UnsupportedCapabilityError [WRAITH/RUNTIME/UNSUPPORTED_CAPABILITY]: Cannot find package '@solana/web3.js' imported from @wraith-protocol/sdk/chains/solana."
     },
     {
       "combination": "Installing on a Node.js version below the declared engines range",

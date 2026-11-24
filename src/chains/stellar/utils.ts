@@ -107,8 +107,14 @@ export function extractMemo(transaction: {
 function memoBufferToHex(value: string): string {
   // Horizon encodes hash/return memos as base64
   try {
-    const bytes = Buffer.from(value, 'base64');
-    if (bytes.length > 0) return bytesToHex(bytes);
+    const binary = globalThis.atob(value);
+    if (binary.length > 0) {
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytesToHex(bytes);
+    }
   } catch {
     // fall through
   }

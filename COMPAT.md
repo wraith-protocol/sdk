@@ -8,23 +8,25 @@
 
 <!-- compat:runtimes:begin -->
 
-| Runtime                          | Tested versions                                 | Status    | Covered by                                |
-| -------------------------------- | ----------------------------------------------- | --------- | ----------------------------------------- |
-| Node.js                          | 20.x, 22.x, 24.x                                | Supported | `pnpm test:compat` in the `compat` CI job |
-| Bun                              | 1.1+                                            | Supported | `pnpm test:compat` in the `compat` CI job |
-| Browsers (evergreen)             | Chrome 94+, Edge 94+, Firefox 93+, Safari 15.4+ | Supported | `pnpm test:compat` browser bundle check   |
-| React Native                     | 0.72+ (Hermes), Expo SDK 51+                    | Supported | `pnpm test:compat` React Native check     |
-| Deno                             | 2.x                                             | Partial   | Not covered by the compat job             |
-| Cloudflare Workers / Vercel Edge | current                                         | Partial   | Not covered by the compat job             |
+| Runtime                          | Tested versions                                 | Status    | Covered by                                                       |
+| -------------------------------- | ----------------------------------------------- | --------- | ---------------------------------------------------------------- |
+| Node.js                          | 20.x, 22.x, 24.x                                | Supported | `pnpm test:compat` in the `compat` CI job                        |
+| Bun                              | 1.1+ (tested 1.4.x)                             | Supported | `pnpm test:compat` in the `compat` CI job                        |
+| Browsers (evergreen)             | Chrome 94+, Edge 94+, Firefox 93+, Safari 15.4+ | Supported | `pnpm test:compat` browser bundle check                          |
+| Web Workers (standards-only)     | ES2022 DedicatedWorkerGlobalScope               | Supported | `pnpm test:compat` standards-only Web Worker smoke fixture       |
+| React Native                     | 0.72+ (Hermes), Expo SDK 51+                    | Supported | `pnpm test:compat` React Native check                            |
+| Deno                             | 2.x (tested 2.9.x)                              | Supported | `verify-edge-runtimes.mjs --runtime=deno` in the `compat` CI job |
+| Cloudflare Workers / Vercel Edge | workerd 1.20260730.1 (Miniflare 4.x)            | Supported | `pnpm test:compat` Cloudflare Workers / Miniflare smoke fixture  |
 
 **Notes**
 
 - **Node.js** — Covered by the `compat` CI job on every version and by the full Vitest suite. 20.x is upstream EOL (2026-04-30) and is retained for the 2.x line; 22.x is in maintenance and 24.x is the active LTS.
-- **Bun** — Covered by the `compat` CI job. The ESM entry points, the Vitest suite (`bun test`) and the build all run unmodified.
+- **Bun** — Covered by the `compat` CI job (`verify-imports.mjs` plus the `Buffer`-free `bun-edge.mjs` crypto and cancellation smoke fixture).
 - **Browsers (evergreen)** — Baseline is ES2022 plus `fetch`, `TextEncoder`/`TextDecoder` and `crypto.getRandomValues`; `./vault` additionally needs `crypto.subtle`. Optional peers are the app bundler's responsibility.
+- **Web Workers (standards-only)** — Covered by `pnpm test:compat` in an isolated standards-only worker scope without `window`, `document`, `indexedDB`, `Buffer`, `process`, or Node built-ins.
 - **React Native** — Needs a `crypto.getRandomValues` polyfill (`react-native-get-random-values`) loaded before the SDK, plus `Buffer` if the app imports `@stellar/stellar-sdk` directly. `installReactNativePolyfills()` covers `atob`, `btoa`, `TextEncoder` and `TextDecoder`.
-- **Deno** — Use npm specifiers. Verified by static review only — the compat job does not provision a Deno runtime yet.
-- **Cloudflare Workers / Vercel Edge** — The browser bundle check covers the same module graph. Optional peers must be bundled explicitly when the edge entry point you use needs them.
+- **Deno** — Covered by the `compat` CI job (`deno-edge.mjs`) with `Buffer` and `process` globals stripped and zero network or environment permissions.
+- **Cloudflare Workers / Vercel Edge** — Covered by `pnpm test:compat` in the `compat` CI job via Miniflare (`workerd`, without `nodejs_compat`). Optional peers must be bundled explicitly when an entry point needs them.
 <!-- compat:runtimes:end -->
 
 ## Dependency ranges
@@ -70,10 +72,16 @@ Unsupported runtime: Bun 1.0.x. @wraith-protocol/sdk requires Bun >=1.1. See COM
 React Native requires a crypto polyfill. Install and import react-native-get-random-values before using @wraith-protocol/sdk.
 ```
 
+#### ./vault (KeyVault) in Cloudflare Workers, Deno, Bun, or Web Workers without DOM / IndexedDB
+
+```
+UnsupportedCapabilityError [WRAITH/RUNTIME/UNSUPPORTED_CAPABILITY]: KeyVault is browser-only and requires window and document.
+```
+
 #### Browsers or edge runtimes without WebCrypto, when using ./vault
 
 ```
-KeyVault requires WebCrypto (crypto.subtle).
+UnsupportedCapabilityError [WRAITH/RUNTIME/UNSUPPORTED_CAPABILITY]: KeyVault requires WebCrypto (crypto.subtle).
 ```
 
 #### ./chains/stellar without @stellar/stellar-sdk installed
@@ -85,7 +93,7 @@ Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@stellar/stellar-sdk' importe
 #### fetchAnnouncements() from ./chains/solana without @solana/web3.js installed
 
 ```
-Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@solana/web3.js' imported from @wraith-protocol/sdk/chains/solana.
+UnsupportedCapabilityError [WRAITH/RUNTIME/UNSUPPORTED_CAPABILITY]: Cannot find package '@solana/web3.js' imported from @wraith-protocol/sdk/chains/solana.
 ```
 
 #### Installing on a Node.js version below the declared engines range
@@ -132,7 +140,7 @@ pnpm build
 pnpm test:compat
 ```
 
-`pnpm test:compat` runs five checks, each in its own child process:
+`pnpm test:compat` runs six checks, each in its own child process:
 
 | Check                                    | What it does                                                                                                                                                                                               |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -141,8 +149,9 @@ pnpm test:compat
 | `verify-imports.mjs --mode=react-native` | Repeats the above against a simulated Hermes global scope (no `atob`, `btoa`, `TextEncoder`, `TextDecoder`) after calling `installReactNativePolyfills()`.                                                 |
 | `verify-package.mjs`                     | Bundles every entry point for `platform: browser`, imports every entry point from an install with the optional peers removed, and asserts the npm tarball contains every file the `exports` map points at. |
 | `verify-ssr-imports.mjs`                 | Imports every framework companion (`packages/sdk-*`) in a server-only Node process with `window`, `document`, storage and browser `crypto` trapped, then renders or instantiates its minimal SSR path.     |
+| `verify-edge-runtimes.mjs`               | Executes `scripts/compat/edge/*` across Cloudflare Workers (`workerd` via Miniflare without `nodejs_compat`), Deno 2.x, Bun 1.x, and a standards-only Web Worker without `Buffer`, `process`, or `fs`.     |
 
-CI runs the suite on Node.js 20, 22 and 24 in the `compat` job, and runs the runtime check under Bun. The nightly `slow-tests` job still owns the long-running fuzz suites.
+CI runs the suite on Node.js 20, 22 and 24 in the `compat` job, plus dedicated legs for Bun 1.x, Deno 2.x, and Cloudflare Workers / Web Worker smoke fixtures. The nightly `slow-tests` job still owns the long-running fuzz suites.
 
 ### Changing the matrix
 
@@ -160,7 +169,7 @@ Adding a runtime means adding it to `compat/matrix.json`, giving it a `check` th
 - **Node.js** — 20.x is upstream EOL (2026-04-30) but is still covered while the 2.x line is supported. The package declares `engines.node` so npm and pnpm warn before an unsupported install proceeds.
 - **Browsers** — the SDK is ESM, `fetch`-first and avoids Node builtins in authored source, which the package entry point smoke suite checks too. Optional peers are the app bundler's responsibility.
 - **React Native** — call `installReactNativePolyfills()` at app startup and load `react-native-get-random-values` before the SDK. Without a `crypto.getRandomValues` polyfill the helper throws rather than deriving weak keys.
-- **Deno, Cloudflare Workers, Vercel Edge** — documented, not covered by the compat job. Use npm specifiers in Deno, and bundle any optional peer an entry point needs.
+- **Deno, Cloudflare Workers, Vercel Edge, Web Workers** — covered by `scripts/compat/verify-edge-runtimes.mjs` in the `compat` CI job without `Buffer`, `process`, filesystem, or Node `crypto` polyfills. Browser-only capabilities (`./vault`) and unbundled optional peers fail with `UnsupportedCapabilityError` (`WRAITH/RUNTIME/UNSUPPORTED_CAPABILITY`).
 
 ## Related documentation
 
