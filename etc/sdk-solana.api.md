@@ -92,6 +92,7 @@ export function buildSendSol(params: {
     amount: bigint;
     senderPubkey: string;
     chain?: string;
+    ephemeralSeed?: Uint8Array;
 }): BuildSendSolResult;
 
 // @public (undocumented)

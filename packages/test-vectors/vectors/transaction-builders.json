@@ -1,0 +1,347 @@
+{
+  "schemaVersion": "1.0.0",
+  "seed": "0x57524149",
+  "timestampPolicy": "Volatile wall-clock timestamps are excluded (`timeoutSeconds: 0` -> `timeBounds: null` on Stellar; no blockhash/timestamp in EVM calldata, Solana instructions, or CKB cell skeletons) or normalized explicitly (`timeBounds: { minTime: 0, maxTime: 1700000180 }`).",
+  "chainDifferences": {
+    "evm": {
+      "envelopeModel": "ABI-encoded contract calldata (`{ to, data, value }`) without nonce, gasPrice, or block timestamp; wallets populate EIP-1559 envelope fields at signing time.",
+      "schemeId": "1 (ERC-5564 secp256k1 with 1-byte keccak256 viewTag)",
+      "sendVsAnnounce": "`buildSendStealth` and `buildSendERC20` atomically transfer assets and emit the ERC-5564 Announcement via `WraithSender`; `buildAnnounce` targets `ERC5564Announcer.announce` directly (`value: 0`)."
+    },
+    "stellar": {
+      "envelopeModel": "Full unsigned Stellar Transaction V1 XDR envelope (`TransactionEnvelope` base64 + network-domain SHA-256 `txHash`). Increments `source.sequence` by +1. Default runtime timeout (`180s`) reads `Date.now()`; vectors normalize this via `timeoutSeconds: 0` (`timeBounds: null`) or explicit `timeBounds`.",
+      "schemeId": "2 (Soroban v2 announcer with public view-tag derivation `wraith:stellar:view-tag:v2:`)",
+      "sendVsAnnounce": "Classic value transfer (`CreateAccount` for unfunded native XLM, `Payment` for funded native XLM, `CreateClaimableBalance` for issued tokens without requiring a recipient trustline) is separate from the Soroban `announce` host-function invocation (`buildStealthAnnouncement`)."
+    },
+    "solana": {
+      "envelopeModel": "Unsigned Solana instruction (`{ programId, keys, data }`) with Borsh-encoded little-endian payload and 8-byte Anchor discriminator. `recentBlockhash` and fee-payer message headers are intentionally excluded until submission.",
+      "schemeId": "1 (ed25519 + X25519 ECDH with 1-byte SHA-256 viewTag)",
+      "sendVsAnnounce": "`buildSendSol` atomically transfers lamports via CPI to `SystemProgram` and logs `AnnouncementEvent` (89-byte data); `buildAnnounce` invokes `wraith-announcer` standalone (81-byte data)."
+    },
+    "ckb": {
+      "envelopeModel": "Unsigned CKB Cell/UTXO transaction skeleton (`{ version, cellDeps, headerDeps, outputs, outputsData }`) with `0x`-prefixed quantity hex capacity and `data2` lock script.",
+      "schemeId": "1 (secp256k1 ECDH + SHA-256 scalar + blake160 pubkey hash; no 1-byte viewTag)",
+      "sendVsAnnounce": "Single combined `send_and_announce` operation (`buildSendCkb`): in CKB’s Cell model the live output cell’s 53-byte `lock.args` (`ephemeral_pub (33B) || blake160(stealth_pub) (20B)`) IS the on-chain announcement, so no separate announcer contract exists."
+    }
+  },
+  "vectors": {
+    "evm": [
+      {
+        "id": "evm_send_eth",
+        "operation": "send",
+        "builder": "buildSendStealth",
+        "input": {
+          "chain": "horizen",
+          "recipientMetaAddress": "st:eth:0x03c745ab740268bd2f25d15653a413f2b5db9534e39fdb8b4323166630ead2ea4802be2fdd57c685b6dab93921c81b5d7f7488bd6fbd493f62b8317cc69db18a0ea4",
+          "amount": "1.5",
+          "ephemeralPrivateKey": "0x3333333333333333333333333333333333333333333333333333333333333333"
+        },
+        "output": {
+          "to": "0x226C5eb4e139D9fa01cc09eA318638b090b12095",
+          "data": "0xe473568e00000000000000000000000000000000000000000000000000000000000000010000000000000000000000004f4af103541bc7553bdc5b11c25c955138f7ceb2000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000021023c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001f300000000000000000000000000000000000000000000000000000000000000",
+          "selector": "0xe473568e",
+          "valueWei": "1500000000000000000",
+          "stealthAddress": "0x4f4af103541Bc7553bdc5b11C25c955138F7CEB2",
+          "ephemeralPubKey": "0x023c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
+          "viewTag": 243
+        }
+      },
+      {
+        "id": "evm_send_erc20",
+        "operation": "send_erc20",
+        "builder": "buildSendERC20",
+        "input": {
+          "chain": "horizen",
+          "recipientMetaAddress": "st:eth:0x03c745ab740268bd2f25d15653a413f2b5db9534e39fdb8b4323166630ead2ea4802be2fdd57c685b6dab93921c81b5d7f7488bd6fbd493f62b8317cc69db18a0ea4",
+          "token": "0x0000000000000000000000000000000000000abc",
+          "amount": "2500000",
+          "gasTip": "0.01",
+          "ephemeralPrivateKey": "0x4444444444444444444444444444444444444444444444444444444444444444"
+        },
+        "output": {
+          "to": "0x226C5eb4e139D9fa01cc09eA318638b090b12095",
+          "data": "0x5e8b77cd0000000000000000000000000000000000000000000000000000000000000abc00000000000000000000000000000000000000000000000000000000002625a00000000000000000000000000000000000000000000000000000000000000001000000000000000000000000aaac8d98a098d0677bbc646bf11bfd34b737a7cb00000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000021032c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c000000000000000000000000000000000000000000000000000000000000000",
+          "selector": "0x5e8b77cd",
+          "valueWei": "10000000000000000",
+          "stealthAddress": "0xaaAc8d98A098d0677BBc646Bf11bfd34b737a7CB",
+          "ephemeralPubKey": "0x032c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991",
+          "viewTag": 192
+        }
+      },
+      {
+        "id": "evm_announce",
+        "operation": "announce",
+        "builder": "buildAnnounce",
+        "input": {
+          "chain": "horizen",
+          "stealthAddress": "0x4f4af103541Bc7553bdc5b11C25c955138F7CEB2",
+          "ephemeralPubKey": "0x023c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
+          "viewTag": 243
+        },
+        "output": {
+          "to": "0x8AE65c05E7eb48B9bA652781Bc0a3DBA09A484F3",
+          "data": "0x4d1f958300000000000000000000000000000000000000000000000000000000000000010000000000000000000000004f4af103541bc7553bdc5b11c25c955138f7ceb2000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000021023c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001f300000000000000000000000000000000000000000000000000000000000000",
+          "selector": "0x4d1f9583",
+          "valueWei": "0"
+        }
+      }
+    ],
+    "stellar": [
+      {
+        "id": "stellar_send_xlm_create_account",
+        "operation": "send_create_account",
+        "builder": "buildStealthPayment",
+        "input": {
+          "sender": "GDEFHLIPBTJLMGNOVEWO5RH5K2RE2ZEZ2WCM46JFPZC47WATTNQKOBBX",
+          "sequence": "1000",
+          "recipientMetaAddress": "st:xlm:eb91475db6dbe146cbf633550997dc4ff9adb69e224d5d8ae32aaa225a4e4bb5824708144857534670fcdb90225313c80906f8cbf4ea1cd20e0379600ec1bdf0",
+          "ephemeralSeed": "6666666666666666666666666666666666666666666666666666666666666666",
+          "stealthAddress": "GACP3DJPYWVZZQDBQF7AFA4G2DUP6MY5QXMLQRRPLTTXG75BYGX2C5LR",
+          "ephemeralPubKey": "34b4d9043156cb6dcf0beb0a2949b7559c940d2bcb6dbe8c53a9b30278e3a746",
+          "viewTag": 30,
+          "amount": "25.0000000",
+          "asset": "native",
+          "networkPassphrase": "Test SDF Network ; September 2015",
+          "fee": "100",
+          "stealthExists": false,
+          "timeoutSeconds": 0,
+          "timeBounds": null
+        },
+        "output": {
+          "envelopeXdrBase64": "AAAAAgAAAADIU60PDNK2Ga6pLO7E/VaiTWSZ1YTOeSV+Rc/YE5tgpwAAAGQAAAAAAAAD6QAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAE/Y0vxaucwGGBfgKDhtDo/zMdhdi4Ri9c53N/ocGvoQAAAAAO5rKAAAAAAAAAAAA=",
+          "txHashHex": "8f58beba66beef6cc5ee31fd33f05de929209397cf3b1bb345cc2ed8990992c7",
+          "source": "GDEFHLIPBTJLMGNOVEWO5RH5K2RE2ZEZ2WCM46JFPZC47WATTNQKOBBX",
+          "sequence": "1001",
+          "fee": "100",
+          "timeBounds": {
+            "minTime": "0",
+            "maxTime": "0"
+          },
+          "operationCount": 1,
+          "operationType": "createAccount"
+        }
+      },
+      {
+        "id": "stellar_send_xlm_payment_normalized_timebounds",
+        "operation": "send_payment",
+        "builder": "buildStealthPayment",
+        "input": {
+          "sender": "GDEFHLIPBTJLMGNOVEWO5RH5K2RE2ZEZ2WCM46JFPZC47WATTNQKOBBX",
+          "sequence": "1001",
+          "recipientMetaAddress": "st:xlm:eb91475db6dbe146cbf633550997dc4ff9adb69e224d5d8ae32aaa225a4e4bb5824708144857534670fcdb90225313c80906f8cbf4ea1cd20e0379600ec1bdf0",
+          "ephemeralSeed": "6666666666666666666666666666666666666666666666666666666666666666",
+          "stealthAddress": "GACP3DJPYWVZZQDBQF7AFA4G2DUP6MY5QXMLQRRPLTTXG75BYGX2C5LR",
+          "ephemeralPubKey": "34b4d9043156cb6dcf0beb0a2949b7559c940d2bcb6dbe8c53a9b30278e3a746",
+          "viewTag": 30,
+          "amount": "10.5000000",
+          "asset": "native",
+          "networkPassphrase": "Test SDF Network ; September 2015",
+          "fee": "250",
+          "stealthExists": true,
+          "timeBounds": {
+            "minTime": 0,
+            "maxTime": 1700000180
+          }
+        },
+        "output": {
+          "envelopeXdrBase64": "AAAAAgAAAADIU60PDNK2Ga6pLO7E/VaiTWSZ1YTOeSV+Rc/YE5tgpwAAAPoAAAAAAAAD6gAAAAEAAAAAAAAAAAAAAABlU/G0AAAAAAAAAAEAAAAAAAAAAQAAAAAE/Y0vxaucwGGBfgKDhtDo/zMdhdi4Ri9c53N/ocGvoQAAAAAAAAAABkIsQAAAAAAAAAAA",
+          "txHashHex": "3c6763fee8046855bf6fa869269edfcf2a3e29782c37537e612daf2abb5bb9e0",
+          "source": "GDEFHLIPBTJLMGNOVEWO5RH5K2RE2ZEZ2WCM46JFPZC47WATTNQKOBBX",
+          "sequence": "1002",
+          "fee": "250",
+          "timeBounds": {
+            "minTime": "0",
+            "maxTime": "1700000180"
+          },
+          "operationCount": 1,
+          "operationType": "payment"
+        }
+      },
+      {
+        "id": "stellar_send_issued_claimable_balance",
+        "operation": "send_issued_asset",
+        "builder": "buildStealthPayment",
+        "input": {
+          "sender": "GDEFHLIPBTJLMGNOVEWO5RH5K2RE2ZEZ2WCM46JFPZC47WATTNQKOBBX",
+          "sequence": "1002",
+          "recipientMetaAddress": "st:xlm:eb91475db6dbe146cbf633550997dc4ff9adb69e224d5d8ae32aaa225a4e4bb5824708144857534670fcdb90225313c80906f8cbf4ea1cd20e0379600ec1bdf0",
+          "ephemeralSeed": "6666666666666666666666666666666666666666666666666666666666666666",
+          "stealthAddress": "GACP3DJPYWVZZQDBQF7AFA4G2DUP6MY5QXMLQRRPLTTXG75BYGX2C5LR",
+          "ephemeralPubKey": "34b4d9043156cb6dcf0beb0a2949b7559c940d2bcb6dbe8c53a9b30278e3a746",
+          "viewTag": 30,
+          "amount": "50.0000000",
+          "asset": {
+            "code": "USDC",
+            "issuer": "GCZESHMVAKXCQYYKFOWLFYGHIUIP7TOTFDBTJ7Z6COJ6OWZNGHT5ZNE5"
+          },
+          "networkPassphrase": "Test SDF Network ; September 2015",
+          "fee": "100",
+          "stealthExists": false,
+          "timeoutSeconds": 0,
+          "timeBounds": null
+        },
+        "output": {
+          "envelopeXdrBase64": "AAAAAgAAAADIU60PDNK2Ga6pLO7E/VaiTWSZ1YTOeSV+Rc/YE5tgpwAAAGQAAAAAAAAD6wAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAADgAAAAFVU0RDAAAAALJJHZUCrihjCiussuDHRRD/zdMowzT/PhOT51stMefcAAAAAB3NZQAAAAABAAAAAAAAAAAE/Y0vxaucwGGBfgKDhtDo/zMdhdi4Ri9c53N/ocGvoQAAAAAAAAAAAAAAAA==",
+          "txHashHex": "2860f23c45662673675f32ae48276ff75c0d7c696f58cd3ec663f795c6cc852c",
+          "source": "GDEFHLIPBTJLMGNOVEWO5RH5K2RE2ZEZ2WCM46JFPZC47WATTNQKOBBX",
+          "sequence": "1003",
+          "fee": "100",
+          "timeBounds": {
+            "minTime": "0",
+            "maxTime": "0"
+          },
+          "operationCount": 1,
+          "operationType": "createClaimableBalance"
+        }
+      },
+      {
+        "id": "stellar_announce_soroban",
+        "operation": "announce",
+        "builder": "buildStealthAnnouncement",
+        "input": {
+          "sender": "GDEFHLIPBTJLMGNOVEWO5RH5K2RE2ZEZ2WCM46JFPZC47WATTNQKOBBX",
+          "sequence": "1003",
+          "stealthAddress": "GACP3DJPYWVZZQDBQF7AFA4G2DUP6MY5QXMLQRRPLTTXG75BYGX2C5LR",
+          "ephemeralPubKey": "34b4d9043156cb6dcf0beb0a2949b7559c940d2bcb6dbe8c53a9b30278e3a746",
+          "viewTag": 30,
+          "announcerContract": "CCJLJ2QRBJAAKIG6ELNQVXLLWMKKWVN5O2FKWUETHZGMPAD4MHK7WVWL",
+          "networkPassphrase": "Test SDF Network ; September 2015",
+          "fee": "100",
+          "timeoutSeconds": 0,
+          "timeBounds": null
+        },
+        "output": {
+          "envelopeXdrBase64": "AAAAAgAAAADIU60PDNK2Ga6pLO7E/VaiTWSZ1YTOeSV+Rc/YE5tgpwAAAGQAAAAAAAAD7AAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAGAAAAAAAAAABkrTqEQpABSDeItsK3WuzFKtVvXaKq1CTPkzHgHxh1fsAAAAIYW5ub3VuY2UAAAAEAAAAAwAAAAIAAAASAAAAAAAAAAAE/Y0vxaucwGGBfgKDhtDo/zMdhdi4Ri9c53N/ocGvoQAAAA0AAAAgNLTZBDFWy23PC+sKKUm3VZyUDSvLbb6MU6mzAnjjp0YAAAANAAAAAR4AAAAAAAAAAAAAAAAAAAA=",
+          "txHashHex": "84227d4930aac27d85f65888e56481ebb904afc6c2c8da535593c2eb43c967d7",
+          "source": "GDEFHLIPBTJLMGNOVEWO5RH5K2RE2ZEZ2WCM46JFPZC47WATTNQKOBBX",
+          "sequence": "1004",
+          "fee": "100",
+          "timeBounds": {
+            "minTime": "0",
+            "maxTime": "0"
+          },
+          "operationCount": 1,
+          "operationType": "invokeHostFunction",
+          "schemeId": 2
+        }
+      }
+    ],
+    "solana": [
+      {
+        "id": "solana_send_sol",
+        "operation": "send",
+        "builder": "buildSendSol",
+        "input": {
+          "chain": "solana",
+          "recipientMetaAddress": "st:sol:6aead49e6781d4417bd2677e07623bd72ae44c202ce1e3e676625dcbbba7ea25c140ba57ebbdfb08f5a3191e73211db66581c21752d6b9d0bc3b644e94caf89b",
+          "amount": "1000000000",
+          "senderPubkey": "7Q9wa2oJV89f1mDGkFFgub8C7TNAVbGXJ7WLo9CdoS6r",
+          "ephemeralSeed": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "output": {
+          "programId": "E6J7GBSTjKbYANWjfTo5HfnXZ4Tg3LAasN7NrvCwn5Dq",
+          "keys": [
+            {
+              "pubkey": "7Q9wa2oJV89f1mDGkFFgub8C7TNAVbGXJ7WLo9CdoS6r",
+              "isSigner": true,
+              "isWritable": true
+            },
+            {
+              "pubkey": "54TkPecKuD1Z1L5rRrzjcM8tK63B2r2MU4H3vcagFx8B",
+              "isSigner": false,
+              "isWritable": true
+            },
+            {
+              "pubkey": "11111111111111111111111111111111",
+              "isSigner": false,
+              "isWritable": false
+            }
+          ],
+          "dataHex": "0xd618db1203cdc9b300ca9a3b00000000010000003c51bbfc577fc5e6bc09f9bd34cca6ab65279ec997a283a20a601159ec05f6dce734ea6c2b6257de72355e472aa05a4c487e6b463c029ed306df2f01b5636b580100000020",
+          "discriminatorHex": "0xd618db1203cdc9b3",
+          "dataByteLength": 89,
+          "stealthAddress": "54TkPecKuD1Z1L5rRrzjcM8tK63B2r2MU4H3vcagFx8B",
+          "ephemeralPubKey": "e734ea6c2b6257de72355e472aa05a4c487e6b463c029ed306df2f01b5636b58",
+          "viewTag": 32
+        }
+      },
+      {
+        "id": "solana_announce",
+        "operation": "announce",
+        "builder": "buildAnnounce",
+        "input": {
+          "chain": "solana",
+          "stealthAddress": "54TkPecKuD1Z1L5rRrzjcM8tK63B2r2MU4H3vcagFx8B",
+          "ephemeralPubKey": "e734ea6c2b6257de72355e472aa05a4c487e6b463c029ed306df2f01b5636b58",
+          "viewTag": 32,
+          "callerPubkey": "7Q9wa2oJV89f1mDGkFFgub8C7TNAVbGXJ7WLo9CdoS6r"
+        },
+        "output": {
+          "programId": "9Ko7TuXHpLUH1ZsZWQEpeA9Tv7hX325ooWk5SD7Y9nuq",
+          "keys": [
+            {
+              "pubkey": "7Q9wa2oJV89f1mDGkFFgub8C7TNAVbGXJ7WLo9CdoS6r",
+              "isSigner": true,
+              "isWritable": true
+            }
+          ],
+          "dataHex": "0x071e64fa6efd0395010000003c51bbfc577fc5e6bc09f9bd34cca6ab65279ec997a283a20a601159ec05f6dce734ea6c2b6257de72355e472aa05a4c487e6b463c029ed306df2f01b5636b580100000020",
+          "discriminatorHex": "0x071e64fa6efd0395",
+          "dataByteLength": 81
+        }
+      }
+    ],
+    "ckb": [
+      {
+        "id": "ckb_send_and_announce_cell",
+        "operation": "send_and_announce",
+        "builder": "buildSendCkb",
+        "input": {
+          "chain": "ckb",
+          "recipientMetaAddress": "st:ckb:02a40b555d66e07923347fc87b3b092c744940b5783245270bc1ab8cd4d9e8d11003aa78964963ec3b0f63d1d4e13c8a574e883c08359a2bbad1d524a7ecef62fbdb",
+          "capacity": "10000000000",
+          "ephemeralPrivateKey": "0x1212121212121212121212121212121212121212121212121212121212121212"
+        },
+        "output": {
+          "transaction": {
+            "version": "0x0",
+            "cellDeps": [
+              {
+                "outPoint": {
+                  "txHash": "0xde1e8e4bed2d1d7102b9ad3d7a74925ace007800ae49498f9c374cb4968dd32b",
+                  "index": "0x0"
+                },
+                "depType": "code"
+              },
+              {
+                "outPoint": {
+                  "txHash": "0xa0e99b29fd154385815142b76668d5f4ecf30ae85bc2942bd21e9e51b9066f97",
+                  "index": "0x0"
+                },
+                "depType": "code"
+              }
+            ],
+            "headerDeps": [],
+            "outputs": [
+              {
+                "capacity": "0x2540be400",
+                "lock": {
+                  "codeHash": "0x31f6ab9c7e7a26ecba980b838ac3b5bd6c3a2f1b945e75b7cf7e6a46cb19cb87",
+                  "hashType": "data2",
+                  "args": "0x036360e856310ce5d294e8be33fc807077dc56ac80d95d9cd4ddbd21325eff73f7ea9c99a28d95096a586c2f860706bb69c8537c5d"
+                },
+                "type": null
+              }
+            ],
+            "outputsData": ["0x"]
+          },
+          "stealthPubKey": "0x0348f64dd0b73c828751c1ad85aaf3bccee57c7b94c011c78414613426265f3cd0",
+          "stealthPubKeyHash": "0xea9c99a28d95096a586c2f860706bb69c8537c5d",
+          "ephemeralPubKey": "0x036360e856310ce5d294e8be33fc807077dc56ac80d95d9cd4ddbd21325eff73f7",
+          "lockArgs": "0x036360e856310ce5d294e8be33fc807077dc56ac80d95d9cd4ddbd21325eff73f7ea9c99a28d95096a586c2f860706bb69c8537c5d",
+          "lockArgsByteLength": 53
+        }
+      }
+    ]
+  }
+}

@@ -6,9 +6,21 @@ Deterministic cryptographic test vectors for the [Wraith](https://github.com/wra
 
 ```
 vectors/
-  stellar.json  — Stellar (ed25519 + X25519 ECDH)
-checksum.json   — SHA-256 of every vector file
+  stellar.json               — Stellar cryptographic primitives (ed25519 + X25519 ECDH)
+  transaction-builders.json  — Multi-chain unsigned transaction-builder golden vectors (EVM, Stellar, Solana, CKB)
+checksum.json                — SHA-256 of every vector file
 ```
+
+### Package Exports & Schema Versions
+
+```ts
+import {
+  TRANSACTION_BUILDER_SCHEMA_VERSION,
+  transactionBuilderVectors,
+} from '@wraith-protocol/test-vectors/transaction-builders';
+```
+
+`vectors/transaction-builders.json` (`schemaVersion: "1.0.0"`) publishes canonical inputs, normalized unsigned outputs (excluding volatile wall-clock timestamps via `timeoutSeconds: 0` or pinning explicit `timeBounds`), and `chainDifferences` explaining the intentional envelope, scheme-ID, and send-vs-announce differences across EVM, Stellar, Solana, and CKB. CI verifies SHA-256 digests in `checksum.json` and round-trips every vector in `test/conformance/transaction-builders.test.ts`.
 
 Each file contains **100 vectors** for each of the 5 operation types:
 

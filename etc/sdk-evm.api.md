@@ -118,6 +118,7 @@ export function buildSendERC20(params: {
     amount: bigint;
     chain: string;
     gasTip?: string;
+    ephemeralPrivateKey?: HexString;
 }): BuildSendStealthResult;
 
 // @public
@@ -125,6 +126,7 @@ export function buildSendStealth(params: {
     recipientMetaAddress: string;
     amount: string;
     chain: string;
+    ephemeralPrivateKey?: HexString;
 }): BuildSendStealthResult;
 
 // @public (undocumented)

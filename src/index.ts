@@ -72,11 +72,13 @@ export type {
 export { getUnknownErrorMessage, isAbortError } from './chains/errorUtils';
 export {
   WraithError,
+  WraithRuntimeError,
   WraithInputError,
   WraithCryptoError,
   WraithNetworkError,
   WraithContractError,
   WraithBuilderError,
+  UnsupportedCapabilityError,
   InvalidMetaAddressError,
   InvalidNameError,
   InvalidSignatureError,
@@ -105,6 +107,7 @@ export {
   WalletRequestFailedError,
 } from './errors';
 export type {
+  UnsupportedCapabilityDetails,
   WalletErrorDetails,
   WalletWrongNetworkDetails,
   RPCTimeoutDetails,

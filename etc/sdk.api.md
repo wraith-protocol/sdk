@@ -625,6 +625,27 @@ export class UnsupportedAssetError extends WraithBuilderError {
 }
 
 // @public
+export interface UnsupportedCapabilityDetails {
+    capability: string;
+    cause?: unknown;
+    remedy: string;
+    runtime?: string;
+}
+
+// @public
+export class UnsupportedCapabilityError extends WraithRuntimeError {
+    constructor(message: string, details: UnsupportedCapabilityDetails);
+    // (undocumented)
+    readonly capability: string;
+    // (undocumented)
+    readonly code = "WRAITH/RUNTIME/UNSUPPORTED_CAPABILITY";
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly remedy: string;
+}
+
+// @public
 export class ViemWalletAdapter implements EvmWalletAdapter {
     constructor(client: ViemWalletClient);
     // (undocumented)
@@ -835,6 +856,10 @@ export abstract class WraithInputError extends WraithError {
 
 // @public (undocumented)
 export abstract class WraithNetworkError extends WraithError {
+}
+
+// @public (undocumented)
+export abstract class WraithRuntimeError extends WraithError {
 }
 
 // @public

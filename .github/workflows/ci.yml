@@ -117,6 +117,7 @@ jobs:
   compat:
     name: Compatibility matrix (${{ matrix.name }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       # A runtime that cannot install the SDK should not mask one that can.
       fail-fast: false
@@ -134,10 +135,16 @@ jobs:
           - name: Bun 1.x
             node-version: 22
             bun: true
-            # The runtime checks import the built package under Bun, which is
-            # the part of the matrix that is runtime-specific. The bundle and
-            # tarball checks are runtime-independent and run on Node above.
-            command: bun scripts/compat/verify-imports.mjs
+            # Runs both the runtime import matrix check under Bun and the
+            # Buffer-free edge crypto + cancellation smoke fixture.
+            command: bun scripts/compat/verify-imports.mjs && node scripts/compat/verify-edge-runtimes.mjs --runtime=bun
+          - name: Deno 2.x
+            node-version: 22
+            deno: true
+            command: node scripts/compat/verify-edge-runtimes.mjs --runtime=deno
+          - name: Edge (Cloudflare Workers + Web Worker)
+            node-version: 22
+            command: node scripts/compat/verify-edge-runtimes.mjs --runtime=cloudflare-workers,browser-worker
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -145,6 +152,10 @@ jobs:
         if: matrix.bun
         with:
           bun-version: 1.x
+      - uses: denoland/setup-deno@v2
+        if: matrix.deno
+        with:
+          deno-version: v2.x
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
