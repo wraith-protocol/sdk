@@ -74,6 +74,9 @@ export function createSolanaWalletAdapter(wallet: SolanaWalletAdapterLike): Sola
 export function createViemWalletAdapter(client: ViemWalletClient): ViemWalletAdapter;
 
 // @public
+export function createWorkerScanner(endpoint: ScannerWorkerEndpoint, options?: WorkerScannerOptions): WorkerScanner;
+
+// @public
 export interface CustomChainInput<TItem = unknown, TKeys = unknown, TMatched = unknown, TMetaAddress = unknown> {
     adapter: ChainScannerAdapter<TItem, TKeys, TMatched, TMetaAddress>;
     keys: TKeys;
@@ -421,12 +424,122 @@ export interface ScanCancellationOptions {
 }
 
 // @public
+export type ScannerWorkerChain = 'evm' | 'stellar' | 'solana' | 'ckb';
+
+// @public
+export interface ScannerWorkerCkbInput {
+    cells: StealthCell[];
+    spendingKey: HexString;
+    spendingPubKey: HexString;
+    viewingKey: HexString;
+}
+
+// @public
+export interface ScannerWorkerEndpoint {
+    // (undocumented)
+    addEventListener(type: 'message', listener: (event: MessageEvent<unknown>) => void, options?: AddEventListenerOptions | boolean): void;
+    // (undocumented)
+    postMessage(message: ScannerWorkerRequest): void;
+    // (undocumented)
+    removeEventListener(type: 'message', listener: (event: MessageEvent<unknown>) => void, options?: EventListenerOptions | boolean): void;
+    // (undocumented)
+    terminate?(): void;
+}
+
+// @public
+export class ScannerWorkerError extends Error {
+    constructor(failure: ScannerWorkerFailure, requestId: string);
+    readonly chain?: ScannerWorkerFailure['chain'];
+    readonly code: ScannerWorkerFailure['code'];
+    readonly failure: ScannerWorkerFailure;
+    readonly requestId: string;
+}
+
+// @public
+export interface ScannerWorkerEvmInput {
+    announcements: Announcement[];
+    spendingKey: HexString_2;
+    spendingPubKey: HexString_2;
+    viewingKey: HexString_2;
+}
+
+// @public
+export interface ScannerWorkerFailure {
+    chain?: ScannerWorkerChain;
+    code: ScannerWorkerFailureCode;
+    message: string;
+}
+
+// @public
+export type ScannerWorkerFailureCode = 'invalid-message' | 'invalid-input' | 'cancelled' | 'disposed' | 'scan-failed';
+
+// @public
+export interface ScannerWorkerInput {
+    // (undocumented)
+    ckb?: ScannerWorkerCkbInput;
+    // (undocumented)
+    evm?: ScannerWorkerEvmInput;
+    // (undocumented)
+    solana?: ScannerWorkerSolanaInput;
+    // (undocumented)
+    stellar?: ScannerWorkerStellarInput;
+}
+
+// @public
+export interface ScannerWorkerProgress {
+    chain: ScannerWorkerChain;
+    processed: number;
+    total: number;
+}
+
+// @public
+export type ScannerWorkerRequest = {
+    type: 'start';
+    requestId: string;
+    input: ScannerWorkerInput;
+} | {
+    type: 'cancel';
+    requestId: string;
+};
+
+// @public
+export type ScannerWorkerResponse = {
+    type: 'progress';
+    requestId: string;
+    progress: ScannerWorkerProgress;
+} | {
+    type: 'result';
+    requestId: string;
+    matches: MatchedAnnouncement[];
+} | {
+    type: 'failure';
+    requestId: string;
+    failure: ScannerWorkerFailure;
+};
+
+// @public
+export interface ScannerWorkerSolanaInput {
+    // Warning: (ae-forgotten-export) The symbol "Announcement_2" needs to be exported by the entry point index.d.ts
+    announcements: Announcement_2[];
+    spendingPubKey: Uint8Array;
+    spendingScalar: bigint;
+    viewingKey: Uint8Array;
+}
+
+// @public
+export interface ScannerWorkerStellarInput {
+    // Warning: (ae-forgotten-export) The symbol "Announcement$1" needs to be exported by the entry point index.d.ts
+    announcements: Announcement$1[];
+    spendingPubKey: Uint8Array;
+    spendingScalar: bigint;
+    viewingKey: Uint8Array;
+}
+
+// @public
 export function setTracer(tracer?: Tracer | null): void;
 
 // @public (undocumented)
 export interface SolanaChainInput {
-    // Warning: (ae-forgotten-export) The symbol "Announcement_2" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     source: AsyncIterable<Announcement_2>;
     // (undocumented)
@@ -478,8 +591,6 @@ export interface Span {
 
 // @public (undocumented)
 export interface StellarChainInput {
-    // Warning: (ae-forgotten-export) The symbol "Announcement$1" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     source: AsyncIterable<Announcement$1>;
     // (undocumented)
@@ -666,6 +777,25 @@ export function withNormalizedWalletErrors(adapter: WalletAdapter): WalletAdapte
 
 // @public
 export function withSpan<T>(name: string, attributes: Record<string, string | number | boolean> | undefined, fn: (span: Span) => T, tracer?: Tracer): T;
+
+// @public
+export interface WorkerScanner {
+    cancel(requestId: string): void;
+    dispose(): void;
+    readonly pendingCount: number;
+    scan(input: ScannerWorkerInput, options?: WorkerScanOptions): Promise<MatchedAnnouncement[]>;
+}
+
+// @public
+export interface WorkerScannerOptions {
+    terminateOnDispose?: boolean;
+}
+
+// @public
+export interface WorkerScanOptions {
+    onProgress?: (progress: ScannerWorkerProgress) => void;
+    signal?: AbortSignal;
+}
 
 // @public (undocumented)
 export abstract class WraithBuilderError extends WraithError {

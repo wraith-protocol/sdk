@@ -64,6 +64,8 @@ export type {
   ScannerWorkerFailureCode,
   ScannerWorkerInput,
   ScannerWorkerProgress,
+  ScannerWorkerRequest,
+  ScannerWorkerResponse,
   ScannerWorkerSolanaInput,
   ScannerWorkerStellarInput,
 } from './scanner/worker-protocol';
