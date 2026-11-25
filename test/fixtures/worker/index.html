@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'"
+    />
+    <title>Wraith worker CSP fixture</title>
+  </head>
+  <body>
+    <p>
+      This page disallows dynamic code and blob workers. The scanner worker is loaded from a static
+      same-origin module, so it runs without either.
+    </p>
+    <script type="module" src="./plain.main.js"></script>
+  </body>
+</html>

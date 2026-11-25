@@ -269,8 +269,8 @@ export async function fetchStealthCells(
 ): Promise<StealthCell[]> {
   const { url, options } = resolveArgs(chain, rpcUrlOrOptions, maybeOptions);
   const pageSize = resolvePageSize(options?.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
-  const result = await collectAnnouncementPages<StealthCell>(chain, options, (cursor) =>
-    fetchPage(chain, url, parseCursor(chain, cursor), pageSize, options),
+  const result = await collectAnnouncementPages<StealthCell>(chain, options, (cursor, limit) =>
+    fetchPage(chain, url, parseCursor(chain, cursor), Math.min(pageSize, limit), options),
   );
   return result.announcements;
 }

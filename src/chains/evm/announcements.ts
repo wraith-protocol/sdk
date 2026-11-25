@@ -214,8 +214,8 @@ export async function fetchAnnouncements(
 ): Promise<Announcement[]> {
   const { url, options } = resolveArgs(chain, subgraphUrlOrOptions, maybeOptions);
   const pageSize = resolvePageSize(options?.pageSize, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE);
-  const result = await collectAnnouncementPages<Announcement>(chain, options, async (cursor) =>
-    fetchPage(chain, url, parseCursor(chain, cursor), pageSize, options),
+  const result = await collectAnnouncementPages<Announcement>(chain, options, (cursor, limit) =>
+    fetchPage(chain, url, parseCursor(chain, cursor), Math.min(pageSize, limit), options),
   );
   return result.announcements;
 }

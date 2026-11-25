@@ -46,6 +46,19 @@ function mockFetchQueue(responses: Array<Response | (() => Promise<Response>)>) 
   return spy;
 }
 
+function paginatedFetch(total: number) {
+  const spy = vi.fn((_input: unknown, init?: RequestInit) => {
+    const { first, skip } = (
+      JSON.parse(init?.body as string) as { variables: { first: number; skip: number } }
+    ).variables;
+    const count = Math.max(0, Math.min(first, total - skip));
+    const announcements = Array.from({ length: count }, (_, i) => announcement(skip + i));
+    return Promise.resolve(jsonResponse({ data: { announcements } }));
+  });
+  vi.stubGlobal('fetch', spy);
+  return spy;
+}
+
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -159,7 +172,7 @@ describe('EVM fetchAnnouncements resilience', () => {
   });
 
   test('stops at the item budget without allocating past it', async () => {
-    mockFetchQueue([jsonResponse(page(3))]);
+    const spy = paginatedFetch(5);
 
     const error = await fetchAnnouncements('horizen', {
       pageSize: 3,
@@ -171,7 +184,9 @@ describe('EVM fetchAnnouncements resilience', () => {
     expect(budgetError.budget).toBe('items');
     expect(budgetError.fetched).toBe(2);
     expect(budgetError.partial).toHaveLength(2);
-    expect(budgetError.cursor).toBe('3');
+    expect(budgetError.cursor).toBe('2');
+    const body = JSON.parse(spy.mock.calls[0]?.[1]?.body as string);
+    expect(body.variables).toEqual({ first: 2, skip: 0 });
   });
 
   test('fetches a single page and exposes the cursor', async () => {

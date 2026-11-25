@@ -134,8 +134,8 @@ export async function fetchAnnouncements(
   const network = await connect(chain, url);
   const pageSize = resolvePageSize(options?.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
   const concurrency = resolveConcurrency(options?.concurrency);
-  const result = await collectAnnouncementPages<Announcement>(chain, options, (cursor) =>
-    fetchPage(network, chain, url, cursor, pageSize, concurrency, options),
+  const result = await collectAnnouncementPages<Announcement>(chain, options, (cursor, limit) =>
+    fetchPage(network, chain, url, cursor, Math.min(pageSize, limit), concurrency, options),
   );
   return result.announcements;
 }

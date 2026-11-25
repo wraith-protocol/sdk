@@ -595,13 +595,15 @@ export async function mapWithConcurrency<T, R>(
  * `maxItems`, cursor repetition and missing-cursor handling in one place, so every chain's
  * fetcher bounds the same way even though each encodes its cursor differently.
  *
- * On budget exhaustion it throws {@link AnnouncementBudgetExceededError} with the announcements
- * collected so far and the cursor to resume from.
+ * Page requests are capped at the remaining item budget, so exhaustion never discards the
+ * unconsumed suffix of an oversized page. On exhaustion it throws
+ * {@link AnnouncementBudgetExceededError} with the announcements collected so far and a cursor
+ * that resumes at the next unconsumed record.
  */
 export async function collectAnnouncementPages<T>(
   chain: string,
   options: AnnouncementPaginationOptions | undefined,
-  fetchPage: (cursor: string | undefined) => Promise<AnnouncementPage<T>>,
+  fetchPage: (cursor: string | undefined, limit: number) => Promise<AnnouncementPage<T>>,
 ): Promise<AnnouncementFetchResult<T>> {
   const { maxPages, maxItems } = resolveAnnouncementBounds(options);
   const signal = options?.signal;
@@ -623,18 +625,29 @@ export async function collectAnnouncementPages<T>(
     }
     if (signal?.aborted) throw new RPCAbortedError(chain, { cause: signal.reason });
 
-    const page = await fetchPage(cursor);
-    pages++;
-
-    if (announcements.length + page.announcements.length > maxItems) {
-      const allowed = Math.max(0, maxItems - announcements.length);
-      announcements.push(...page.announcements.slice(0, allowed));
+    const remaining = maxItems - announcements.length;
+    if (remaining <= 0) {
       throw new AnnouncementBudgetExceededError({
         chain,
         budget: 'items',
         limit: maxItems,
         fetched: announcements.length,
-        cursor: page.cursor ?? cursor,
+        cursor,
+        partial: [...announcements],
+      });
+    }
+
+    const page = await fetchPage(cursor, remaining);
+    pages++;
+
+    if (page.announcements.length > remaining) {
+      announcements.push(...page.announcements.slice(0, remaining));
+      throw new AnnouncementBudgetExceededError({
+        chain,
+        budget: 'items',
+        limit: maxItems,
+        fetched: announcements.length,
+        cursor,
         partial: [...announcements],
       });
     }
@@ -657,5 +670,16 @@ export async function collectAnnouncementPages<T>(
     }
     seenCursors.add(nextCursor);
     cursor = nextCursor;
+
+    if (announcements.length >= maxItems) {
+      throw new AnnouncementBudgetExceededError({
+        chain,
+        budget: 'items',
+        limit: maxItems,
+        fetched: announcements.length,
+        cursor,
+        partial: [...announcements],
+      });
+    }
   }
 }

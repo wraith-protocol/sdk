@@ -1,6 +1,6 @@
 # @wraith-protocol/sdk
 
-The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package, six entry points — an agent client for the managed TEE platform, stealth address cryptography for EVM, Stellar, Solana, and CKB chains, and a browser-only vault for short-lived derived keys.
+The SDK for the [Wraith](https://github.com/wraith-protocol) multichain stealth address platform. One package with seven entry points: an agent client for the managed TEE platform, stealth address cryptography for EVM, Stellar, Solana, and CKB chains, a browser-only vault for short-lived derived keys, and a CSP-safe Web Worker scanner entry point.
 
 ## Installation
 
@@ -41,10 +41,34 @@ Only `@stellar/stellar-sdk` and `@solana/web3.js` are optional peers, and each i
 | `@wraith-protocol/sdk/chains/solana`  | Solana stealth address crypto (ed25519)              |
 | `@wraith-protocol/sdk/chains/ckb`     | CKB (Nervos) stealth address crypto (secp256k1)      |
 | `@wraith-protocol/sdk/vault`          | Browser-only passphrase vault for short-lived keys   |
+| `@wraith-protocol/sdk/scanner/worker` | CSP-safe Web Worker scanner entry point              |
 
 > React Native support is documented in `docs/guides/react-native-setup.mdx` and the companion example at `examples/react-native-stellar`.
 >
 > The React, Vue, Svelte and Solid adapters share one scan cancellation contract. See [`docs/guides/framework-scanner-cancellation.mdx`](./docs/guides/framework-scanner-cancellation.mdx).
+
+## Worker Scanner
+
+Run scanning off the main thread without a blob URL or dynamic code. The worker entry point is a static module, so it works under a CSP that blocks `unsafe-eval` and `blob:` workers.
+
+```ts
+// scanner.worker.ts
+import '@wraith-protocol/sdk/scanner/worker';
+
+// app.ts
+import { createWorkerScanner } from '@wraith-protocol/sdk';
+
+const worker = new Worker(new URL('./scanner.worker.ts', import.meta.url), {
+  type: 'module',
+});
+
+const scanner = createWorkerScanner(worker);
+const matches = await scanner.scan(input, {
+  onProgress: ({ chain, processed, total }) => console.log(chain, processed, total),
+});
+```
+
+Requests, progress, cancellation and typed failures use a versioned message schema. See [`docs/guides/worker-scanner.mdx`](./docs/guides/worker-scanner.mdx) for the protocol, ordering guarantees and Vite, Next.js and plain worker setups.
 
 ## Browser Vault
 
