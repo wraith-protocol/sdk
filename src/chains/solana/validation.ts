@@ -3,6 +3,7 @@ import { bytesToHex, base58Encode } from './utils';
 import {
   invalidResponse,
   MAX_RPC_RESPONSE_BYTES,
+  readCapped,
   requireArray,
   requireRecord,
   requireString,
@@ -61,12 +62,14 @@ export function createBoundedSolanaFetch(
     // but the body cannot be re-wrapped after it is read.
     if (typeof Response === 'undefined') return response;
 
-    const text = await response.text();
-    if (new TextEncoder().encode(text).byteLength > maxBytes) {
+    // Stream through the shared capped reader: a chunked response without
+    // Content-Length is stopped at the limit instead of being fully buffered.
+    const read = await readCapped(response, maxBytes);
+    if (read.truncated) {
       throw invalidResponse(context, 'body', `response is longer than the ${maxBytes} byte limit`);
     }
 
-    return new Response(text, {
+    return new Response(read.text, {
       status: response.status,
       statusText: response.statusText,
       headers: response.headers,

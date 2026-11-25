@@ -242,7 +242,7 @@ export function requireInteger(
  * Reads at most `limit` bytes of a response body and cancels the rest, so an
  * untrusted server cannot make the caller buffer an unbounded body.
  */
-async function readCapped(
+export async function readCapped(
   response: Response,
   limit: number,
 ): Promise<{ text: string; truncated: boolean }> {

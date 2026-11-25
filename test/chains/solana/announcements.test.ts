@@ -305,6 +305,35 @@ describe('createBoundedSolanaFetch', () => {
     expect((error as RPCResponseError).field).toBe('body');
   });
 
+  test('stops a chunked body without Content-Length once it passes the limit', async () => {
+    const chunk = new Uint8Array(16 * 1024).fill(0x20);
+    const state = { pulls: 0, cancelled: false };
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        state.pulls++;
+        if (state.pulls > 8) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(chunk);
+      },
+      cancel() {
+        state.cancelled = true;
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream)));
+
+    const error = await boundedFetch()('https://api.devnet.solana.com').catch(
+      (err: unknown) => err,
+    );
+
+    expect(error).toBeInstanceOf(RPCResponseError);
+    expect((error as RPCResponseError).field).toBe('body');
+    expect(state.cancelled).toBe(true);
+    // 16 KiB per pull against a 1 KiB limit; the stream may be pulled a little ahead.
+    expect(state.pulls).toBeLessThanOrEqual(2);
+  });
+
   test('leaves non-2xx responses for the RPC client to handle', async () => {
     vi.stubGlobal(
       'fetch',
