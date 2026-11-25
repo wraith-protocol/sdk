@@ -278,6 +278,11 @@ export interface CKBChainDeployment {
 }
 
 // @public
+export interface CkbFetchStealthCellsOptions extends AnnouncementPaginationOptions {
+    rpcUrl?: string;
+}
+
+// @public
 export interface CKBOutPoint {
     // (undocumented)
     index: HexString;

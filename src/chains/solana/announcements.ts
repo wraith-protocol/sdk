@@ -178,6 +178,8 @@ interface SolanaNetwork {
   programs: string[];
 }
 
+async function connect(chain: string, url: string): Promise<SolanaNetwork> {
+  const deployment = getDeployment(chain);
   let solanaWeb3: typeof import('@solana/web3.js');
   try {
     solanaWeb3 = await import('@solana/web3.js');
@@ -193,7 +195,22 @@ interface SolanaNetwork {
     );
   }
   const { Connection, PublicKey } = solanaWeb3;
-  const connection = new Connection(url);
+  return {
+    connection: new Connection(url),
+    PublicKey,
+    programs: [deployment.contracts.announcer, deployment.contracts.sender],
+  };
+}
+
+function resolveConcurrency(value: number | undefined): number {
+  if (value === undefined) return DEFAULT_CONCURRENCY;
+  if (!Number.isInteger(value) || value < 1 || value > MAX_CONCURRENCY) {
+    throw new RangeError(
+      `concurrency must be an integer between 1 and ${MAX_CONCURRENCY}, got ${String(value)}`,
+    );
+  }
+  return value;
+}
 
 function boundedCall<T>(
   chain: string,
