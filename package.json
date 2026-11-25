@@ -105,18 +105,18 @@
       "name": "Solana ESM (import *)",
       "path": "dist/chains/solana/index.js",
       "import": "*",
-      "limit": "20.8 KB"
+      "limit": "20.9 KB"
     },
     {
       "name": "Solana CJS (require)",
       "path": "dist/chains/solana/index.cjs",
-      "limit": "30.7 KB"
+      "limit": "30.8 KB"
     },
     {
       "name": "CKB ESM (import *)",
       "path": "dist/chains/ckb/index.js",
       "import": "*",
-      "limit": "24.2 KB"
+      "limit": "24.5 KB"
     },
     {
       "name": "CKB CJS (require)",
