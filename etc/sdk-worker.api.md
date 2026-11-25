@@ -49,6 +49,9 @@ export type EvmHexString = `0x${string}`;
 export function exposeScannerWorker(scope: ScannerWorkerScope): ScannerWorkerHandler;
 
 // @public
+export function getScannerWorkerProtocolVersion(value: unknown): number | undefined;
+
+// @public
 export function isScannerWorkerAbort(error: unknown): boolean;
 
 // @public
@@ -110,6 +113,12 @@ export interface ScannerWorkerCkbInput {
 }
 
 // @public
+export interface ScannerWorkerEnvelope {
+    requestId: string;
+    version: number;
+}
+
+// @public
 export interface ScannerWorkerEvmInput {
     announcements: EvmAnnouncement[];
     spendingKey: EvmHexString;
@@ -125,7 +134,7 @@ export interface ScannerWorkerFailure {
 }
 
 // @public
-export type ScannerWorkerFailureCode = 'invalid-message' | 'invalid-input' | 'cancelled' | 'disposed' | 'scan-failed';
+export type ScannerWorkerFailureCode = 'invalid-message' | 'invalid-input' | 'cancelled' | 'disposed' | 'scan-failed' | 'version-mismatch';
 
 // @public
 export interface ScannerWorkerHandler {
@@ -161,29 +170,24 @@ export interface ScannerWorkerProgress {
 }
 
 // @public
-export type ScannerWorkerRequest = {
+export type ScannerWorkerRequest = (ScannerWorkerEnvelope & {
     type: 'start';
-    requestId: string;
     input: ScannerWorkerInput;
-} | {
+}) | (ScannerWorkerEnvelope & {
     type: 'cancel';
-    requestId: string;
-};
+});
 
 // @public
-export type ScannerWorkerResponse = {
+export type ScannerWorkerResponse = (ScannerWorkerEnvelope & {
     type: 'progress';
-    requestId: string;
     progress: ScannerWorkerProgress;
-} | {
+}) | (ScannerWorkerEnvelope & {
     type: 'result';
-    requestId: string;
     matches: MatchedAnnouncement[];
-} | {
+}) | (ScannerWorkerEnvelope & {
     type: 'failure';
-    requestId: string;
     failure: ScannerWorkerFailure;
-};
+});
 
 // @public
 export interface ScannerWorkerRunOptions {

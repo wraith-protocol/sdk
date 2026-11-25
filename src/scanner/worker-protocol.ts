@@ -117,7 +117,8 @@ export type ScannerWorkerFailureCode =
   | 'invalid-input'
   | 'cancelled'
   | 'disposed'
-  | 'scan-failed';
+  | 'scan-failed'
+  | 'version-mismatch';
 
 /**
  * Serializable failure payload. Never an `Error` instance, because not every
@@ -133,21 +134,33 @@ export interface ScannerWorkerFailure {
 }
 
 /**
+ * Fields shared by every request and response envelope.
+ *
+ * `version` carries {@link SCANNER_WORKER_PROTOCOL_VERSION} so both sides can
+ * reject a peer that speaks a different schema before interpreting the rest of
+ * the message.
+ */
+export interface ScannerWorkerEnvelope {
+  /** Protocol version the sender is speaking. */
+  version: number;
+  /** Identifies the scan this message belongs to. */
+  requestId: string;
+}
+
+/**
  * Request a host sends to the worker.
  *
  * `start` begins one scan identified by `requestId`. `cancel` aborts the scan
  * with the matching id and releases its iterators.
  */
 export type ScannerWorkerRequest =
-  | {
+  | (ScannerWorkerEnvelope & {
       type: 'start';
-      requestId: string;
       input: ScannerWorkerInput;
-    }
-  | {
+    })
+  | (ScannerWorkerEnvelope & {
       type: 'cancel';
-      requestId: string;
-    };
+    });
 
 /**
  * Message the worker sends back to its host.
@@ -156,21 +169,18 @@ export type ScannerWorkerRequest =
  * `result` or `failure` message with the same `requestId`.
  */
 export type ScannerWorkerResponse =
-  | {
+  | (ScannerWorkerEnvelope & {
       type: 'progress';
-      requestId: string;
       progress: ScannerWorkerProgress;
-    }
-  | {
+    })
+  | (ScannerWorkerEnvelope & {
       type: 'result';
-      requestId: string;
       matches: MatchedAnnouncement[];
-    }
-  | {
+    })
+  | (ScannerWorkerEnvelope & {
       type: 'failure';
-      requestId: string;
       failure: ScannerWorkerFailure;
-    };
+    });
 
 /**
  * Minimal worker-side scope the handler needs.
@@ -213,23 +223,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * Reads the protocol version from an untrusted message, when present.
+ *
+ * Both boundaries use this before decoding the rest of the envelope so a peer
+ * built against another schema version is rejected instead of being parsed as
+ * if it were compatible.
+ */
+export function getScannerWorkerProtocolVersion(value: unknown): number | undefined {
+  if (!isRecord(value) || typeof value.version !== 'number') return undefined;
+  return value.version;
+}
+
+/**
  * Narrows an untyped `message` event payload to a request.
  *
- * This only checks the envelope. Input validation runs in the worker core, so
- * a malformed `input` still produces a typed `invalid-input` failure rather
- * than being dropped silently.
+ * This only checks the envelope, including the protocol version. Input
+ * validation runs in the worker core, so a malformed `input` still produces a
+ * typed `invalid-input` failure rather than being dropped silently.
  */
 export function isScannerWorkerRequest(value: unknown): value is ScannerWorkerRequest {
-  if (!isRecord(value) || typeof value.requestId !== 'string') return false;
+  if (!isRecord(value) || value.version !== SCANNER_WORKER_PROTOCOL_VERSION) return false;
+  if (typeof value.requestId !== 'string') return false;
   if (value.type === 'start') return isRecord(value.input);
   return value.type === 'cancel';
 }
 
 /**
  * Narrows an untyped `message` event payload to a response.
+ *
+ * This checks the envelope version, so a response from an incompatible worker
+ * build is rejected before its payload is read.
  */
 export function isScannerWorkerResponse(value: unknown): value is ScannerWorkerResponse {
-  if (!isRecord(value) || typeof value.requestId !== 'string') return false;
+  if (!isRecord(value) || value.version !== SCANNER_WORKER_PROTOCOL_VERSION) return false;
+  if (typeof value.requestId !== 'string') return false;
   if (value.type === 'progress') return isRecord(value.progress);
   if (value.type === 'result') return Array.isArray(value.matches);
   if (value.type === 'failure') return isRecord(value.failure);

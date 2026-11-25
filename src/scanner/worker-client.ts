@@ -1,6 +1,8 @@
 import type { MatchedAnnouncement } from './unified';
 import {
+  SCANNER_WORKER_PROTOCOL_VERSION,
   createScanAbortError,
+  getScannerWorkerProtocolVersion,
   isScannerWorkerResponse,
   type ScannerWorkerFailure,
   type ScannerWorkerInput,
@@ -117,6 +119,17 @@ function getErrorMessage(error: unknown): string {
   return typeof error === 'string' ? error : 'Unknown worker error';
 }
 
+function getRequestId(value: unknown): string | undefined {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { requestId?: unknown }).requestId === 'string'
+  ) {
+    return (value as { requestId: string }).requestId;
+  }
+  return undefined;
+}
+
 /**
  * Wraps a Web Worker in a typed scanner client.
  *
@@ -143,6 +156,23 @@ export function createWorkerScanner(
 
   const onMessage = (event: MessageEvent<unknown>): void => {
     const response = event.data;
+
+    const requestId = getRequestId(response);
+    const version = getScannerWorkerProtocolVersion(response);
+    if (requestId && version !== SCANNER_WORKER_PROTOCOL_VERSION) {
+      const pending = settle(requestId);
+      pending?.reject(
+        new ScannerWorkerError(
+          {
+            code: 'version-mismatch',
+            message: `Scanner worker protocol version ${SCANNER_WORKER_PROTOCOL_VERSION} required but received ${version ?? 'none'}`,
+          },
+          requestId,
+        ),
+      );
+      return;
+    }
+
     if (!isScannerWorkerResponse(response)) return;
 
     const pending = pendingScans.get(response.requestId);
@@ -209,7 +239,11 @@ export function createWorkerScanner(
         if (scanOptions.signal) {
           pending.abortListener = (): void => {
             try {
-              endpoint.postMessage({ type: 'cancel', requestId });
+              endpoint.postMessage({
+                version: SCANNER_WORKER_PROTOCOL_VERSION,
+                type: 'cancel',
+                requestId,
+              });
             } catch {
               // The worker may already be gone; the rejection below still applies.
             }
@@ -222,7 +256,12 @@ export function createWorkerScanner(
         pendingScans.set(requestId, pending);
 
         try {
-          endpoint.postMessage({ type: 'start', requestId, input });
+          endpoint.postMessage({
+            version: SCANNER_WORKER_PROTOCOL_VERSION,
+            type: 'start',
+            requestId,
+            input,
+          });
         } catch (error) {
           settle(requestId);
           reject(
@@ -238,7 +277,11 @@ export function createWorkerScanner(
     cancel(requestId) {
       if (disposed) return;
       try {
-        endpoint.postMessage({ type: 'cancel', requestId });
+        endpoint.postMessage({
+          version: SCANNER_WORKER_PROTOCOL_VERSION,
+          type: 'cancel',
+          requestId,
+        });
       } catch {
         // Nothing to do: a worker that cannot receive cancel is already gone.
       }

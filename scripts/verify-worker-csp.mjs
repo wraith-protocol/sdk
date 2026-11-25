@@ -15,7 +15,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createContext, runInContext } from 'node:vm';
 import { build } from 'esbuild';
 
@@ -191,7 +191,14 @@ async function runWorkerBundle(file) {
   }
 
   const requestId = `csp-${file}`;
-  listener({ data: { type: 'start', requestId, input: {} } });
+  listener({
+    data: {
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
+      type: 'start',
+      requestId,
+      input: {},
+    },
+  });
   const terminal = await waitForTerminal(messages, requestId);
 
   if (!terminal) {
@@ -210,6 +217,10 @@ if (!existsSync(join(repoRoot, 'dist'))) {
   console.error('dist/ not found. Run `pnpm build` before the worker CSP checks.');
   process.exit(1);
 }
+
+const { SCANNER_WORKER_PROTOCOL_VERSION } = await import(
+  pathToFileURL(join(repoRoot, 'dist', 'scanner', 'worker.js')).href
+);
 
 checkSources();
 

@@ -7,7 +7,7 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
 ### Added
 
 - **CSP-Safe Web Worker Scanner Entry Point** (issue #269): `@wraith-protocol/sdk/scanner/worker` is a static worker module for scanning off the main thread without blob URLs or dynamic code, so it runs under a CSP that blocks `unsafe-eval` and blob workers.
-  - The versioned message schema carries `start`, `progress`, `cancel`, `result` and typed `failure` messages. Inputs and matches cross the boundary as structured data, and cancellation releases the active chain iterators.
+  - The versioned message schema carries `start`, `progress`, `cancel`, `result` and typed `failure` messages. Every envelope includes the protocol version, and both the worker and the client reject a mismatched version before decoding the payload. Inputs and matches cross the boundary as structured data, and cancellation releases the active chain iterators.
   - `createWorkerScanner()` and `ScannerWorkerError` are exported from the package root, with progress forwarding, `AbortSignal` cancellation and deterministic chain then input ordering.
   - `runScannerWorker()` exposes the same scan core for custom transports. Vite, Next.js and plain module worker fixtures are checked by `pnpm test:worker-csp` with `eval` and `Function` poisoned.
   - The new entry point is part of the `exports` map, public API reports and bundle size budgets. See [`docs/guides/worker-scanner.mdx`](./docs/guides/worker-scanner.mdx).

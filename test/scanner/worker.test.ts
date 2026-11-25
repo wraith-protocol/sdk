@@ -3,6 +3,7 @@ import { runScannerWorker } from '../../src/scanner/worker-core';
 import { createScannerWorkerHandler } from '../../src/scanner/worker';
 import { createWorkerScanner, ScannerWorkerError } from '../../src/scanner/worker-client';
 import type { ScannerWorkerEndpoint, WorkerScanner } from '../../src/scanner/worker-client';
+import { SCANNER_WORKER_PROTOCOL_VERSION } from '../../src/scanner/worker-protocol';
 import type {
   ScannerWorkerInput,
   ScannerWorkerRequest,
@@ -235,6 +236,7 @@ describe('createScannerWorkerHandler', () => {
     const handler = createScannerWorkerHandler(scope);
 
     await handler.handleMessage({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
       type: 'start',
       requestId: 'job-1',
       input: { evm: evmInput, stellar: stellarInput },
@@ -257,11 +259,16 @@ describe('createScannerWorkerHandler', () => {
     const handler = createScannerWorkerHandler(scope);
 
     const running = handler.handleMessage({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
       type: 'start',
       requestId: 'job-2',
       input: { evm: evmInput, stellar: stellarInput },
     });
-    await handler.handleMessage({ type: 'cancel', requestId: 'job-2' });
+    await handler.handleMessage({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
+      type: 'cancel',
+      requestId: 'job-2',
+    });
     await running;
 
     expect(handler.activeCount).toBe(0);
@@ -276,7 +283,11 @@ describe('createScannerWorkerHandler', () => {
     const { scope, messages } = createScope();
     const handler = createScannerWorkerHandler(scope);
 
-    await handler.handleMessage({ type: 'unknown', requestId: 'job-3' });
+    await handler.handleMessage({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
+      type: 'unknown',
+      requestId: 'job-3',
+    });
 
     expect(lastMessage(messages)).toMatchObject({
       type: 'failure',
@@ -285,11 +296,50 @@ describe('createScannerWorkerHandler', () => {
     });
   });
 
+  test('rejects a request from another protocol version', async () => {
+    const { scope, messages } = createScope();
+    const handler = createScannerWorkerHandler(scope);
+
+    await handler.handleMessage({
+      version: SCANNER_WORKER_PROTOCOL_VERSION + 1,
+      type: 'start',
+      requestId: 'job-version',
+      input: { evm: evmInput },
+    });
+
+    expect(lastMessage(messages)).toMatchObject({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
+      type: 'failure',
+      requestId: 'job-version',
+      failure: { code: 'version-mismatch' },
+    });
+    expect(handler.activeCount).toBe(0);
+  });
+
+  test('treats a missing protocol version as a mismatch', async () => {
+    const { scope, messages } = createScope();
+    const handler = createScannerWorkerHandler(scope);
+
+    await handler.handleMessage({
+      type: 'start',
+      requestId: 'job-no-version',
+      input: { evm: evmInput },
+    });
+
+    expect(lastMessage(messages)).toMatchObject({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
+      type: 'failure',
+      requestId: 'job-no-version',
+      failure: { code: 'version-mismatch' },
+    });
+  });
+
   test('rejects malformed input with the invalid-input code', async () => {
     const { scope, messages } = createScope();
     const handler = createScannerWorkerHandler(scope);
 
     await handler.handleMessage({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
       type: 'start',
       requestId: 'job-4',
       input: { evm: { announcements: [] } },
@@ -307,6 +357,7 @@ describe('createScannerWorkerHandler', () => {
     const handler = createScannerWorkerHandler(scope);
 
     await handler.handleMessage({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
       type: 'start',
       requestId: 'job-5',
       input: {
@@ -334,6 +385,7 @@ describe('createScannerWorkerHandler', () => {
     const handler = createScannerWorkerHandler(scope);
 
     const running = handler.handleMessage({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
       type: 'start',
       requestId: 'job-6',
       input: { evm: evmInput },
@@ -354,15 +406,21 @@ describe('createWorkerScanner', () => {
 
     const promise = client.scan({ evm: evmInput }, { onProgress: (event) => progress.push(event) });
     const start = fake.sent[0];
-    expect(start).toMatchObject({ type: 'start' });
+    expect(start).toMatchObject({ version: SCANNER_WORKER_PROTOCOL_VERSION, type: 'start' });
 
     if (start.type !== 'start') throw new Error('expected start request');
     fake.emit({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
       type: 'progress',
       requestId: start.requestId,
       progress: { chain: 'evm', processed: 1, total: 3 },
     });
-    fake.emit({ type: 'result', requestId: start.requestId, matches: [] });
+    fake.emit({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
+      type: 'result',
+      requestId: start.requestId,
+      matches: [],
+    });
 
     await expect(promise).resolves.toEqual([]);
     expect(progress).toEqual([{ chain: 'evm', processed: 1, total: 3 }]);
@@ -378,6 +436,7 @@ describe('createWorkerScanner', () => {
     if (start.type !== 'start') throw new Error('expected start request');
 
     fake.emit({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
       type: 'failure',
       requestId: start.requestId,
       failure: { code: 'scan-failed', message: 'boom' },
@@ -385,6 +444,25 @@ describe('createWorkerScanner', () => {
 
     await expect(promise).rejects.toBeInstanceOf(ScannerWorkerError);
     await expect(promise).rejects.toMatchObject({ code: 'scan-failed', message: 'boom' });
+  });
+
+  test('rejects a response from another protocol version', async () => {
+    const fake = createFakeEndpoint();
+    const client = createWorkerScanner(fake.endpoint);
+
+    const promise = client.scan({ evm: evmInput });
+    const start = fake.sent[0];
+    if (start.type !== 'start') throw new Error('expected start request');
+
+    fake.emit({
+      version: SCANNER_WORKER_PROTOCOL_VERSION + 1,
+      type: 'result',
+      requestId: start.requestId,
+      matches: [],
+    });
+
+    await expect(promise).rejects.toMatchObject({ code: 'version-mismatch' });
+    expect(client.pendingCount).toBe(0);
   });
 
   test('aborting sends cancel and rejects with AbortError', async () => {
@@ -399,10 +477,15 @@ describe('createWorkerScanner', () => {
     controller.abort();
 
     await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
-    expect(fake.sent[1]).toEqual({ type: 'cancel', requestId: start.requestId });
+    expect(fake.sent[1]).toEqual({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
+      type: 'cancel',
+      requestId: start.requestId,
+    });
     expect(client.pendingCount).toBe(0);
 
     fake.emit({
+      version: SCANNER_WORKER_PROTOCOL_VERSION,
       type: 'failure',
       requestId: start.requestId,
       failure: { code: 'cancelled', message: 'Scan cancelled' },

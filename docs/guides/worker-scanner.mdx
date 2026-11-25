@@ -64,23 +64,23 @@ Call `scanner.dispose()` when the worker is no longer needed. Pass `{ terminateO
 
 ## Message schema
 
-The protocol is versioned with `SCANNER_WORKER_PROTOCOL_VERSION`.
+The protocol is versioned with `SCANNER_WORKER_PROTOCOL_VERSION`, and every request and response envelope carries that value in `version`.
 
 Requests:
 
 ```ts
 type ScannerWorkerRequest =
-  | { type: 'start'; requestId: string; input: ScannerWorkerInput }
-  | { type: 'cancel'; requestId: string };
+  | { version: number; type: 'start'; requestId: string; input: ScannerWorkerInput }
+  | { version: number; type: 'cancel'; requestId: string };
 ```
 
 Responses:
 
 ```ts
 type ScannerWorkerResponse =
-  | { type: 'progress'; requestId: string; progress: ScannerWorkerProgress }
-  | { type: 'result'; requestId: string; matches: MatchedAnnouncement[] }
-  | { type: 'failure'; requestId: string; failure: ScannerWorkerFailure };
+  | { version: number; type: 'progress'; requestId: string; progress: ScannerWorkerProgress }
+  | { version: number; type: 'result'; requestId: string; matches: MatchedAnnouncement[] }
+  | { version: number; type: 'failure'; requestId: string; failure: ScannerWorkerFailure };
 
 interface ScannerWorkerProgress {
   chain: 'evm' | 'stellar' | 'solana' | 'ckb';
@@ -89,11 +89,19 @@ interface ScannerWorkerProgress {
 }
 
 interface ScannerWorkerFailure {
-  code: 'invalid-message' | 'invalid-input' | 'cancelled' | 'disposed' | 'scan-failed';
+  code:
+    | 'invalid-message'
+    | 'invalid-input'
+    | 'cancelled'
+    | 'disposed'
+    | 'scan-failed'
+    | 'version-mismatch';
   message: string;
   chain?: 'evm' | 'stellar' | 'solana' | 'ckb';
 }
 ```
+
+The worker rejects a request whose `version` differs from its own and answers with a `version-mismatch` failure using its own version. The client rejects a response whose `version` does not match and fails the pending scan with `ScannerWorkerError` code `version-mismatch`, so a stale worker build cannot be mistaken for a compatible one.
 
 Every `start` produces exactly one terminal `result` or `failure` with the same `requestId`. `cancel` aborts the matching scan, drops its iterators, and produces a `failure` with `code: 'cancelled'`. Raw `Error` instances never cross the boundary; failures are plain data.
 

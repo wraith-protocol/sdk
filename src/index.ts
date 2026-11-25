@@ -59,6 +59,7 @@ export type {
 export type {
   ScannerWorkerChain,
   ScannerWorkerCkbInput,
+  ScannerWorkerEnvelope,
   ScannerWorkerEvmInput,
   ScannerWorkerFailure,
   ScannerWorkerFailureCode,

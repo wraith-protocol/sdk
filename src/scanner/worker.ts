@@ -26,9 +26,12 @@
 import { isAbortError, getUnknownErrorMessage } from '../chains/errorUtils';
 import { runScannerWorker, ScannerWorkerInputError } from './worker-core';
 import {
+  SCANNER_WORKER_PROTOCOL_VERSION,
+  getScannerWorkerProtocolVersion,
   isScannerWorkerRequest,
   isScannerWorkerRuntime,
   type ScannerWorkerFailure,
+  type ScannerWorkerProgress,
   type ScannerWorkerRequest,
   type ScannerWorkerResponse,
   type ScannerWorkerScope,
@@ -45,6 +48,7 @@ import type { MatchedAnnouncement } from './unified';
 export {
   SCANNER_WORKER_PROTOCOL_VERSION,
   createScanAbortError,
+  getScannerWorkerProtocolVersion,
   isScannerWorkerRequest,
   isScannerWorkerResponse,
   isScannerWorkerRuntime,
@@ -52,6 +56,7 @@ export {
 export type {
   ScannerWorkerChain,
   ScannerWorkerCkbInput,
+  ScannerWorkerEnvelope,
   ScannerWorkerEvmInput,
   ScannerWorkerFailure,
   ScannerWorkerFailureCode,
@@ -125,10 +130,15 @@ export function createScannerWorkerHandler(scope: ScannerWorkerScope): ScannerWo
   const active = new Map<string, AbortController>();
   let disposed = false;
 
-  const post = (response: ScannerWorkerResponse): void => {
+  type ResponseBody =
+    | { type: 'progress'; requestId: string; progress: ScannerWorkerProgress }
+    | { type: 'result'; requestId: string; matches: MatchedAnnouncement[] }
+    | { type: 'failure'; requestId: string; failure: ScannerWorkerFailure };
+
+  const post = (body: ResponseBody): void => {
     if (disposed) return;
     try {
-      scope.postMessage(response);
+      scope.postMessage({ version: SCANNER_WORKER_PROTOCOL_VERSION, ...body });
     } catch {
       // The host may have terminated the worker between messages.
     }
@@ -145,6 +155,23 @@ export function createScannerWorkerHandler(scope: ScannerWorkerScope): ScannerWo
 
   const handleMessage = async (data: unknown): Promise<void> => {
     if (disposed) return;
+
+    if (typeof data !== 'object' || data === null) {
+      fail('unknown', {
+        code: 'invalid-message',
+        message: 'Worker message must be a start or cancel request with a requestId',
+      });
+      return;
+    }
+
+    const version = getScannerWorkerProtocolVersion(data);
+    if (version !== SCANNER_WORKER_PROTOCOL_VERSION) {
+      fail(requestIdOf(data), {
+        code: 'version-mismatch',
+        message: `Scanner worker protocol version ${SCANNER_WORKER_PROTOCOL_VERSION} required but received ${version ?? 'none'}`,
+      });
+      return;
+    }
 
     if (!isScannerWorkerRequest(data)) {
       fail(requestIdOf(data), {
