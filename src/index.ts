@@ -66,6 +66,27 @@ export type {
   SolanaChainInput,
   CkbChainInput,
 } from './scanner/unified';
+export { createWorkerScanner, ScannerWorkerError } from './scanner/worker-client';
+export type {
+  WorkerScanner,
+  WorkerScannerOptions,
+  WorkerScanOptions,
+  ScannerWorkerEndpoint,
+} from './scanner/worker-client';
+export type {
+  ScannerWorkerChain,
+  ScannerWorkerCkbInput,
+  ScannerWorkerEnvelope,
+  ScannerWorkerEvmInput,
+  ScannerWorkerFailure,
+  ScannerWorkerFailureCode,
+  ScannerWorkerInput,
+  ScannerWorkerProgress,
+  ScannerWorkerRequest,
+  ScannerWorkerResponse,
+  ScannerWorkerSolanaInput,
+  ScannerWorkerStellarInput,
+} from './scanner/worker-protocol';
 export { getUnknownErrorMessage, isAbortError } from './chains/errorUtils';
 export {
   WraithError,

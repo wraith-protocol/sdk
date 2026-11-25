@@ -11,7 +11,7 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 
 | Entry              | Format           | Baseline  | Budget (+15%) |
 | ------------------ | ---------------- | --------- | ------------- |
-| Root (`.`)         | ESM (`import *`) | 36.80 KB  | 37.1 KB       |
+| Root (`.`)         | ESM (`import *`) | 38.02 KB  | 38.1 KB       |
 | Root (`.`)         | CJS (`require`)  | 138.79 KB | 159.7 KB      |
 | `./chains/evm`     | ESM (`import *`) | 23.83 KB  | 27.5 KB       |
 | `./chains/evm`     | CJS (`require`)  | 126.79 KB | 145.9 KB      |
@@ -23,6 +23,8 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 | `./vault`          | CJS (`require`)  | 2.66 KB   | 3.1 KB        |
 | `./chains/stellar` | ESM (`import *`) | 26.48 KB  | 31 KB         |
 | `./chains/stellar` | CJS (`require`)  | 41.01 KB  | 41.2 KB       |
+| `./scanner/worker` | ESM (`import *`) | 28.93 KB  | 33.1 KB       |
+| `./scanner/worker` | CJS (`require`)  | 139.69 KB | 160.5 KB      |
 
 > Stellar note: the original 20 KB-per-format budget predated any actual
 > measurement (the baseline had never been populated). The current Stellar
@@ -34,10 +36,15 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 > cancellation and timeout support in the one-shot Horizon helpers (issue #235),
 > which brought that entry to 30.68 KB.
 >
+> On 2026-11-21 the CSP-safe worker scanner entry point was added (issue #269).
+> Its baseline was measured at 28.93 KB (ESM) and 139.69 KB (CJS) with budgets
+> set to baseline + 15%.
+>
 > On 2026-11-22 the Root ESM budget was raised from 36.1 KB to 37.1 KB and the
 > Stellar CJS budget from 41 KB to 41.2 KB for the bounded streaming scanner
-> pool and its budget error (issue #275). Both raises are minimal: 36.80 KB and
-> 41.01 KB measured.
+> pool and its budget error (issue #275). After merging the worker scanner entry
+> point and the ordered bounded-stream fix, Root ESM measured 38.02 KB and its
+> budget was raised to 38.1 KB.
 
 ## Checking Sizes (CI gate)
 

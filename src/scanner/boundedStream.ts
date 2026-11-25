@@ -107,6 +107,14 @@ interface Waiter {
   reject: (error: unknown) => void;
 }
 
+interface PendingPull<T> {
+  id: number;
+  settled: boolean;
+  hasError: boolean;
+  error?: unknown;
+  result?: IteratorResult<T>;
+}
+
 /**
  * Wraps an async iterable in a bounded, prefetching stream.
  *
@@ -136,13 +144,17 @@ export class BoundedAnnouncementStream<T> implements AsyncIterable<T>, AsyncIter
 
   private readonly buffer: T[] = [];
   private readonly waiters: Waiter[] = [];
+  private readonly slots: PendingPull<T>[] = [];
   private inFlight = 0;
   private requests = 0;
   private itemsRead = 0;
+  private pullId = 0;
+  private commitId = 0;
   private done = false;
   private closed = false;
   private failure: unknown = undefined;
   private pumping = false;
+  private committing = false;
 
   constructor(source: AsyncIterable<T>, options: BoundedStreamOptions) {
     this.iterator = source[Symbol.asyncIterator]();
@@ -228,6 +240,8 @@ export class BoundedAnnouncementStream<T> implements AsyncIterable<T>, AsyncIter
     // Drop buffered announcements before unwinding so cancellation releases
     // references immediately instead of waiting for GC.
     this.buffer.length = 0;
+    this.slots.length = 0;
+    this.inFlight = 0;
     this.waiters.splice(0).forEach((waiter) => waiter.reject(error));
     this.signal?.removeEventListener('abort', this.onAbort);
 
@@ -252,12 +266,11 @@ export class BoundedAnnouncementStream<T> implements AsyncIterable<T>, AsyncIter
     this.pumping = true;
     try {
       while (
-        this.inFlight < this.maxInFlightRequests &&
-        this.buffer.length + this.inFlight < this.maxBufferedAnnouncements &&
+        this.slots.length < this.maxInFlightRequests &&
+        this.buffer.length + this.slots.length < this.maxBufferedAnnouncements &&
         (!this.countRequests || this.requests < this.maxRequests)
       ) {
         if (this.countRequests) this.requests++;
-        this.inFlight++;
         this.pull();
       }
     } finally {
@@ -267,36 +280,75 @@ export class BoundedAnnouncementStream<T> implements AsyncIterable<T>, AsyncIter
   }
 
   private pull(): void {
+    const slot: PendingPull<T> = {
+      id: this.pullId++,
+      settled: false,
+      hasError: false,
+    };
+    this.slots.push(slot);
+    this.inFlight++;
+
     let result: Promise<IteratorResult<T>>;
     try {
       result = this.iterator.next();
     } catch (error) {
       this.inFlight--;
-      this.fail(error);
+      this.settle(slot, { hasError: true, error });
       return;
     }
     result.then(
-      (value) => this.onResult(value),
+      (value) => {
+        this.inFlight--;
+        this.settle(slot, { hasError: false, result: value });
+      },
       (error) => {
         this.inFlight--;
-        this.fail(error);
+        this.settle(slot, { hasError: true, error });
       },
     );
   }
 
-  private onResult(result: IteratorResult<T>): void {
-    this.inFlight--;
+  private settle(
+    slot: PendingPull<T>,
+    outcome: Pick<PendingPull<T>, 'hasError' | 'error' | 'result'>,
+  ): void {
     if (this.closed) return;
+    slot.settled = true;
+    slot.hasError = outcome.hasError;
+    slot.error = outcome.error;
+    slot.result = outcome.result;
+    this.commit();
+  }
 
-    if (result.done) {
-      this.done = true;
-      this.waiters.splice(0).forEach((waiter) => waiter.resolve());
-      this.onProgress?.(this.stats);
-      return;
+  private commit(): void {
+    if (this.committing || this.closed) return;
+    this.committing = true;
+    try {
+      while (true) {
+        const slot = this.slots[0];
+        if (!slot?.settled || slot.id !== this.commitId) break;
+        this.slots.shift();
+        this.commitId++;
+
+        if (slot.hasError) {
+          this.fail(slot.error);
+          return;
+        }
+
+        const result = slot.result as IteratorResult<T>;
+        if (result.done) {
+          this.done = true;
+          this.waiters.splice(0).forEach((waiter) => waiter.resolve());
+          this.onProgress?.(this.stats);
+          return;
+        }
+
+        this.buffer.push(result.value);
+        this.waiters.shift()?.resolve();
+      }
+    } finally {
+      this.committing = false;
     }
-
-    this.buffer.push(result.value);
-    this.waiters.shift()?.resolve();
     this.pump();
   }
 
@@ -308,7 +360,7 @@ export class BoundedAnnouncementStream<T> implements AsyncIterable<T>, AsyncIter
 
   private checkRequestBudget(): void {
     if (!this.countRequests || this.closed || this.done) return;
-    if (this.requests < this.maxRequests || this.inFlight > 0) return;
+    if (this.requests < this.maxRequests || this.slots.length > 0 || this.inFlight > 0) return;
     this.fail(
       new ScanBudgetExceededError(this.chain, 'requests', this.maxRequests, this.itemsRead),
     );

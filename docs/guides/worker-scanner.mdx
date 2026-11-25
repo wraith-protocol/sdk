@@ -1,0 +1,198 @@
+---
+title: CSP-Safe Worker Scanner
+---
+
+# CSP-Safe Worker Scanner
+
+The scanner can run off the main thread without a bundler-generated blob URL or a dynamic code transform. `@wraith-protocol/sdk/scanner/worker` is a static module, and the host talks to it through a versioned, structured-clone message schema.
+
+That matters for applications with a strict Content Security Policy. A worker bundled through `new Worker(new URL('./scanner.worker.ts', import.meta.url))` loads from the same origin as a normal module, so a policy like this still works:
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self'
+```
+
+No `unsafe-eval`, no `unsafe-inline`, and no `blob:` worker source.
+
+## Worker entry point
+
+Create a tiny worker module in your app:
+
+```ts
+// scanner.worker.ts
+import '@wraith-protocol/sdk/scanner/worker';
+```
+
+That single import installs the message handler when the module runs inside a worker global scope. If you prefer not to rely on the automatic install, call the explicit helper instead:
+
+```ts
+// scanner.worker.ts
+import { exposeScannerWorker, type ScannerWorkerScope } from '@wraith-protocol/sdk/scanner/worker';
+
+exposeScannerWorker(self as unknown as ScannerWorkerScope);
+```
+
+`exposeScannerWorker()` is idempotent, so both forms are safe together.
+
+## Main-thread client
+
+`createWorkerScanner()` is exported from the package root. It wraps the raw worker in a typed client that handles request ids, progress messages, cancellation and typed failures.
+
+```ts
+import { createWorkerScanner } from '@wraith-protocol/sdk';
+import type { ScannerWorkerInput } from '@wraith-protocol/sdk';
+
+const worker = new Worker(new URL('./scanner.worker.ts', import.meta.url), {
+  type: 'module',
+});
+
+const scanner = createWorkerScanner(worker);
+
+const controller = new AbortController();
+
+const matches = await scanner.scan(input, {
+  signal: controller.signal,
+  onProgress: ({ chain, processed, total }) => {
+    console.log(chain, processed, total);
+  },
+});
+```
+
+Matches are ordered by chain (`evm`, `stellar`, `solana`, `ckb`) and then by the input announcement or cell order. The same vectors therefore produce the same sequence on every run, independent of worker scheduling.
+
+Call `scanner.dispose()` when the worker is no longer needed. Pass `{ terminateOnDispose: true }` to `createWorkerScanner()` if the client should also call `worker.terminate()`.
+
+## Message schema
+
+The protocol is versioned with `SCANNER_WORKER_PROTOCOL_VERSION`, and every request and response envelope carries that value in `version`.
+
+Requests:
+
+```ts
+type ScannerWorkerRequest =
+  | { version: number; type: 'start'; requestId: string; input: ScannerWorkerInput }
+  | { version: number; type: 'cancel'; requestId: string };
+```
+
+Responses:
+
+```ts
+type ScannerWorkerResponse =
+  | { version: number; type: 'progress'; requestId: string; progress: ScannerWorkerProgress }
+  | { version: number; type: 'result'; requestId: string; matches: MatchedAnnouncement[] }
+  | { version: number; type: 'failure'; requestId: string; failure: ScannerWorkerFailure };
+
+interface ScannerWorkerProgress {
+  chain: 'evm' | 'stellar' | 'solana' | 'ckb';
+  processed: number;
+  total: number;
+}
+
+interface ScannerWorkerFailure {
+  code:
+    | 'invalid-message'
+    | 'invalid-input'
+    | 'cancelled'
+    | 'disposed'
+    | 'scan-failed'
+    | 'version-mismatch';
+  message: string;
+  chain?: 'evm' | 'stellar' | 'solana' | 'ckb';
+}
+```
+
+The worker rejects a request whose `version` differs from its own and answers with a `version-mismatch` failure using its own version. The client rejects a response whose `version` does not match and fails the pending scan with `ScannerWorkerError` code `version-mismatch`, so a stale worker build cannot be mistaken for a compatible one.
+
+Every `start` produces exactly one terminal `result` or `failure` with the same `requestId`. `cancel` aborts the matching scan, drops its iterators, and produces a `failure` with `code: 'cancelled'`. Raw `Error` instances never cross the boundary; failures are plain data.
+
+`ScannerWorkerInput` mirrors the main-thread scan inputs, except sources are arrays because structured clone does not carry async iterables:
+
+```ts
+interface ScannerWorkerInput {
+  evm?: {
+    announcements: Announcement[];
+    viewingKey: string;
+    spendingPubKey: string;
+    spendingKey: string;
+  };
+  stellar?: {
+    announcements: Announcement[];
+    viewingKey: Uint8Array;
+    spendingPubKey: Uint8Array;
+    spendingScalar: bigint;
+  };
+  solana?: {
+    announcements: Announcement[];
+    viewingKey: Uint8Array;
+    spendingPubKey: Uint8Array;
+    spendingScalar: bigint;
+  };
+  ckb?: { cells: StealthCell[]; viewingKey: string; spendingPubKey: string; spendingKey: string };
+}
+```
+
+`Uint8Array` and `bigint` are structured-clone safe, so keys and derived scalars cross the boundary without string conversion.
+
+## Cancellation
+
+Aborting the `signal` passed to `scanner.scan()` posts a `cancel` request, rejects the returned promise with an `AbortError`, and leaves no active worker scan behind. Aborting an already finished scan is a no-op. `scanner.dispose()` rejects every pending scan with `ScannerWorkerError` code `disposed`.
+
+The worker-side `cancelAll()` and `dispose()` methods are available from `createScannerWorkerHandler()` for custom transports.
+
+## Bundler notes
+
+### Vite
+
+```ts
+const worker = new Worker(new URL('./scanner.worker.ts', import.meta.url), {
+  type: 'module',
+});
+```
+
+Vite emits a same-origin worker file. Do not replace this with `new Blob(...)` or a data URL in a CSP that blocks blob workers.
+
+### Next.js
+
+The same static URL form works in a client component:
+
+```tsx
+'use client';
+
+const worker = new Worker(new URL('./scanner.worker.ts', import.meta.url), {
+  type: 'module',
+});
+```
+
+Set the CSP through `next.config.js` headers rather than a meta tag so it applies to the worker response too:
+
+```js
+const csp = "default-src 'self'; script-src 'self'; worker-src 'self'";
+
+module.exports = {
+  async headers() {
+    return [{ source: '/(.*)', headers: [{ key: 'Content-Security-Policy', value: csp }] }];
+  },
+};
+```
+
+### Plain module worker
+
+Serve the worker module from the same origin and point `new Worker()` at it:
+
+```ts
+const worker = new Worker('/scanner.worker.js', { type: 'module' });
+```
+
+No bundler transform is required.
+
+## Untyped transports
+
+If you already have a worker wrapper or a test double, `runScannerWorker()` runs the same scan core without the message protocol:
+
+```ts
+import { runScannerWorker } from '@wraith-protocol/sdk/scanner/worker';
+
+const matches = await runScannerWorker(input, { signal });
+```
+
+The fixtures under `test/fixtures/worker/` and the `pnpm test:worker-csp` check exercise Vite, Next.js and plain module workers under a CSP that disallows `unsafe-eval` and blob workers.
