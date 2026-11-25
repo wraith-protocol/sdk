@@ -29,11 +29,11 @@ export interface SignatureDomain {
   contract: string;
   /** Operation identifier (e.g. `'name.register'`, `'name.update'`, `'name.release'`). */
   operation: AuthorizationOperation;
-  /** Monotonic anti-replay nonce (`>= 0n`). */
+  /** Monotonic anti-replay nonce (`0n <= nonce <= 2^256 - 1`). */
   nonce: bigint;
-  /** Unix expiration timestamp in seconds (`> 0n`); rejected when `nowSeconds >= expiry`. */
+  /** Unix expiration timestamp in seconds (`1n <= expiry <= 2^64 - 1`); rejected when `nowSeconds >= expiry`. */
   expiry: bigint;
-  /** Required EIP-155 numeric chain ID when `chain === 'evm'`. */
+  /** Required EIP-155 numeric chain ID when `chain === 'evm'` (`1n <= chainId <= 2^64 - 1`). */
   chainId?: bigint;
 }
 
@@ -67,6 +67,9 @@ export interface SignatureVerificationResult {
 }
 
 const UTF8 = new TextEncoder();
+const MAX_U32 = 0xffff_ffff;
+const MAX_U64 = (1n << 64n) - 1n;
+const MAX_U256 = (1n << 256n) - 1n;
 
 /** Normalizes contract/program identifiers (`0x` hex lowercased; base58/StrKey exact). */
 export function normalizeDomainContract(chain: AuthorizationChain, contract: string): string {
@@ -91,32 +94,43 @@ export function validateSignatureDomain(domain: SignatureDomain): void {
   if (!domain.operation || !domain.operation.trim()) {
     throw new InvalidSignatureError('domain.operation must be non-empty');
   }
-  if (typeof domain.nonce !== 'bigint' || domain.nonce < 0n) {
-    throw new InvalidSignatureError('domain.nonce must be a non-negative bigint');
+  if (typeof domain.nonce !== 'bigint' || domain.nonce < 0n || domain.nonce > MAX_U256) {
+    throw new InvalidSignatureError('domain.nonce must be a bigint in [0, 2^256 - 1]');
   }
-  if (typeof domain.expiry !== 'bigint' || domain.expiry <= 0n) {
-    throw new InvalidSignatureError('domain.expiry must be a positive bigint');
+  if (typeof domain.expiry !== 'bigint' || domain.expiry <= 0n || domain.expiry > MAX_U64) {
+    throw new InvalidSignatureError('domain.expiry must be a bigint in [1, 2^64 - 1]');
   }
   if (domain.chain === 'evm') {
-    if (typeof domain.chainId !== 'bigint' || domain.chainId <= 0n) {
-      throw new InvalidSignatureError('domain.chainId is required as a positive bigint on EVM');
+    if (typeof domain.chainId !== 'bigint' || domain.chainId <= 0n || domain.chainId > MAX_U64) {
+      throw new InvalidSignatureError(
+        'domain.chainId is required as a bigint in [1, 2^64 - 1] on EVM',
+      );
     }
   }
 }
 
 function u32be(len: number): Uint8Array {
+  if (!Number.isInteger(len) || len < 0 || len > MAX_U32) {
+    throw new InvalidSignatureError(`u32 length out of range: ${String(len)}`);
+  }
   const out = new Uint8Array(4);
-  new DataView(out.buffer).setUint32(0, len >>> 0, false);
+  new DataView(out.buffer).setUint32(0, len, false);
   return out;
 }
 
 function u64be(val: bigint): Uint8Array {
+  if (val < 0n || val > MAX_U64) {
+    throw new InvalidSignatureError(`u64 domain value out of range: ${val.toString()}`);
+  }
   const out = new Uint8Array(8);
   new DataView(out.buffer).setBigUint64(0, val, false);
   return out;
 }
 
 function u256be(val: bigint): Uint8Array {
+  if (val < 0n || val > MAX_U256) {
+    throw new InvalidSignatureError(`u256 domain value out of range: ${val.toString()}`);
+  }
   const out = new Uint8Array(32);
   let rem = val;
   for (let i = 31; i >= 0; i -= 1) {

@@ -5,9 +5,11 @@ import { Networks } from '@stellar/stellar-sdk';
 import { describe, expect, it } from 'vitest';
 import {
   DOMAIN_AUTH_MAGIC,
+  InvalidSignatureError,
   buildDomainStealthSigningMessage,
   encodeDomainAuthorizationBytes,
   encodeLengthPrefixedFields,
+  validateSignatureDomain,
   type SignatureDomain,
 } from '../../src';
 import * as ckb from '../../src/chains/ckb';
@@ -285,5 +287,260 @@ describe('Domain-Separated Wallet Signatures & Cross-Chain Replay Suite', () => 
     expect(bytesToHex(encodeDomainAuthorizationBytes(domainA, payloadA))).not.toBe(
       bytesToHex(encodeDomainAuthorizationBytes(domainB, payloadA)),
     );
+  });
+
+  it('rejects oversized u256 nonce and u64 expiry/chainId values before encoding and prevents truncation collisions', () => {
+    const MAX_U64 = (1n << 64n) - 1n;
+    const MAX_U256 = (1n << 256n) - 1n;
+    const OVERFLOW_U64 = 1n << 64n;
+    const OVERFLOW_U256 = 1n << 256n;
+
+    const payload = encodeLengthPrefixedFields([UTF8.encode('alice')]);
+    const evmPayload = { name: 'alice' };
+
+    const baseStellarDomain: SignatureDomain = {
+      chain: 'stellar',
+      network: Networks.TESTNET,
+      contract: stellar.getDeployment('stellar').contracts.names,
+      operation: 'name.register',
+      nonce: 0n,
+      expiry: 1_900_000_000n,
+    };
+
+    const baseEvmDomain: SignatureDomain = {
+      chain: 'evm',
+      chainId: 1n,
+      network: 'eip155:1',
+      contract: evm.getDeployment('horizen').contracts.names,
+      operation: 'name.register',
+      nonce: 0n,
+      expiry: 1_900_000_000n,
+    };
+
+    // Boundary maximums (2^256 - 1 for nonce, 2^64 - 1 for expiry and EVM chainId) encode cleanly
+    // and produce distinct canonical bytes from low values (0n / 1n).
+    const maxStellarDomain: SignatureDomain = {
+      ...baseStellarDomain,
+      nonce: MAX_U256,
+      expiry: MAX_U64,
+    };
+    const maxEvmDomain: SignatureDomain = {
+      ...baseEvmDomain,
+      chainId: MAX_U64,
+      nonce: MAX_U256,
+      expiry: MAX_U64,
+    };
+
+    const minStellarEncoded = encodeDomainAuthorizationBytes(baseStellarDomain, payload);
+    const maxStellarEncoded = encodeDomainAuthorizationBytes(maxStellarDomain, payload);
+    expect(bytesToHex(maxStellarEncoded)).not.toBe(bytesToHex(minStellarEncoded));
+    expect(bytesToHex(maxStellarEncoded)).toContain(`${'ff'.repeat(32)}${'ff'.repeat(8)}`);
+
+    const minEvmEncoded = encodeDomainAuthorizationBytes(baseEvmDomain, payload);
+    const maxEvmEncoded = encodeDomainAuthorizationBytes(maxEvmDomain, payload);
+    expect(bytesToHex(maxEvmEncoded)).not.toBe(bytesToHex(minEvmEncoded));
+    expect(evm.computeEvmDomainSeparator(maxEvmDomain)).not.toBe(
+      evm.computeEvmDomainSeparator(baseEvmDomain),
+    );
+    expect(evm.computeEvmNameAuthorizationDigest(maxEvmDomain, evmPayload)).not.toBe(
+      evm.computeEvmNameAuthorizationDigest(baseEvmDomain, evmPayload),
+    );
+
+    // Oversized nonce values (> 2^256 - 1) must be rejected before encoding so nonce 2^256 cannot
+    // collide with nonce 0 (or 2^256 + 1 with 1).
+    for (const badNonce of [-1n, OVERFLOW_U256, OVERFLOW_U256 + 1n]) {
+      const badStellar = { ...baseStellarDomain, nonce: badNonce };
+      const badEvm = { ...baseEvmDomain, nonce: badNonce };
+      expect(() => validateSignatureDomain(badStellar)).toThrow(InvalidSignatureError);
+      expect(() => encodeDomainAuthorizationBytes(badStellar, payload)).toThrow(
+        InvalidSignatureError,
+      );
+      expect(() => buildDomainStealthSigningMessage(badStellar)).toThrow(InvalidSignatureError);
+      expect(() => stellar.computeStellarAuthorizationDigest(badStellar, payload)).toThrow(
+        InvalidSignatureError,
+      );
+      expect(() =>
+        solana.computeSolanaAuthorizationDigest(
+          { ...badStellar, chain: 'solana', network: 'solana:devnet' },
+          payload,
+        ),
+      ).toThrow(InvalidSignatureError);
+      expect(() =>
+        ckb.computeCkbAuthorizationDigest(
+          {
+            ...badStellar,
+            chain: 'ckb',
+            network: 'ckb:testnet',
+            contract: ckb.getDeployment('ckb').contracts.namesTypeCodeHash,
+          },
+          payload,
+        ),
+      ).toThrow(InvalidSignatureError);
+      expect(() => encodeDomainAuthorizationBytes(badEvm, payload)).toThrow(InvalidSignatureError);
+      expect(() => evm.computeEvmNameAuthorizationDigest(badEvm, evmPayload)).toThrow(
+        InvalidSignatureError,
+      );
+    }
+
+    // Oversized expiry values (> 2^64 - 1) and non-positive values must be rejected before encoding.
+    for (const badExpiry of [-1n, 0n, OVERFLOW_U64, OVERFLOW_U64 + 1_900_000_000n]) {
+      const badStellar = { ...baseStellarDomain, expiry: badExpiry };
+      const badEvm = { ...baseEvmDomain, expiry: badExpiry };
+      expect(() => validateSignatureDomain(badStellar)).toThrow(InvalidSignatureError);
+      expect(() => encodeDomainAuthorizationBytes(badStellar, payload)).toThrow(
+        InvalidSignatureError,
+      );
+      expect(() => buildDomainStealthSigningMessage(badStellar)).toThrow(InvalidSignatureError);
+      expect(() => stellar.computeStellarAuthorizationDigest(badStellar, payload)).toThrow(
+        InvalidSignatureError,
+      );
+      expect(() => encodeDomainAuthorizationBytes(badEvm, payload)).toThrow(InvalidSignatureError);
+      expect(() => evm.computeEvmNameAuthorizationDigest(badEvm, evmPayload)).toThrow(
+        InvalidSignatureError,
+      );
+    }
+
+    // Oversized generic EVM chain ID values (> 2^64 - 1) and non-positive values must be rejected
+    // before encoding so chainId 1 + 2^64 cannot collide with chainId 1 in u64be.
+    for (const badChainId of [-1n, 0n, OVERFLOW_U64, OVERFLOW_U64 + 1n]) {
+      const badEvm = { ...baseEvmDomain, chainId: badChainId };
+      expect(() => validateSignatureDomain(badEvm)).toThrow(InvalidSignatureError);
+      expect(() => encodeDomainAuthorizationBytes(badEvm, payload)).toThrow(InvalidSignatureError);
+      expect(() => buildDomainStealthSigningMessage(badEvm)).toThrow(InvalidSignatureError);
+      expect(() => evm.computeEvmDomainSeparator(badEvm)).toThrow(InvalidSignatureError);
+      expect(() => evm.computeEvmNameAuthorizationDigest(badEvm, evmPayload)).toThrow(
+        InvalidSignatureError,
+      );
+    }
+
+    // End-to-end replay/expiry/chainId truncation-bypass regressions against verifiers.
+    const stellarKeys = stellar.deriveStealthKeys(new Uint8Array(64).fill(0x33));
+    const solanaKeys = solana.deriveStealthKeys(new Uint8Array(64).fill(0x44));
+    const ckbKeys = ckb.deriveStealthKeys(`0x${'55'.repeat(32)}${'66'.repeat(32)}1b`);
+    const evmKeys = evm.deriveStealthKeys(`0x${'11'.repeat(32)}${'22'.repeat(32)}1b`);
+
+    // 1. Nonce 0 -> 2^256 wraparound replay must fail verification and never bypass usedNonces.
+    const stellarNonce0Sig = stellar.signStellarDomainAuthorization(
+      baseStellarDomain,
+      payload,
+      stellarKeys.spendingKey,
+    );
+    const usedNonces = new Set<bigint>();
+    expect(
+      stellar.verifyStellarDomainAuthorization(
+        stellarNonce0Sig,
+        baseStellarDomain,
+        payload,
+        stellarKeys.spendingPubKey,
+        { expectedDomain: baseStellarDomain, nowSeconds: 1_800_000_000n, usedNonces },
+      ),
+    ).toEqual({ valid: true });
+    expect(usedNonces.has(0n)).toBe(true);
+
+    expect(
+      stellar.verifyStellarDomainAuthorization(
+        stellarNonce0Sig,
+        { ...baseStellarDomain, nonce: OVERFLOW_U256 },
+        payload,
+        stellarKeys.spendingPubKey,
+        { expectedDomain: baseStellarDomain, nowSeconds: 1_800_000_000n, usedNonces },
+      ),
+    ).toEqual({ valid: false, reason: 'INVALID_SIGNATURE' });
+    expect(usedNonces.has(OVERFLOW_U256)).toBe(false);
+
+    const solanaDomain: SignatureDomain = {
+      chain: 'solana',
+      network: 'solana:devnet',
+      contract: solana.getDeployment('solana').contracts.names,
+      operation: 'name.register',
+      nonce: 0n,
+      expiry: 1_900_000_000n,
+    };
+    const solanaNonce0Sig = solana.signSolanaDomainAuthorization(
+      solanaDomain,
+      payload,
+      solanaKeys.spendingKey,
+    );
+    expect(
+      solana.verifySolanaDomainAuthorization(
+        solanaNonce0Sig,
+        { ...solanaDomain, nonce: OVERFLOW_U256 },
+        payload,
+        solanaKeys.spendingPubKey,
+        { expectedDomain: solanaDomain, nowSeconds: 1_800_000_000n, usedNonces: new Set([0n]) },
+      ),
+    ).toEqual({ valid: false, reason: 'INVALID_SIGNATURE' });
+
+    const ckbDomain: SignatureDomain = {
+      chain: 'ckb',
+      network: 'ckb:testnet',
+      contract: ckb.getDeployment('ckb').contracts.namesTypeCodeHash,
+      operation: 'name.register',
+      nonce: 0n,
+      expiry: 1_900_000_000n,
+    };
+    const ckbNonce0Sig = ckb.signCkbDomainAuthorization(ckbDomain, payload, ckbKeys.spendingKey);
+    expect(
+      ckb.verifyCkbDomainAuthorization(
+        ckbNonce0Sig,
+        { ...ckbDomain, nonce: OVERFLOW_U256 },
+        payload,
+        ckbKeys.spendingPubKey,
+        { expectedDomain: ckbDomain, nowSeconds: 1_800_000_000n, usedNonces: new Set([0n]) },
+      ),
+    ).toEqual({ valid: false, reason: 'INVALID_SIGNATURE' });
+
+    // 2. Expired signature (expiry = 1_700_000_000) presented with expiry + 2^64 must fail.
+    const expiredStellarDomain: SignatureDomain = {
+      ...baseStellarDomain,
+      expiry: 1_700_000_000n,
+    };
+    const expiredStellarSig = stellar.signStellarDomainAuthorization(
+      expiredStellarDomain,
+      payload,
+      stellarKeys.spendingKey,
+    );
+    expect(
+      stellar.verifyStellarDomainAuthorization(
+        expiredStellarSig,
+        { ...expiredStellarDomain, expiry: 1_700_000_000n + OVERFLOW_U64 },
+        payload,
+        stellarKeys.spendingPubKey,
+        { expectedDomain: expiredStellarDomain, nowSeconds: 1_800_000_000n },
+      ),
+    ).toEqual({ valid: false, reason: 'INVALID_SIGNATURE' });
+
+    // 3. EVM verifier rejects oversized chainId, expiry, and nonce even when matching expectedDomain.
+    const evmSig = evm.signDomainNameAuthorization(baseEvmDomain, evmPayload, evmKeys.spendingKey);
+    expect(
+      evm.verifyDomainNameAuthorization(
+        evmSig,
+        { ...baseEvmDomain, chainId: 1n + OVERFLOW_U64 },
+        evmPayload,
+        evmKeys.spendingPubKey,
+        {
+          expectedDomain: { ...baseEvmDomain, chainId: 1n + OVERFLOW_U64 },
+          nowSeconds: 1_800_000_000n,
+        },
+      ),
+    ).toEqual({ valid: false, reason: 'INVALID_SIGNATURE' });
+    expect(
+      evm.verifyDomainNameAuthorization(
+        evmSig,
+        { ...baseEvmDomain, nonce: OVERFLOW_U256 },
+        evmPayload,
+        evmKeys.spendingPubKey,
+        { expectedDomain: baseEvmDomain, nowSeconds: 1_800_000_000n, usedNonces: new Set([0n]) },
+      ),
+    ).toEqual({ valid: false, reason: 'INVALID_SIGNATURE' });
+    expect(
+      evm.verifyDomainNameAuthorization(
+        evmSig,
+        { ...baseEvmDomain, expiry: 1_900_000_000n + OVERFLOW_U64 },
+        evmPayload,
+        evmKeys.spendingPubKey,
+        { expectedDomain: baseEvmDomain, nowSeconds: 1_800_000_000n },
+      ),
+    ).toEqual({ valid: false, reason: 'INVALID_SIGNATURE' });
   });
 });
