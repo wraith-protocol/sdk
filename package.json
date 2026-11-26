@@ -89,7 +89,7 @@
       "name": "Root ESM (import *)",
       "path": "dist/index.js",
       "import": "*",
-      "limit": "38.1 KB"
+      "limit": "39 KB"
     },
     {
       "name": "Root CJS (require)",

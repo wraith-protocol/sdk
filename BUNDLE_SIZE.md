@@ -1,6 +1,6 @@
 # Bundle Size Baselines — All Public Exports
 
-> Last measured: 2026-08-29
+> Last measured: 2026-11-26
 > Bundler: tsup (esbuild) via `size-limit`
 > Sizes are **minified and brotli-compressed**, include all bundled
 > dependencies, and are measured by `size-limit` (SI units: 1 KB = 1000 B).
@@ -11,7 +11,7 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 
 | Entry              | Format           | Baseline  | Budget (+15%) |
 | ------------------ | ---------------- | --------- | ------------- |
-| Root (`.`)         | ESM (`import *`) | 38.02 KB  | 38.1 KB       |
+| Root (`.`)         | ESM (`import *`) | 38.84 KB  | 39 KB         |
 | Root (`.`)         | CJS (`require`)  | 138.79 KB | 159.7 KB      |
 | `./chains/evm`     | ESM (`import *`) | 23.83 KB  | 27.5 KB       |
 | `./chains/evm`     | CJS (`require`)  | 126.79 KB | 145.9 KB      |
@@ -49,6 +49,10 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 > On 2026-11-26 the domain-separated wallet signature helpers (issue #273)
 > measured 33.57 KB (ESM) and 41.93 KB (CJS) after rebasing onto the worker
 > scanner changes. Their budgets are 34.5 KB and 42.5 KB respectively.
+>
+> After merging domain separation into the ordered bounded scanner stream
+> (issue #275), Root ESM measured 38.84 KB and its budget was raised from
+> 38.1 KB to 39 KB.
 
 ## Checking Sizes (CI gate)
 

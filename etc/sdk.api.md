@@ -35,7 +35,23 @@ export interface BaseWalletAdapter<TChain extends WalletAdapterChain, TSignature
 }
 
 // @public
+export interface BoundedStreamStats {
+    buffered: number;
+    exhausted: boolean;
+    inFlight: number;
+    itemsRead: number;
+    requests: number;
+}
+
+// @public
 export function buildDomainStealthSigningMessage(domain: SignatureDomain, account?: string): string;
+
+// @public
+export interface ChainRequestBudget {
+    maxBufferedAnnouncements?: number;
+    maxInFlightRequests?: number;
+    maxRequests?: number;
+}
 
 // @public
 export interface ChainScannerAdapter<TItem = unknown, TKeys = unknown, TMatched = unknown, TMetaAddress = unknown> {
@@ -406,9 +422,6 @@ export function normalizeDomainContract(chain: AuthorizationChain, contract: str
 // @public
 export function normalizeWalletError(error: unknown, chain?: WalletAdapterChain): WraithWalletError;
 
-// @public
-export type ReplayRejectionReason = 'CHAIN_MISMATCH' | 'CHAIN_ID_MISMATCH' | 'NETWORK_MISMATCH' | 'CONTRACT_MISMATCH' | 'OPERATION_MISMATCH' | 'EXPIRED' | 'NONCE_REUSED' | 'INVALID_SIGNATURE';
-
 // @public (undocumented)
 interface ProgressEvent_2 {
     buffered?: number;
@@ -420,6 +433,9 @@ interface ProgressEvent_2 {
     total: number;
 }
 export { ProgressEvent_2 as ProgressEvent }
+
+// @public
+export type ReplayRejectionReason = 'CHAIN_MISMATCH' | 'CHAIN_ID_MISMATCH' | 'NETWORK_MISMATCH' | 'CONTRACT_MISMATCH' | 'OPERATION_MISMATCH' | 'EXPIRED' | 'NONCE_REUSED' | 'INVALID_SIGNATURE';
 
 // @public
 export function resolveChainRequestBudget(budget?: ChainRequestBudget): ResolvedChainRequestBudget;
