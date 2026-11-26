@@ -17,6 +17,155 @@ export { adapter }
 export { adapter as ckbAdapter }
 
 // @public
+export interface AnnouncementBudgetExceededDetails {
+    budget: 'pages' | 'items';
+    chain: string;
+    cursor?: string;
+    fetched: number;
+    limit: number;
+    partial?: readonly unknown[];
+}
+
+// Warning: (ae-forgotten-export) The symbol "WraithNetworkError" needs to be exported by the entry point index.d.ts
+//
+// @public
+export class AnnouncementBudgetExceededError extends WraithNetworkError {
+    constructor(details: AnnouncementBudgetExceededDetails);
+    // (undocumented)
+    readonly budget: 'pages' | 'items';
+    // (undocumented)
+    readonly chain: string;
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_BUDGET_EXCEEDED";
+    // (undocumented)
+    readonly cursor?: string;
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly fetched: number;
+    // (undocumented)
+    readonly limit: number;
+    // (undocumented)
+    readonly partial: readonly unknown[];
+}
+
+// @public
+export class AnnouncementCursorError extends WraithNetworkError {
+    constructor(details: AnnouncementCursorErrorDetails);
+    // (undocumented)
+    readonly chain: string;
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_CURSOR";
+    // (undocumented)
+    readonly cursor: string;
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly reason: AnnouncementCursorFailure;
+}
+
+// @public
+export interface AnnouncementCursorErrorDetails {
+    chain: string;
+    cursor: string;
+    reason: AnnouncementCursorFailure;
+}
+
+// @public
+export type AnnouncementCursorFailure = 'malformed' | 'repeated' | 'missing';
+
+// @public
+export interface AnnouncementFetchOptions {
+    maxItems?: number;
+    maxPages?: number;
+    retry?: AnnouncementRetryPolicy;
+    signal?: AbortSignal;
+    timeouts?: AnnouncementRequestTimeouts;
+}
+
+// @public
+export interface AnnouncementFetchResult<T> {
+    announcements: T[];
+    cursor?: string;
+    hasMore: boolean;
+    pages: number;
+}
+
+// @public
+export interface AnnouncementPage<T> {
+    announcements: T[];
+    cursor?: string;
+    hasMore: boolean;
+}
+
+// @public
+export interface AnnouncementPaginationOptions extends AnnouncementFetchOptions {
+    cursor?: string;
+    pageSize?: number;
+}
+
+// @public
+export class AnnouncementProviderError extends WraithNetworkError {
+    constructor(details: AnnouncementProviderErrorDetails);
+    // (undocumented)
+    readonly chain: string;
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_PROVIDER";
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly endpoint: string;
+    // (undocumented)
+    readonly retryable: boolean;
+}
+
+// @public
+export interface AnnouncementProviderErrorDetails {
+    cause?: unknown;
+    chain: string;
+    endpoint: string;
+    reason: string;
+    retryable?: boolean;
+}
+
+// @public
+export interface AnnouncementRequestTimeouts {
+    connectMs?: number;
+    requestMs?: number;
+}
+
+// @public
+export class AnnouncementResponseError extends WraithNetworkError {
+    constructor(details: AnnouncementResponseErrorDetails);
+    // (undocumented)
+    readonly chain: string;
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_RESPONSE";
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly endpoint?: string;
+    // (undocumented)
+    readonly field: string;
+}
+
+// @public
+export interface AnnouncementResponseErrorDetails {
+    chain: string;
+    endpoint?: string;
+    field: string;
+    reason: string;
+}
+
+// @public
+export interface AnnouncementRetryPolicy {
+    baseDelayMs?: number;
+    maxDelayMs?: number;
+    maxRetries?: number;
+    retryableStatuses?: number[];
+}
+
+// @public
 export function blake160(data: Uint8Array): Uint8Array;
 
 // @public
@@ -129,6 +278,11 @@ export interface CKBChainDeployment {
 }
 
 // @public
+export interface CkbFetchStealthCellsOptions extends AnnouncementPaginationOptions {
+    rpcUrl?: string;
+}
+
+// @public
 export interface CKBOutPoint {
     // (undocumented)
     index: HexString;
@@ -170,7 +324,10 @@ export function deriveStealthPrivateKey(spendingKey: HexString, ephemeralPubKey:
 export function encodeStealthMetaAddress(spendingPubKey: HexString, viewingPubKey: HexString): string;
 
 // @public
-export function fetchStealthCells(chain?: string): Promise<StealthCell[]>;
+export function fetchStealthCells(chain?: string, rpcUrlOrOptions?: string | CkbFetchStealthCellsOptions, maybeOptions?: CkbFetchStealthCellsOptions): Promise<StealthCell[]>;
+
+// @public
+export function fetchStealthCellsPage(chain?: string, rpcUrlOrOptions?: string | CkbFetchStealthCellsOptions, maybeOptions?: CkbFetchStealthCellsOptions): Promise<AnnouncementFetchResult<StealthCell>>;
 
 // @public
 export interface GeneratedStealthAddress {
