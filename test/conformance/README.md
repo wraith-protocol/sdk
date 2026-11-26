@@ -2,6 +2,12 @@
 
 This directory contains parameterized invariant tests that verify the correctness of cryptographic operations across different blockchain implementations.
 
+The framework-package matrix also checks that React, Vue, Svelte, Solid, and
+agent packages retain their public entry points, cancellation-aware scanner or
+activity surface, chain discrimination, and error propagation contract. It is
+source-level and dependency-free so it can run before packed artifacts are
+published.
+
 ## Overview
 
 Conformance tests are property-based tests that run against thousands of generated test cases to ensure that public functions satisfy their contracts. These tests are:
