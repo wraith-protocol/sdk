@@ -449,6 +449,212 @@ export class RetentionExceededError extends WraithNetworkError {
   }
 }
 
+/** Why an announcement cursor was rejected. */
+export type AnnouncementCursorFailure = 'malformed' | 'repeated' | 'missing';
+
+/** Details for {@link AnnouncementCursorError}. */
+export interface AnnouncementCursorErrorDetails {
+  /** Chain whose announcement stream reported the cursor. */
+  chain: string;
+  /** The cursor value, as supplied by the caller or returned by the provider. */
+  cursor: string;
+  /** `malformed`: the cursor could not be decoded; `repeated`: the provider returned the same
+   * cursor twice; `missing`: the provider claimed more pages but returned no cursor. */
+  reason: AnnouncementCursorFailure;
+}
+
+/**
+ * Thrown when an announcement pagination cursor cannot be used: it is malformed, it repeats a
+ * cursor that was already consumed, or the provider claims more pages without returning one.
+ * Carrying `chain` and `cursor` lets callers recover per chain without parsing messages.
+ */
+export class AnnouncementCursorError extends WraithNetworkError {
+  readonly code = 'WRAITH/NETWORK/ANNOUNCEMENT_CURSOR';
+  readonly chain: string;
+  readonly cursor: string;
+  readonly reason: AnnouncementCursorFailure;
+
+  constructor(details: AnnouncementCursorErrorDetails) {
+    const { chain, cursor, reason } = details;
+    const explanation =
+      reason === 'malformed'
+        ? 'is malformed and cannot be resumed from'
+        : reason === 'repeated'
+          ? 'was returned twice by the provider, so pagination would never finish'
+          : 'was missing even though the provider reported more pages';
+    super(`Announcement cursor "${cursor}" for chain "${chain}" ${explanation}`, {
+      chain,
+      cursor,
+      reason,
+    });
+    this.chain = chain;
+    this.cursor = cursor;
+    this.reason = reason;
+  }
+
+  describe(): string {
+    const { chain, cursor, reason } = this.context ?? {};
+    return reason === 'malformed'
+      ? `"${cursor}" is not a cursor produced by this SDK for chain "${chain}". Try: pass the ` +
+          `cursor from a previous result unchanged, or omit it to start from the beginning. ` +
+          `See ${this.docsLink}.`
+      : `Pagination for chain "${chain}" cannot continue at cursor "${cursor}". Try: restart the ` +
+          `fetch without a cursor, or report the provider response if it keeps repeating. ` +
+          `See ${this.docsLink}.`;
+  }
+}
+
+/** Details for {@link AnnouncementProviderError}. */
+export interface AnnouncementProviderErrorDetails {
+  /** Chain whose announcement provider failed. */
+  chain: string;
+  /** Endpoint that produced the failure. */
+  endpoint: string;
+  /** Provider-supplied explanation, as reported upstream. */
+  reason: string;
+  /** Whether the failure looked transient and was retried under the configured policy. */
+  retryable?: boolean;
+  /** The original provider error. Exposed as `error.cause` and left out of `toJSON()`. */
+  cause?: unknown;
+}
+
+/**
+ * Thrown when the announcement provider itself reports a failure: a GraphQL `errors` entry, a
+ * JSON-RPC `error` object, or a rejected Solana RPC call. Provider failures are separate from
+ * malformed payloads ({@link AnnouncementResponseError}) and transport failures
+ * ({@link RPCRetryExhaustedError}).
+ */
+export class AnnouncementProviderError extends WraithNetworkError {
+  readonly code = 'WRAITH/NETWORK/ANNOUNCEMENT_PROVIDER';
+  readonly chain: string;
+  readonly endpoint: string;
+  readonly retryable: boolean;
+
+  constructor(details: AnnouncementProviderErrorDetails) {
+    const { chain, endpoint, reason, retryable = false, cause } = details;
+    super(`Announcement provider for chain "${chain}" at "${endpoint}" failed: ${reason}`, {
+      chain,
+      endpoint,
+      reason,
+      retryable,
+    });
+    this.chain = chain;
+    this.endpoint = endpoint;
+    this.retryable = retryable;
+    if (cause !== undefined) {
+      Object.defineProperty(this, 'cause', { value: cause, writable: true, configurable: true });
+    }
+  }
+
+  describe(): string {
+    const { chain, endpoint, retryable } = this.context ?? {};
+    return (
+      `The ${chain} announcement provider at "${endpoint}" rejected the request. Try: ` +
+      `${retryable ? 'retry with a larger retry budget or slower request rate' : 'check the endpoint and query shape'}. ` +
+      `See ${this.docsLink}.`
+    );
+  }
+}
+
+/** Details for {@link AnnouncementResponseError}. */
+export interface AnnouncementResponseErrorDetails {
+  /** Chain whose announcement provider answered. */
+  chain: string;
+  /** Endpoint that produced the malformed response, when known. */
+  endpoint?: string;
+  /** Location of the rejected value, e.g. `data.announcements` or `result.last_cursor`. */
+  field: string;
+  /** What was wrong with the value. */
+  reason: string;
+}
+
+/**
+ * Thrown when an announcement provider answers successfully but its payload is malformed: a bad
+ * envelope, a missing field, or an announcement that cannot be decoded. Retrying the same
+ * request will not help, so it is not retried.
+ */
+export class AnnouncementResponseError extends WraithNetworkError {
+  readonly code = 'WRAITH/NETWORK/ANNOUNCEMENT_RESPONSE';
+  readonly chain: string;
+  readonly endpoint?: string;
+  readonly field: string;
+
+  constructor(details: AnnouncementResponseErrorDetails) {
+    const { chain, endpoint, field, reason } = details;
+    super(
+      `Invalid ${chain} announcement response${endpoint ? ` from "${endpoint}"` : ''} at ${field}: ${reason}`,
+      { chain, endpoint, field, reason },
+    );
+    this.chain = chain;
+    this.endpoint = endpoint;
+    this.field = field;
+  }
+
+  describe(): string {
+    const { chain, field } = this.context ?? {};
+    return (
+      `The ${chain} announcement provider returned a payload that failed validation at ${field}. ` +
+      `Try: check that the URL points to the expected ${chain} provider and that its API version ` +
+      `matches this SDK. See ${this.docsLink}.`
+    );
+  }
+}
+
+/** Details for {@link AnnouncementBudgetExceededError}. */
+export interface AnnouncementBudgetExceededDetails {
+  /** Chain whose announcement fetch ran out of budget. */
+  chain: string;
+  /** Which configured budget was exhausted. */
+  budget: 'pages' | 'items';
+  /** The configured limit. */
+  limit: number;
+  /** How many items had been fetched when the budget ran out. */
+  fetched: number;
+  /** Cursor to resume from, when the provider supports resuming. */
+  cursor?: string;
+  /** Announcements collected before the budget ran out, so callers keep partial progress. */
+  partial?: readonly unknown[];
+}
+
+/**
+ * Thrown when an announcement fetch reaches its configured `maxPages` or `maxItems` bound.
+ * `partial` and `cursor` keep the progress made so far, so callers can persist the cursor and
+ * resume the scan instead of starting over.
+ */
+export class AnnouncementBudgetExceededError extends WraithNetworkError {
+  readonly code = 'WRAITH/NETWORK/ANNOUNCEMENT_BUDGET_EXCEEDED';
+  readonly chain: string;
+  readonly budget: 'pages' | 'items';
+  readonly limit: number;
+  readonly fetched: number;
+  readonly cursor?: string;
+  readonly partial: readonly unknown[];
+
+  constructor(details: AnnouncementBudgetExceededDetails) {
+    const { chain, budget, limit, fetched, cursor, partial = [] } = details;
+    super(
+      `Announcement fetch for chain "${chain}" exhausted its ${budget} budget ` +
+        `(limit ${limit}, ${fetched} announcements fetched)`,
+      { chain, budget, limit, fetched, cursor },
+    );
+    this.chain = chain;
+    this.budget = budget;
+    this.limit = limit;
+    this.fetched = fetched;
+    this.cursor = cursor;
+    this.partial = partial;
+  }
+
+  describe(): string {
+    const { chain, budget, limit, cursor } = this.context ?? {};
+    return (
+      `The ${chain} announcement fetch stopped at its ${budget} budget of ${limit}. Try: ` +
+      `${cursor ? `resume from cursor "${cursor}"` : 'raise maxPages/maxItems or narrow the query'} ` +
+      `in another call. See ${this.docsLink}.`
+    );
+  }
+}
+
 // WraithContractError Subclasses
 export class NameNotFoundError extends WraithContractError {
   readonly code = 'WRAITH/CONTRACT/NAME_NOT_FOUND';

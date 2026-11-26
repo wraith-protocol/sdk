@@ -17,10 +17,29 @@ export {
  * @internal
  */
 export { blake160, blake160Hex } from './blake';
-/**
- * @internal
- */
-export { fetchStealthCells } from './announcements';
+export { fetchStealthCells, fetchStealthCellsPage } from './announcements';
+export type { CkbFetchStealthCellsOptions } from './announcements';
+export type {
+  AnnouncementFetchOptions,
+  AnnouncementPaginationOptions,
+  AnnouncementFetchResult,
+  AnnouncementPage,
+  AnnouncementRequestTimeouts,
+  AnnouncementRetryPolicy,
+} from '../announcementFetch';
+export {
+  AnnouncementBudgetExceededError,
+  AnnouncementCursorError,
+  AnnouncementProviderError,
+  AnnouncementResponseError,
+} from '../../errors';
+export type {
+  AnnouncementCursorFailure,
+  AnnouncementCursorErrorDetails,
+  AnnouncementProviderErrorDetails,
+  AnnouncementResponseErrorDetails,
+  AnnouncementBudgetExceededDetails,
+} from '../../errors';
 export { hashName, buildRegisterName, buildResolveName, metaAddressFromNameData } from './names';
 export { MIN_STEALTH_CELL_CAPACITY, buildSendCkb } from './builders';
 export type {
