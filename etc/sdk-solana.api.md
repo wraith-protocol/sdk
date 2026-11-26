@@ -27,6 +27,155 @@ export interface Announcement {
 }
 
 // @public
+export interface AnnouncementBudgetExceededDetails {
+    budget: 'pages' | 'items';
+    chain: string;
+    cursor?: string;
+    fetched: number;
+    limit: number;
+    partial?: readonly unknown[];
+}
+
+// Warning: (ae-forgotten-export) The symbol "WraithNetworkError" needs to be exported by the entry point index.d.ts
+//
+// @public
+export class AnnouncementBudgetExceededError extends WraithNetworkError {
+    constructor(details: AnnouncementBudgetExceededDetails);
+    // (undocumented)
+    readonly budget: 'pages' | 'items';
+    // (undocumented)
+    readonly chain: string;
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_BUDGET_EXCEEDED";
+    // (undocumented)
+    readonly cursor?: string;
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly fetched: number;
+    // (undocumented)
+    readonly limit: number;
+    // (undocumented)
+    readonly partial: readonly unknown[];
+}
+
+// @public
+export class AnnouncementCursorError extends WraithNetworkError {
+    constructor(details: AnnouncementCursorErrorDetails);
+    // (undocumented)
+    readonly chain: string;
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_CURSOR";
+    // (undocumented)
+    readonly cursor: string;
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly reason: AnnouncementCursorFailure;
+}
+
+// @public
+export interface AnnouncementCursorErrorDetails {
+    chain: string;
+    cursor: string;
+    reason: AnnouncementCursorFailure;
+}
+
+// @public
+export type AnnouncementCursorFailure = 'malformed' | 'repeated' | 'missing';
+
+// @public
+export interface AnnouncementFetchOptions {
+    maxItems?: number;
+    maxPages?: number;
+    retry?: AnnouncementRetryPolicy;
+    signal?: AbortSignal;
+    timeouts?: AnnouncementRequestTimeouts;
+}
+
+// @public
+export interface AnnouncementFetchResult<T> {
+    announcements: T[];
+    cursor?: string;
+    hasMore: boolean;
+    pages: number;
+}
+
+// @public
+export interface AnnouncementPage<T> {
+    announcements: T[];
+    cursor?: string;
+    hasMore: boolean;
+}
+
+// @public
+export interface AnnouncementPaginationOptions extends AnnouncementFetchOptions {
+    cursor?: string;
+    pageSize?: number;
+}
+
+// @public
+export class AnnouncementProviderError extends WraithNetworkError {
+    constructor(details: AnnouncementProviderErrorDetails);
+    // (undocumented)
+    readonly chain: string;
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_PROVIDER";
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly endpoint: string;
+    // (undocumented)
+    readonly retryable: boolean;
+}
+
+// @public
+export interface AnnouncementProviderErrorDetails {
+    cause?: unknown;
+    chain: string;
+    endpoint: string;
+    reason: string;
+    retryable?: boolean;
+}
+
+// @public
+export interface AnnouncementRequestTimeouts {
+    connectMs?: number;
+    requestMs?: number;
+}
+
+// @public
+export class AnnouncementResponseError extends WraithNetworkError {
+    constructor(details: AnnouncementResponseErrorDetails);
+    // (undocumented)
+    readonly chain: string;
+    // (undocumented)
+    readonly code = "WRAITH/NETWORK/ANNOUNCEMENT_RESPONSE";
+    // (undocumented)
+    describe(): string;
+    // (undocumented)
+    readonly endpoint?: string;
+    // (undocumented)
+    readonly field: string;
+}
+
+// @public
+export interface AnnouncementResponseErrorDetails {
+    chain: string;
+    endpoint?: string;
+    field: string;
+    reason: string;
+}
+
+// @public
+export interface AnnouncementRetryPolicy {
+    baseDelayMs?: number;
+    maxDelayMs?: number;
+    maxRetries?: number;
+    retryableStatuses?: number[];
+}
+
+// @public
 export function buildAnnounce(params: {
     stealthAddress: string;
     ephemeralPubKey: Uint8Array;
@@ -166,7 +315,10 @@ export function deriveStealthPubKey(spendingPubKey: Uint8Array, hashScalar: bigi
 export function encodeStealthMetaAddress(spendingPubKey: Uint8Array, viewingPubKey: Uint8Array): string;
 
 // @public
-export function fetchAnnouncements(chain?: string, rpcUrl?: string): Promise<Announcement[]>;
+export function fetchAnnouncements(chain?: string, rpcUrlOrOptions?: string | SolanaFetchAnnouncementsOptions, maybeOptions?: SolanaFetchAnnouncementsOptions): Promise<Announcement[]>;
+
+// @public
+export function fetchAnnouncementsPage(chain?: string, rpcUrlOrOptions?: string | SolanaFetchAnnouncementsOptions, maybeOptions?: SolanaFetchAnnouncementsOptions): Promise<AnnouncementFetchResult<Announcement>>;
 
 // @public
 export interface GeneratedStealthAddress {
@@ -242,6 +394,12 @@ export interface SolanaChainDeployment {
     explorerUrl: string;
     // (undocumented)
     rpcUrl: string;
+}
+
+// @public
+export interface SolanaFetchAnnouncementsOptions extends AnnouncementPaginationOptions {
+    concurrency?: number;
+    rpcUrl?: string;
 }
 
 // @public
