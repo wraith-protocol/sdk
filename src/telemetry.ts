@@ -1,3 +1,5 @@
+import { redactAttributes, redactException } from './redaction';
+
 /**
  * A single unit of traced work, as emitted by a {@link Tracer}.
  *
@@ -58,6 +60,21 @@ const NOOP_SPAN: Span = {
   end() {},
 };
 
+function redactSpan(span: Span): Span {
+  return {
+    setAttribute(key, value) {
+      const safeValue = redactAttributes({ [key]: value })?.[key];
+      if (safeValue !== undefined) span.setAttribute(key, safeValue);
+    },
+    recordException(error) {
+      span.recordException(redactException(error));
+    },
+    end() {
+      span.end();
+    },
+  };
+}
+
 /**
  * Tracer that creates no-op spans.
  *
@@ -106,31 +123,32 @@ export function withSpan<T>(
   fn: (span: Span) => T,
   tracer?: Tracer,
 ): T {
-  const span = (tracer ?? globalTracer).startSpan(name, attributes);
+  const rawSpan = (tracer ?? globalTracer).startSpan(name, redactAttributes(attributes));
+  const span = redactSpan(rawSpan);
 
   let result: T;
   try {
     result = fn(span);
   } catch (err) {
-    span.recordException(err);
-    span.end();
+    rawSpan.recordException(redactException(err));
+    rawSpan.end();
     throw err;
   }
 
   if (result instanceof Promise) {
     return result.then(
       (value) => {
-        span.end();
+        rawSpan.end();
         return value;
       },
       (err) => {
-        span.recordException(err);
-        span.end();
+        rawSpan.recordException(redactException(err));
+        rawSpan.end();
         throw err;
       },
     ) as T;
   }
 
-  span.end();
+  rawSpan.end();
   return result;
 }

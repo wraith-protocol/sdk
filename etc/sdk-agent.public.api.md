@@ -218,6 +218,10 @@ export class Wraith {
     getAgentByName(name: string, options?: RequestOptions): Promise<WraithAgent>;
     getAgentByWallet(walletAddress: string, options?: RequestOptions): Promise<WraithAgent>;
     listAgents(options?: RequestOptions): Promise<AgentInfo[]>;
+    // (undocumented)
+    toJSON(): {
+        baseUrl: string;
+    };
 }
 
 // @public (undocumented)

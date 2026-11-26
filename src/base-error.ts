@@ -1,3 +1,5 @@
+import { redact, redactText } from './redaction';
+
 const DOCS_BASE_URL = 'https://docs.wraith.dev/sdk/errors';
 
 export abstract class WraithError extends Error {
@@ -8,7 +10,7 @@ export abstract class WraithError extends Error {
     message: string,
     public readonly context?: Record<string, any>,
   ) {
-    super(message);
+    super(redactText(message));
 
     // Set prototype explicitly for correct instanceof behavior in ES5/older environments
     Object.setPrototypeOf(this, new.target.prototype);
@@ -22,7 +24,7 @@ export abstract class WraithError extends Error {
     this.docsLink = `${DOCS_BASE_URL}#${anchor}`;
 
     // Overwrite the message to include the docs link
-    this.message = `${message} (See ${this.docsLink})`;
+    this.message = `${redactText(message)} (See ${this.docsLink})`;
   }
 
   toJSON() {
@@ -31,7 +33,7 @@ export abstract class WraithError extends Error {
       message: this.message,
       code: this.code,
       docsLink: this.docsLink,
-      context: this.context,
+      context: redact(this.context),
     };
   }
 

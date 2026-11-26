@@ -453,6 +453,18 @@ export function normalizeDomainContract(chain: AuthorizationChain, contract: str
 // @public
 export function normalizeWalletError(error: unknown, chain?: WalletAdapterChain): WraithWalletError;
 
+// @public (undocumented)
+export function redact(value: unknown, key?: string, seen?: WeakSet<object>): unknown;
+
+// @public
+export const REDACTED = "[REDACTED]";
+
+// @public (undocumented)
+export function redactText(value: string): string;
+
+// @public (undocumented)
+export function redactUrl(value: string): string;
+
 // @public
 export type ReplayRejectionReason = 'CHAIN_MISMATCH' | 'CHAIN_ID_MISMATCH' | 'NETWORK_MISMATCH' | 'CONTRACT_MISMATCH' | 'OPERATION_MISMATCH' | 'EXPIRED' | 'NONCE_REUSED' | 'INVALID_SIGNATURE';
 
@@ -530,6 +542,16 @@ export class RPCTimeoutError extends WraithNetworkError implements RPCTimeoutDet
 
 // @public
 export type RPCTimeoutPhase = 'connect' | 'request';
+
+// @public (undocumented)
+export interface SafeTelemetryException {
+    // (undocumented)
+    code?: string;
+    // (undocumented)
+    message: string;
+    // (undocumented)
+    name: string;
+}
 
 // @public (undocumented)
 export function scanAll(input: ScanAllInput): AsyncGenerator<MatchedAnnouncement>;
@@ -1007,7 +1029,7 @@ export abstract class WraithError extends Error {
         message: string;
         code: string;
         docsLink: string;
-        context: Record<string, any> | undefined;
+        context: unknown;
     };
 }
 

@@ -140,3 +140,6 @@ export type {
   AnnouncementResponseErrorDetails,
   AnnouncementBudgetExceededDetails,
 } from './errors';
+
+export { REDACTED, redact, redactText, redactUrl } from './redaction';
+export type { SafeTelemetryException } from './redaction';

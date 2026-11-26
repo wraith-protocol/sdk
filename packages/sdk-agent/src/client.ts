@@ -1,4 +1,4 @@
-import { AgentResponseError, RPCRequestError } from '@wraith-protocol/sdk';
+import { AgentResponseError, RPCRequestError, redactText, redactUrl } from '@wraith-protocol/sdk';
 import type {
   WraithConfig,
   AgentConfig,
@@ -190,7 +190,7 @@ function validateToolCall(payload: unknown, url: string, field: string): ToolCal
   return {
     name: payload.name,
     status: payload.status,
-    ...(payload.detail !== undefined ? { detail: payload.detail } : {}),
+    ...(payload.detail !== undefined ? { detail: redactText(payload.detail) } : {}),
   };
 }
 
@@ -242,6 +242,10 @@ export class Wraith {
       throw new RangeError(`timeoutMs must be between 0 and ${MAX_TIMEOUT_MS}`);
     }
     this.aiConfig = config.ai;
+  }
+
+  toJSON(): { baseUrl: string } {
+    return { baseUrl: redactUrl(this.baseUrl) };
   }
 
   private async request<T>(
