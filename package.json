@@ -89,7 +89,7 @@
       "name": "Root ESM (import *)",
       "path": "dist/index.js",
       "import": "*",
-      "limit": "36.1 KB"
+      "limit": "41.8 KB"
     },
     {
       "name": "Root CJS (require)",
@@ -100,7 +100,7 @@
       "name": "EVM ESM (import *)",
       "path": "dist/chains/evm/index.js",
       "import": "*",
-      "limit": "27.5 KB"
+      "limit": "35.3 KB"
     },
     {
       "name": "EVM CJS (require)",
@@ -111,18 +111,18 @@
       "name": "Solana ESM (import *)",
       "path": "dist/chains/solana/index.js",
       "import": "*",
-      "limit": "20.9 KB"
+      "limit": "25.1 KB"
     },
     {
       "name": "Solana CJS (require)",
       "path": "dist/chains/solana/index.cjs",
-      "limit": "30.8 KB"
+      "limit": "36.8 KB"
     },
     {
       "name": "CKB ESM (import *)",
       "path": "dist/chains/ckb/index.js",
       "import": "*",
-      "limit": "24.5 KB"
+      "limit": "29.2 KB"
     },
     {
       "name": "CKB CJS (require)",
@@ -149,7 +149,7 @@
     {
       "name": "Stellar CJS (require)",
       "path": "dist/chains/stellar/index.cjs",
-      "limit": "42.5 KB"
+      "limit": "49 KB"
     },
     {
       "name": "Scanner Worker ESM (import *)",

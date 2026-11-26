@@ -11,18 +11,18 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 
 | Entry              | Format           | Baseline  | Budget (+15%) |
 | ------------------ | ---------------- | --------- | ------------- |
-| Root (`.`)         | ESM (`import *`) | 31.32 KB  | 36.1 KB       |
+| Root (`.`)         | ESM (`import *`) | 36.34 KB  | 41.8 KB       |
 | Root (`.`)         | CJS (`require`)  | 138.79 KB | 159.7 KB      |
-| `./chains/evm`     | ESM (`import *`) | 23.83 KB  | 27.5 KB       |
+| `./chains/evm`     | ESM (`import *`) | 30.67 KB  | 35.3 KB       |
 | `./chains/evm`     | CJS (`require`)  | 126.79 KB | 145.9 KB      |
-| `./chains/solana`  | ESM (`import *`) | 20.61 KB  | 20.8 KB       |
-| `./chains/solana`  | CJS (`require`)  | 30.48 KB  | 30.7 KB       |
-| `./chains/ckb`     | ESM (`import *`) | 24.02 KB  | 24.2 KB       |
+| `./chains/solana`  | ESM (`import *`) | 21.74 KB  | 25.1 KB       |
+| `./chains/solana`  | CJS (`require`)  | 31.92 KB  | 36.8 KB       |
+| `./chains/ckb`     | ESM (`import *`) | 25.38 KB  | 29.2 KB       |
 | `./chains/ckb`     | CJS (`require`)  | 128.76 KB | 148.1 KB      |
 | `./vault`          | ESM (`import *`) | 2.46 KB   | 2.9 KB        |
 | `./vault`          | CJS (`require`)  | 2.66 KB   | 3.1 KB        |
 | `./chains/stellar` | ESM (`import *`) | 33.57 KB  | 34.5 KB       |
-| `./chains/stellar` | CJS (`require`)  | 41.93 KB  | 42.5 KB       |
+| `./chains/stellar` | CJS (`require`)  | 42.57 KB  | 49 KB         |
 | `./scanner/worker` | ESM (`import *`) | 28.93 KB  | 33.1 KB       |
 | `./scanner/worker` | CJS (`require`)  | 139.69 KB | 160.5 KB      |
 
@@ -48,6 +48,11 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 > On 2026-11-26 the domain-separated wallet signature helpers (issue #273)
 > measured 33.57 KB (ESM) and 41.93 KB (CJS) after rebasing onto the worker
 > scanner changes. Their budgets are 34.5 KB and 42.5 KB respectively.
+>
+> After combining issues #271 and #273, the shared announcement resilience
+> code measured 36.34 KB at the root, 30.67 KB for EVM ESM, 21.74/31.92 KB
+> for Solana, 25.38 KB for CKB ESM, and 42.57 KB for Stellar CJS. The adjacent
+> budgets above apply the documented 15% regression margin.
 
 ## Checking Sizes (CI gate)
 
