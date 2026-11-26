@@ -64,12 +64,13 @@ Each error subclass contains three public properties:
 
 Thrown when parameters supplied to SDK functions fail syntactic, length, or boundary validation checks.
 
-| Error Class               | Stable Code                           | Context Fields                                | Description                                                                            |
-| :------------------------ | :------------------------------------ | :-------------------------------------------- | :------------------------------------------------------------------------------------- |
-| `InvalidMetaAddressError` | `"WRAITH/INPUT/INVALID_META_ADDRESS"` | `metaAddress`, `reason`                       | Thrown when a stealth meta-address has an invalid prefix, length, or points.           |
-| `InvalidNameError`        | `"WRAITH/INPUT/INVALID_NAME"`         | `name`, `reason`                              | Thrown when a `.wraith` name is invalid (e.g. incorrect length, bad characters).       |
-| `InvalidSignatureError`   | `"WRAITH/INPUT/INVALID_SIGNATURE"`    | `signature`, `expectedLength`, `actualLength` | Thrown when a cryptographic signature has an incorrect length or invalid format.       |
-| `InvalidScalarError`      | `"WRAITH/INPUT/INVALID_SCALAR"`       | `scalar`, `reason`                            | Thrown when a computed private key scalar is out of valid bounds (e.g. is zero mod n). |
+| Error Class               | Stable Code                           | Context Fields                                | Description                                                                                              |
+| :------------------------ | :------------------------------------ | :-------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| `InvalidMetaAddressError` | `"WRAITH/INPUT/INVALID_META_ADDRESS"` | `metaAddress`, `reason`                       | Thrown when a stealth meta-address has an invalid prefix, length, or points.                             |
+| `InvalidNameError`        | `"WRAITH/INPUT/INVALID_NAME"`         | `name`, `reason`                              | Thrown when a `.wraith` name is invalid (e.g. incorrect length, bad characters).                         |
+| `InvalidSignatureError`   | `"WRAITH/INPUT/INVALID_SIGNATURE"`    | `signature`, `expectedLength`, `actualLength` | Thrown when a cryptographic signature has an incorrect length or invalid format.                         |
+| `InvalidScalarError`      | `"WRAITH/INPUT/INVALID_SCALAR"`       | `scalar`, `reason`                            | Thrown when a computed private key scalar is out of valid bounds (e.g. is zero mod n).                   |
+| `ScanBudgetExceededError` | `"WRAITH/INPUT/SCAN_BUDGET_EXCEEDED"` | `chain`, `kind`, `limit`, `processed`         | Thrown when a multi-chain scan reaches a per-chain request budget; the scan stops instead of truncating. |
 
 ### 2. Cryptographic Errors (`WraithCryptoError`)
 

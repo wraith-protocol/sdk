@@ -249,10 +249,10 @@ export function validateScannerWorkerInput(input: unknown): ScannerWorkerFailure
 
 // Warnings were encountered during analysis:
 //
-// dist/unified-BXqIrpNT.d.ts:179:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point worker.d.ts
-// dist/unified-BXqIrpNT.d.ts:184:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point worker.d.ts
-// dist/unified-BXqIrpNT.d.ts:189:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point worker.d.ts
-// dist/unified-BXqIrpNT.d.ts:194:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point worker.d.ts
+// dist/unified-BL7h5iCa.d.ts:179:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_2" needs to be exported by the entry point worker.d.ts
+// dist/unified-BL7h5iCa.d.ts:184:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement$1" needs to be exported by the entry point worker.d.ts
+// dist/unified-BL7h5iCa.d.ts:189:5 - (ae-forgotten-export) The symbol "MatchedAnnouncement_3" needs to be exported by the entry point worker.d.ts
+// dist/unified-BL7h5iCa.d.ts:194:5 - (ae-forgotten-export) The symbol "MatchedStealthCell" needs to be exported by the entry point worker.d.ts
 
 // (No @packageDocumentation comment for this package)
 

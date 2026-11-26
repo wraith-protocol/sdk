@@ -1,6 +1,6 @@
 # Bundle Size Baselines — All Public Exports
 
-> Last measured: 2026-11-19
+> Last measured: 2026-11-26
 > Bundler: tsup (esbuild) via `size-limit`
 > Sizes are **minified and brotli-compressed**, include all bundled
 > dependencies, and are measured by `size-limit` (SI units: 1 KB = 1000 B).
@@ -11,7 +11,7 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 
 | Entry              | Format           | Baseline  | Budget (+15%) |
 | ------------------ | ---------------- | --------- | ------------- |
-| Root (`.`)         | ESM (`import *`) | 36.34 KB  | 41.8 KB       |
+| Root (`.`)         | ESM (`import *`) | 39.48 KB  | 41.8 KB       |
 | Root (`.`)         | CJS (`require`)  | 138.79 KB | 159.7 KB      |
 | `./chains/evm`     | ESM (`import *`) | 30.67 KB  | 35.3 KB       |
 | `./chains/evm`     | CJS (`require`)  | 126.79 KB | 145.9 KB      |
@@ -44,6 +44,12 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 > On 2026-11-21 the CSP-safe worker scanner entry point was added (issue #269).
 > Its baseline was measured at 28.93 KB (ESM) and 139.69 KB (CJS) with budgets
 > set to baseline + 15%.
+>
+> On 2026-11-22 the Root ESM budget was raised from 36.1 KB to 37.1 KB and the
+> Stellar CJS budget from 41 KB to 41.2 KB for the bounded streaming scanner
+> pool and its budget error (issue #275). After merging the worker scanner entry
+> point and the ordered bounded-stream fix, Root ESM measured 38.02 KB and its
+> budget was raised to 38.1 KB.
 
 > On 2026-11-26 the domain-separated wallet signature helpers (issue #273)
 > measured 33.57 KB (ESM) and 41.93 KB (CJS) after rebasing onto the worker
@@ -53,6 +59,10 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 > code measured 36.34 KB at the root, 30.67 KB for EVM ESM, 21.74/31.92 KB
 > for Solana, 25.38 KB for CKB ESM, and 42.57 KB for Stellar CJS. The adjacent
 > budgets above apply the documented 15% regression margin.
+>
+> After merging those changes into the ordered bounded scanner stream
+> (issue #275), Root ESM measured 39.48 KB. Its budget remains 41.8 KB so it
+> covers both features.
 
 ## Checking Sizes (CI gate)
 

@@ -140,6 +140,33 @@ export class InvalidScalarError extends WraithInputError {
   }
 }
 
+/**
+ * Thrown when a multi-chain scan hits a configured per-chain resource budget.
+ *
+ * The scan stops rather than truncating silently, so callers can resume with a
+ * larger budget, a narrower source, or a later retry. Announcements matched
+ * before the limit are available through the scan's progress accounting.
+ */
+export class ScanBudgetExceededError extends WraithInputError {
+  readonly code = 'WRAITH/INPUT/SCAN_BUDGET_EXCEEDED';
+
+  constructor(chain: string, kind: 'requests' | 'items', limit: number, processed: number) {
+    super(
+      `Scan budget exceeded for chain "${chain}": ${kind} limit ${limit} reached after ${processed} announcements`,
+      { chain, kind, limit, processed },
+    );
+  }
+
+  describe(): string {
+    const { chain, kind, limit, processed } = this.context ?? {};
+    return (
+      `The "${chain}" scan consumed its ${kind} budget of ${limit} after ${processed} ` +
+      `announcements. Try: raise the per-chain budget in MultichainScannerPool options, or ` +
+      `restart the scan from the last cursor your source reported. See ${this.docsLink}.`
+    );
+  }
+}
+
 // WraithCryptoError Subclasses
 export class KeyDerivationFailedError extends WraithCryptoError {
   readonly code = 'WRAITH/CRYPTO/KEY_DERIVATION_FAILED';
