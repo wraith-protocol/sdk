@@ -21,8 +21,8 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 | `./chains/ckb`     | CJS (`require`)  | 128.76 KB | 148.1 KB      |
 | `./vault`          | ESM (`import *`) | 2.46 KB   | 2.9 KB        |
 | `./vault`          | CJS (`require`)  | 2.66 KB   | 3.1 KB        |
-| `./chains/stellar` | ESM (`import *`) | 26.48 KB  | 31 KB         |
-| `./chains/stellar` | CJS (`require`)  | 34.29 KB  | 39.5 KB       |
+| `./chains/stellar` | ESM (`import *`) | 33.57 KB  | 34.5 KB       |
+| `./chains/stellar` | CJS (`require`)  | 41.93 KB  | 42.5 KB       |
 | `./scanner/worker` | ESM (`import *`) | 28.93 KB  | 33.1 KB       |
 | `./scanner/worker` | CJS (`require`)  | 139.69 KB | 160.5 KB      |
 
@@ -44,6 +44,10 @@ Every budget is the measured baseline **+ 15% headroom**, rounded up.
 > On 2026-11-21 the CSP-safe worker scanner entry point was added (issue #269).
 > Its baseline was measured at 28.93 KB (ESM) and 139.69 KB (CJS) with budgets
 > set to baseline + 15%.
+
+> On 2026-11-26 the domain-separated wallet signature helpers (issue #273)
+> measured 33.57 KB (ESM) and 41.93 KB (CJS) after rebasing onto the worker
+> scanner changes. Their budgets are 34.5 KB and 42.5 KB respectively.
 
 ## Checking Sizes (CI gate)
 
