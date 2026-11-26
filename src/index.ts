@@ -89,6 +89,23 @@ export type {
 } from './scanner/worker-protocol';
 export { getUnknownErrorMessage, isAbortError } from './chains/errorUtils';
 export {
+  DOMAIN_AUTH_MAGIC,
+  normalizeDomainContract,
+  validateSignatureDomain,
+  encodeLengthPrefixedFields,
+  encodeDomainAuthorizationBytes,
+  buildDomainStealthSigningMessage,
+  checkDomainGuards,
+} from './auth/domain';
+export type {
+  AuthorizationChain,
+  AuthorizationOperation,
+  SignatureDomain,
+  ReplayRejectionReason,
+  VerifyDomainOptions,
+  SignatureVerificationResult,
+} from './auth/domain';
+export {
   WraithError,
   WraithRuntimeError,
   WraithInputError,

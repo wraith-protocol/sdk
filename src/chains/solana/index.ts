@@ -6,6 +6,11 @@ export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-addre
 export { generateStealthAddress, computeSharedSecret, computeViewTag } from './stealth';
 export { checkStealthAddress, scanAnnouncements, adapter as solanaAdapter, adapter } from './scan';
 export { deriveStealthPrivateScalar, signSolanaTransaction } from './spend';
+export {
+  computeSolanaAuthorizationDigest,
+  signSolanaDomainAuthorization,
+  verifySolanaDomainAuthorization,
+} from './auth';
 /**
  * @internal
  */

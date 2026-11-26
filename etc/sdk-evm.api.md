@@ -155,6 +155,14 @@ export function checkStealthAddress(ephemeralPubKey: HexString, viewingKey: HexS
     stealthAddress: HexString | null;
 };
 
+// Warning: (ae-forgotten-export) The symbol "SignatureDomain" needs to be exported by the entry point index.d.ts
+//
+// @public
+export function computeEvmDomainSeparator(domain: SignatureDomain): HexString;
+
+// @public
+export function computeEvmNameAuthorizationDigest(domain: SignatureDomain, payload: EvmNameAuthorizationPayload): HexString;
+
 // @public
 export function decodeStealthMetaAddress(metaAddress: string): StealthMetaAddress;
 
@@ -169,6 +177,12 @@ export function deriveStealthPrivateKey(spendingKey: HexString, ephemeralPubKey:
 
 // @public
 export function encodeStealthMetaAddress(spendingPubKey: HexString, viewingPubKey: HexString): string;
+
+// @public
+export const EVM_DOMAIN_TYPEHASH: HexString;
+
+// @public
+export const EVM_NAME_AUTH_TYPEHASH: HexString;
 
 // @public (undocumented)
 export interface EVMChainDeployment {
@@ -189,6 +203,12 @@ export interface EVMChainDeployment {
     rpcUrl: string;
     // (undocumented)
     subgraphUrl: string;
+}
+
+// @public
+export interface EvmNameAuthorizationPayload {
+    metaAddressBytes?: HexString;
+    name: string;
 }
 
 // @public
@@ -478,15 +498,18 @@ export const SENDER_ABI: readonly [{
 }];
 
 // @public
+export function signDomainNameAuthorization(domain: SignatureDomain, payload: EvmNameAuthorizationPayload, spendingKey: HexString): HexString;
+
+// @public @deprecated
 export function signNameRegistration(name: string, metaAddressBytes: HexString, spendingKey: HexString): HexString;
 
-// @public
+// @public @deprecated
 export function signNameRegistrationOnBehalf(name: string, metaAddressBytes: HexString, spendingKey: HexString, nonce: bigint): HexString;
 
-// @public
+// @public @deprecated
 export function signNameRelease(name: string, spendingKey: HexString): HexString;
 
-// @public
+// @public @deprecated
 export function signNameUpdate(name: string, newMetaAddressBytes: HexString, spendingKey: HexString): HexString;
 
 // @public
@@ -519,6 +542,12 @@ export interface TransactionData {
     // (undocumented)
     value?: bigint;
 }
+
+// Warning: (ae-forgotten-export) The symbol "VerifyDomainOptions" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "SignatureVerificationResult" needs to be exported by the entry point index.d.ts
+//
+// @public
+export function verifyDomainNameAuthorization(signature: HexString, signedDomain: SignatureDomain, payload: EvmNameAuthorizationPayload, expectedPubKeyOrAddress: HexString, options: VerifyDomainOptions): SignatureVerificationResult;
 
 // @public (undocumented)
 export const WITHDRAWER_ABI: readonly [{
