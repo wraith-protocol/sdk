@@ -1,6 +1,7 @@
 import { RPCRequestError, RPCRetryExhaustedError, RPCTimeoutError } from '../../errors';
 import { withSpan, type Tracer, type Span } from '../../telemetry';
 import { AttemptDeadline, resolveTimeouts, type RequestTimeouts } from './timeouts';
+import { redactText, redactUrl } from '../../redaction';
 
 export interface RpcEndpoint {
   url: string;
@@ -105,7 +106,7 @@ export function createRpcClient(config: RpcClientConfig): RpcClient {
 
   function emitFailover(from: string, to: string, reason: string): void {
     for (const listener of failoverListeners) {
-      listener({ from, to, reason });
+      listener({ from: redactUrl(from), to: redactUrl(to), reason: redactText(reason) });
     }
   }
 

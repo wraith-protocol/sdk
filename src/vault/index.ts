@@ -245,6 +245,11 @@ export class KeyVault {
     this.options = resolveOptions(options);
   }
 
+  /** Safe diagnostic representation; encrypted records and passphrases are never serialized. */
+  toJSON(): { locked: boolean; dbName: string } {
+    return { locked: this.cryptoKey === null, dbName: this.options.dbName };
+  }
+
   async unlock(passphrase: string): Promise<void> {
     const db = await this.openDB();
     const meta = await this.getMeta(db);

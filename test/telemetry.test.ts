@@ -102,7 +102,7 @@ describe('telemetry', () => {
     ).toThrow(err);
 
     expect(spans[0].ended).toBe(true);
-    expect(spans[0].exceptions).toEqual([err]);
+    expect(spans[0].exceptions).toEqual([{ name: 'Error', message: err.message }]);
   });
 
   test('withSpan awaits an async function and ends the span once it resolves', async () => {
@@ -130,7 +130,7 @@ describe('telemetry', () => {
     ).rejects.toThrow(err);
 
     expect(spans[0].ended).toBe(true);
-    expect(spans[0].exceptions).toEqual([err]);
+    expect(spans[0].exceptions).toEqual([{ name: 'Error', message: err.message }]);
   });
 
   test('withSpan uses a per-call tracer override instead of the global one', () => {
@@ -153,5 +153,23 @@ describe('telemetry', () => {
     });
 
     expect(spans[0].extraAttributes).toEqual({ count: 3 });
+  });
+
+  test('span.setAttribute inside the callback is redacted before reaching the hook', () => {
+    const { tracer, spans } = makeRecordingTracer();
+    setTracer(tracer);
+
+    withSpan('op', undefined, (span) => {
+      span.setAttribute(
+        'wraith.rpc.endpoint',
+        'https://rpc-user:rpc-password@example.test/rpc?access_token=top-secret',
+      );
+    });
+
+    expect(spans[0].extraAttributes).toEqual({
+      'wraith.rpc.endpoint':
+        'https://[REDACTED]:[REDACTED]@example.test/rpc?access_token=[REDACTED]',
+    });
+    expect(JSON.stringify(spans[0].extraAttributes)).not.toContain('top-secret');
   });
 });

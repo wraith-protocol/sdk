@@ -30,6 +30,8 @@ export interface ScanInput {
   viewingKeyHex: string;
   spendingPubKeyHex: string;
   spendingScalarHex: string;
+  /** Explicit opt-in for callers that already have a secure handling boundary. */
+  includeSensitive?: boolean;
 }
 
 export interface WithdrawInput {
@@ -97,10 +99,10 @@ export function createClaudeAgentTools(context: ClaudeAgentToolContext = {}): Cl
                 intent: 'send-to-meta-address',
                 asset: input.asset ?? 'XLM',
                 amount: input.amount,
-                memo: input.memo ?? '',
+                ...(input.memo === undefined ? {} : { memo: '[REDACTED]' }),
                 stealthAddress: stealthResult.stealthAddress,
                 ephemeralPubKey: bytesToHex(stealthResult.ephemeralPubKey),
-                metadata: stealthResult.viewTag.toString(16).padStart(2, '0'),
+                viewTag: stealthResult.viewTag.toString(16).padStart(2, '0'),
                 destination: input.destination ?? stealthResult.stealthAddress,
               },
               note: 'The agent prepares a stealth send plan. The sender must sign the transaction locally with their wallet.',
@@ -135,8 +137,13 @@ export function createClaudeAgentTools(context: ClaudeAgentToolContext = {}): Cl
               matches: matches.map((item) => ({
                 stealthAddress: item.stealthAddress,
                 ephemeralPubKey: item.ephemeralPubKey,
-                metadata: item.metadata,
-                stealthPrivateScalar: item.stealthPrivateScalar.toString(),
+                viewTag: item.metadata.slice(0, 2),
+                ...(input.includeSensitive
+                  ? {
+                      metadata: item.metadata,
+                      stealthPrivateScalar: item.stealthPrivateScalar.toString(),
+                    }
+                  : {}),
               })),
               count: matches.length,
             };
@@ -160,7 +167,7 @@ export function createClaudeAgentTools(context: ClaudeAgentToolContext = {}): Cl
               asset: input.asset ?? 'XLM',
               amount: input.amount,
               destination: input.destination ?? input.stealthAddress,
-              memo: input.memo ?? '',
+              ...(input.memo === undefined ? {} : { memo: '[REDACTED]' }),
             },
             note: 'The agent prepares a withdrawal plan. The stealth account owner must sign the transaction with their local wallet or key manager.',
           }),

@@ -13,6 +13,10 @@ export class KeyVault {
     lock(): Promise<void>;
     // (undocumented)
     put<T>(label: string, keys: T): Promise<void>;
+    toJSON(): {
+        locked: boolean;
+        dbName: string;
+    };
     // (undocumented)
     unlock(passphrase: string): Promise<void>;
 }

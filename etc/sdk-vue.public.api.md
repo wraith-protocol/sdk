@@ -5161,6 +5161,9 @@ export function useStellarStealthKeys(): {
 // @public (undocumented)
 export function useWraith(config?: WraithConfig): {
     client: Readonly<Ref<{
+        readonly toJSON: () => {
+            baseUrl: string;
+        };
         readonly createAgent: (config: AgentConfig, options?: _wraith_protocol_sdk_agent.RequestOptions) => Promise<WraithAgent>;
         readonly agent: (agentId: string) => WraithAgent;
         readonly getAgentByWallet: (walletAddress: string, options?: _wraith_protocol_sdk_agent.RequestOptions) => Promise<WraithAgent>;
@@ -5169,6 +5172,9 @@ export function useWraith(config?: WraithConfig): {
         readonly _request: <T>(method: string, path: string, body?: unknown, options?: _wraith_protocol_sdk_agent.RequestOptions) => Promise<T>;
         readonly _getBaseUrl: () => string;
     } | null, {
+        readonly toJSON: () => {
+            baseUrl: string;
+        };
         readonly createAgent: (config: AgentConfig, options?: _wraith_protocol_sdk_agent.RequestOptions) => Promise<WraithAgent>;
         readonly agent: (agentId: string) => WraithAgent;
         readonly getAgentByWallet: (walletAddress: string, options?: _wraith_protocol_sdk_agent.RequestOptions) => Promise<WraithAgent>;
