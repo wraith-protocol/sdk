@@ -4,6 +4,7 @@ import {
   AnnouncementResponseError,
   RPCAbortedError,
   RPCRequestError,
+  RPCResponseError,
   RPCRetryExhaustedError,
   RPCTimeoutError,
   type RPCTimeoutPhase,
@@ -428,6 +429,11 @@ export interface BoundedJsonRequest {
   timeouts: ResolvedAnnouncementTimeouts;
   /** Resolved retry policy. */
   retry: ResolvedAnnouncementRetryPolicy;
+  /**
+   * Optional body reader used instead of `Response.json()`, for callers that need a bounded or
+   * otherwise validated body read. It runs inside the attempt deadline.
+   */
+  readJson?: (response: Response) => Promise<unknown>;
 }
 
 /**
@@ -439,7 +445,7 @@ export interface BoundedJsonRequest {
  * that is not JSON.
  */
 export async function requestBoundedJson(request: BoundedJsonRequest): Promise<unknown> {
-  const { chain, url, endpoint, init = {}, signal, timeouts, retry } = request;
+  const { chain, url, endpoint, init = {}, signal, timeouts, retry, readJson } = request;
   if (signal?.aborted) throw new RPCAbortedError(url, { cause: signal.reason });
 
   const maxAttempts = retry.maxRetries + 1;
@@ -472,7 +478,7 @@ export async function requestBoundedJson(request: BoundedJsonRequest): Promise<u
       }
 
       try {
-        return await deadline.watch(response.json());
+        return await deadline.watch(readJson ? readJson(response) : response.json());
       } catch (err) {
         if (err instanceof SyntaxError) {
           throw new AnnouncementResponseError({
@@ -485,7 +491,13 @@ export async function requestBoundedJson(request: BoundedJsonRequest): Promise<u
         throw err;
       }
     } catch (err) {
-      if (err instanceof RPCAbortedError || err instanceof AnnouncementResponseError) throw err;
+      if (
+        err instanceof RPCAbortedError ||
+        err instanceof AnnouncementResponseError ||
+        err instanceof RPCResponseError
+      ) {
+        throw err;
+      }
       if (err instanceof RPCRequestError || err instanceof RPCRetryExhaustedError) throw err;
 
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -546,7 +558,7 @@ export async function runBoundedOperation<T>(
     try {
       return await deadline.watch(operation());
     } catch (err) {
-      if (err instanceof RPCAbortedError) throw err;
+      if (err instanceof RPCAbortedError || err instanceof RPCResponseError) throw err;
       const cause = err instanceof Error ? err : new Error(String(err));
       lastError = cause;
       const retryable = cause instanceof RPCTimeoutError || (options.isRetryable?.(cause) ?? false);

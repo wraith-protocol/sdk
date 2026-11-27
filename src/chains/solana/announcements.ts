@@ -1,8 +1,14 @@
 import { UnsupportedCapabilityError } from '../../base-error';
 import type { Announcement } from './types';
 import { getDeployment } from './deployments';
-import { bytesToHex } from './utils';
+import {
+  createBoundedSolanaFetch,
+  parseAnnouncementLogs,
+  parseSignaturePage,
+  parseTransactionLogs,
+} from './validation';
 import { AnnouncementCursorError, AnnouncementProviderError } from '../../errors';
+import type { RPCResponseContext } from '../rpcValidation';
 import {
   collectAnnouncementPages,
   mapWithConcurrency,
@@ -14,12 +20,6 @@ import {
   type AnnouncementPage,
   type AnnouncementPaginationOptions,
 } from '../announcementFetch';
-
-/**
- * Anchor event discriminator for AnnouncementEvent.
- * First 8 bytes of SHA-256("event:AnnouncementEvent").
- */
-const ANNOUNCEMENT_EVENT_DISCRIMINATOR = [0xfa, 0xb0, 0x2a, 0xef, 0x3c, 0xad, 0x36, 0x88];
 
 /** Default and maximum signature page size accepted by `getSignaturesForAddress`. */
 const DEFAULT_PAGE_SIZE = 100;
@@ -119,11 +119,16 @@ function isRetryableSolanaError(error: Error): boolean {
  * throws `AnnouncementBudgetExceededError` with the announcements collected so far and a
  * `cursor` that can be passed to a later call to resume.
  *
+ * Responses are size-bounded, and signature pages, transaction metadata and announcement logs
+ * are validated before decoding, so a malformed response cannot reach key derivation.
+ *
  * Requires @solana/web3.js as a peer dependency.
  *
  * @param chain The chain identifier (default: "solana").
  * @param rpcUrlOrOptions Optional RPC URL override, or options.
  * @param maybeOptions Options when the second argument is a URL.
+ * @throws {RPCResponseError} If a signature page, transaction or announcement
+ *   log payload is malformed, truncated or oversized.
  */
 export async function fetchAnnouncements(
   chain: string = 'solana',
@@ -131,11 +136,21 @@ export async function fetchAnnouncements(
   maybeOptions?: SolanaFetchAnnouncementsOptions,
 ): Promise<Announcement[]> {
   const { url, options } = resolveArgs(chain, rpcUrlOrOptions, maybeOptions);
-  const network = await connect(chain, url);
+  const context: RPCResponseContext = { chain, operation: 'fetchAnnouncements' };
+  const network = await connect(chain, url, context);
   const pageSize = resolvePageSize(options?.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
   const concurrency = resolveConcurrency(options?.concurrency);
   const result = await collectAnnouncementPages<Announcement>(chain, options, (cursor, limit) =>
-    fetchPage(network, chain, url, cursor, Math.min(pageSize, limit), concurrency, options),
+    fetchPage(
+      network,
+      context,
+      chain,
+      url,
+      cursor,
+      Math.min(pageSize, limit),
+      concurrency,
+      options,
+    ),
   );
   return result.announcements;
 }
@@ -152,11 +167,13 @@ export async function fetchAnnouncementsPage(
   maybeOptions?: SolanaFetchAnnouncementsOptions,
 ): Promise<AnnouncementFetchResult<Announcement>> {
   const { url, options } = resolveArgs(chain, rpcUrlOrOptions, maybeOptions);
-  const network = await connect(chain, url);
+  const context: RPCResponseContext = { chain, operation: 'fetchAnnouncements' };
+  const network = await connect(chain, url, context);
   const pageSize = resolvePageSize(options?.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
   const concurrency = resolveConcurrency(options?.concurrency);
   const page = await fetchPage(
     network,
+    context,
     chain,
     url,
     options?.cursor,
@@ -178,7 +195,11 @@ interface SolanaNetwork {
   programs: string[];
 }
 
-async function connect(chain: string, url: string): Promise<SolanaNetwork> {
+async function connect(
+  chain: string,
+  url: string,
+  context: RPCResponseContext,
+): Promise<SolanaNetwork> {
   const deployment = getDeployment(chain);
   let solanaWeb3: typeof import('@solana/web3.js');
   try {
@@ -196,7 +217,7 @@ async function connect(chain: string, url: string): Promise<SolanaNetwork> {
   }
   const { Connection, PublicKey } = solanaWeb3;
   return {
-    connection: new Connection(url),
+    connection: new Connection(url, { fetch: createBoundedSolanaFetch(context) }),
     PublicKey,
     programs: [deployment.contracts.announcer, deployment.contracts.sender],
   };
@@ -243,6 +264,7 @@ function boundedCall<T>(
 
 async function fetchPage(
   network: SolanaNetwork,
+  context: RPCResponseContext,
   chain: string,
   endpoint: string,
   cursor: string | undefined,
@@ -260,29 +282,31 @@ async function fetchPage(
     });
   }
 
-  const signatures = await boundedCall(chain, endpoint, 'getSignaturesForAddress', options, () =>
+  const rawSignatures = await boundedCall(chain, endpoint, 'getSignaturesForAddress', options, () =>
     network.connection.getSignaturesForAddress(new network.PublicKey(programId), {
       limit: pageSize,
       ...(state.before ? { before: state.before } : {}),
     }),
   );
+  const signatures = parseSignaturePage(rawSignatures, context);
 
-  const announcements = (
-    await mapWithConcurrency(signatures, concurrency, async (signature) => {
-      const transaction = await boundedCall(chain, endpoint, 'getTransaction', options, () =>
-        network.connection.getTransaction(signature.signature, {
-          maxSupportedTransactionVersion: 0,
-        }),
-      );
-      if (!transaction?.meta?.logMessages) return null;
-      return parseAnnouncementFromLogs(transaction.meta.logMessages, network.PublicKey);
-    })
-  ).filter((announcement): announcement is Announcement => announcement !== null);
+  const results = await mapWithConcurrency(signatures, concurrency, async (signature) => {
+    const transaction = await boundedCall(chain, endpoint, 'getTransaction', options, () =>
+      network.connection.getTransaction(signature, {
+        maxSupportedTransactionVersion: 0,
+      }),
+    );
+    const logs = parseTransactionLogs(transaction, context);
+    if (!logs) return [];
+    // A malformed announcement payload must surface instead of being silently skipped.
+    return parseAnnouncementLogs(logs, context, 'result.meta.logMessages');
+  });
+  const announcements = results.flat();
 
   const last = signatures[signatures.length - 1];
   let next: SolanaCursorState | undefined;
   if (signatures.length === pageSize && last) {
-    next = { program: state.program, before: last.signature };
+    next = { program: state.program, before: last };
   } else if (state.program + 1 < network.programs.length) {
     next = { program: state.program + 1 };
   }
@@ -292,62 +316,4 @@ async function fetchPage(
     cursor: next ? encodeCursor(next) : undefined,
     hasMore: next !== undefined,
   };
-}
-
-function parseAnnouncementFromLogs(
-  logs: string[],
-  PublicKey: typeof import('@solana/web3.js').PublicKey,
-): Announcement | null {
-  try {
-    for (const log of logs) {
-      if (!log.startsWith('Program data: ')) continue;
-
-      const base64Data = log.replace('Program data: ', '');
-      const bytes = base64ToBytes(base64Data);
-      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-
-      // Check Anchor event discriminator (first 8 bytes)
-      if (bytes.length < 8) continue;
-      const matchesDisc = ANNOUNCEMENT_EVENT_DISCRIMINATOR.every((b, i) => b === bytes[i]);
-      if (!matchesDisc) continue;
-
-      let offset = 8;
-
-      const schemeId = view.getUint32(offset, true);
-      offset += 4;
-
-      const stealthAddress = bytes.slice(offset, offset + 32);
-      offset += 32;
-
-      const caller = bytes.slice(offset, offset + 32);
-      offset += 32;
-
-      const ephemeralPubKey = bytes.slice(offset, offset + 32);
-      offset += 32;
-
-      const metadataLen = view.getUint32(offset, true);
-      offset += 4;
-      const metadata = bytes.slice(offset, offset + metadataLen);
-
-      return {
-        schemeId,
-        stealthAddress: new PublicKey(stealthAddress).toBase58(),
-        caller: new PublicKey(caller).toBase58(),
-        ephemeralPubKey: bytesToHex(new Uint8Array(ephemeralPubKey)),
-        metadata: bytesToHex(new Uint8Array(metadata)),
-      };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function base64ToBytes(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
 }

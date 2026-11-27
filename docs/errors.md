@@ -23,6 +23,7 @@ WraithError (Abstract Base)
 │   └── ECDHFailedError
 ├── WraithNetworkError
 │   ├── RPCRequestError
+│   ├── RPCResponseError
 │   ├── HorizonResponseError
 │   ├── AgentResponseError
 │   ├── RPCRetryExhaustedError
@@ -88,6 +89,7 @@ Thrown when HTTP queries to Wraith APIs, Horizon/Soroban endpoints, Solana clust
 | Error Class                       | Stable Code                                     | Context Fields                                     | Description                                                                                                                                                   |
 | :-------------------------------- | :---------------------------------------------- | :------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `RPCRequestError`                 | `"WRAITH/NETWORK/RPC_REQUEST"`                  | `url`, `statusCode`, `responseText`                | Thrown when an HTTP/RPC endpoint returns a non-2xx status code.                                                                                               |
+| `RPCResponseError`                | `"WRAITH/NETWORK/RPC_RESPONSE"`                 | `chain`, `operation`, `field`, `reason`            | Thrown when an EVM subgraph, Solana RPC or CKB indexer payload is malformed, oversized or truncated.                                                          |
 | `HorizonResponseError`            | `"WRAITH/NETWORK/HORIZON_RESPONSE"`             | `url`, `field`, `reason`                           | Thrown when Horizon answers 2xx but the body is oversized, malformed, or does not match the request.                                                          |
 | `AgentResponseError`              | `"WRAITH/NETWORK/AGENT_RESPONSE"`               | `url`, `field`, `reason`                           | Thrown when the Wraith Agent API returns malformed JSON or invalid status/payment payloads.                                                                   |
 | `RPCRetryExhaustedError`          | `"WRAITH/NETWORK/RPC_RETRY_EXHAUSTED"`          | `url`, `attempts`, `lastError`                     | Thrown when all query retry strategies have timed out or failed.                                                                                              |
@@ -97,7 +99,7 @@ Thrown when HTTP queries to Wraith APIs, Horizon/Soroban endpoints, Solana clust
 | `AnnouncementBudgetExceededError` | `"WRAITH/NETWORK/ANNOUNCEMENT_BUDGET_EXCEEDED"` | `chain`, `budget`, `limit`, `fetched`, `cursor`    | Thrown when an announcement fetch reaches its `maxPages` or `maxItems` bound; `partial` holds the announcements fetched so far and `cursor` resumes the scan. |
 | `AnnouncementCursorError`         | `"WRAITH/NETWORK/ANNOUNCEMENT_CURSOR"`          | `chain`, `cursor`, `reason`                        | Thrown when a resume cursor is malformed, repeats forever, or is missing while more pages remain.                                                             |
 | `AnnouncementProviderError`       | `"WRAITH/NETWORK/ANNOUNCEMENT_PROVIDER"`        | `chain`, `endpoint`, `reason`, `retryable`         | Thrown when the EVM subgraph, Solana RPC or CKB indexer reports its own failure.                                                                              |
-| `AnnouncementResponseError`       | `"WRAITH/NETWORK/ANNOUNCEMENT_RESPONSE"`        | `chain`, `endpoint`, `field`, `reason`             | Thrown when a provider answers successfully but the payload is malformed; it is not retried.                                                                  |
+| `AnnouncementResponseError`       | `"WRAITH/NETWORK/ANNOUNCEMENT_RESPONSE"`        | `chain`, `endpoint`, `field`, `reason`             | Thrown when a provider answers successfully but the payload did not match the schema; it is not retried.                                                      |
 
 When the Horizon or Soroban RPC client gives up, `RPCRetryExhaustedError.cause` holds the last attempt's error, such as an `RPCTimeoutError`. See [Stellar Horizon and RPC request timeouts](./chains/stellar-request-timeouts.md).
 
@@ -106,6 +108,7 @@ The EVM, Solana and CKB announcement fetchers share the same bounds and error ty
 - `RPCRequestError`, `RPCTimeoutError`, `RPCAbortedError` and `RPCRetryExhaustedError` cover the transport: non-retryable HTTP statuses, per-attempt timeouts, caller cancellation and exhausted retries.
 - `AnnouncementProviderError` is a provider-level rejection (GraphQL `errors`, a JSON-RPC `error` object, or a rejected Solana RPC call). Retryable provider failures are retried first; if they persist, the last one is attached as `RPCRetryExhaustedError.cause`.
 - `AnnouncementResponseError` means the request succeeded but the payload did not match the schema, so retrying cannot help.
+- `RPCResponseError` covers the bounded body and record schemas shared by the EVM, Solana and CKB announcement sources. It reports `chain`, `operation` and the failing `field`; response values are never included in its message.
 - `AnnouncementCursorError` guards resumption: `reason` is `"malformed"` for a cursor this SDK did not produce, `"repeated"` when the provider returns the same cursor twice, and `"missing"` when it claims more pages without one.
 - `AnnouncementBudgetExceededError.partial` and `.cursor` keep partial progress, so a scan can persist its position and resume instead of restarting.
 
